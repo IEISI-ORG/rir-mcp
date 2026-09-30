@@ -6,7 +6,7 @@ import { renderNetwork } from '../../src/render/text';
 // Node's 250 ms Happy Eyeballs default times out on high-latency RIRs (e.g. LACNIC, AFRINIC from Australia).
 setDefaultAutoSelectFamilyAttemptTimeout(2000);
 
-// Opt-in: RIR_MCP_LIVE=1 RIR_MCP_OPERATOR=you@example.net pnpm test:live  (one query per RIR)
+// Opt-in: RIR_MCP_LIVE=1 RIR_MCP_OPERATOR='noc@your-domain.example' corepack pnpm test:live  (one query per RIR)
 describe.skipIf(process.env.RIR_MCP_LIVE !== '1')('live RDAP drift check', () => {
   let service: RirService;
   beforeAll(() => {

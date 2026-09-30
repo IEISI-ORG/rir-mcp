@@ -32,8 +32,8 @@ corepack pnpm test
 
 Format rules:
 
-- a single line,
-- no parentheses,
+- a single line of printable ASCII only,
+- no parentheses or semicolons,
 - at most 200 characters.
 
 Use a role mailbox (for example `noc@example.net`) or an issue-tracker URL rather than a personal address.
@@ -41,7 +41,7 @@ Use a role mailbox (for example `noc@example.net`) or an issue-tracker URL rathe
 ## Claude Code
 
 ```bash
-claude mcp add rir-mcp -s user -e RIR_MCP_OPERATOR=you@example.net -- \
+claude mcp add rir-mcp -s user -e RIR_MCP_OPERATOR='noc@your-domain.example' -- \
   "$PWD/node_modules/.bin/tsx" "$PWD/packages/node/src/stdio.ts"
 ```
 
@@ -59,13 +59,24 @@ Add an entry under `mcpServers` in `claude_desktop_config.json`, using absolute 
     "rir-mcp": {
       "command": "/absolute/path/to/rir-mcp/node_modules/.bin/tsx",
       "args": ["/absolute/path/to/rir-mcp/packages/node/src/stdio.ts"],
-      "env": { "RIR_MCP_OPERATOR": "you@example.net" }
+      "env": { "RIR_MCP_OPERATOR": "noc@your-domain.example" }
     }
   }
 }
 ```
 
 Restart Claude Desktop after editing the file.
+
+`node_modules/.bin/tsx` starts with `#!/usr/bin/env node`, so the app that launches it must find `node` on its PATH. GUI launchers often do not see nvm or similar. Either:
+
+- set `"command"` to the absolute path of `node` and put the tsx CLI first in `args`:
+
+  ```json
+  "command": "/absolute/path/to/node",
+  "args": ["/absolute/path/to/rir-mcp/node_modules/tsx/dist/cli.mjs", "/absolute/path/to/rir-mcp/packages/node/src/stdio.ts"]
+  ```
+
+- or add the directory that holds `node` to `env.PATH`.
 
 ## Checking that it works
 
@@ -78,7 +89,7 @@ Ask your MCP client, for example:
 To check the five registries directly (five live queries, one per RIR):
 
 ```bash
-RIR_MCP_OPERATOR=https://github.com/you/rir-mcp/issues corepack pnpm test:live
+RIR_MCP_OPERATOR='https://your-tracker.example/issues' corepack pnpm test:live
 ```
 
 ## Operations
@@ -109,7 +120,7 @@ The cache is in memory, holds up to 10,000 entries, and is lost when the server 
 ## Refreshing test fixtures
 
 ```bash
-RIR_MCP_OPERATOR=https://github.com/you/rir-mcp/issues corepack pnpm fixtures:record
+RIR_MCP_OPERATOR='https://your-tracker.example/issues' corepack pnpm fixtures:record
 corepack pnpm test
 ```
 

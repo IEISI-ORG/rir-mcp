@@ -15,7 +15,7 @@ Requires Node 22+ and pnpm (via Corepack).
 ```bash
 git clone https://github.com/IEISI-ORG/rir-mcp && cd rir-mcp
 corepack pnpm install
-claude mcp add rir-mcp -s user -e RIR_MCP_OPERATOR=you@example.net -- \
+claude mcp add rir-mcp -s user -e RIR_MCP_OPERATOR='noc@your-domain.example' -- \
   "$PWD/node_modules/.bin/tsx" "$PWD/packages/node/src/stdio.ts"
 ```
 
@@ -23,13 +23,13 @@ claude mcp add rir-mcp -s user -e RIR_MCP_OPERATOR=you@example.net -- \
 
 Then ask, for example: "Who holds 1.1.1.1?", "Who is AS4608?", "What's the history of 1.1.1.1?".
 
-See docs/deployment.md for installation, configuration and troubleshooting.
+See [docs/deployment.md](docs/deployment.md) for installation, configuration and troubleshooting.
 
 ## Tests
 
 ```bash
 corepack pnpm test                                                                   # offline, uses recorded fixtures
-RIR_MCP_OPERATOR=https://github.com/you/rir-mcp/issues corepack pnpm test:live       # one live query per RIR
+RIR_MCP_OPERATOR='https://your-tracker.example/issues' corepack pnpm test:live       # one live query per RIR
 ```
 
 ## Terms of Use
