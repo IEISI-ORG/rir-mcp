@@ -1,0 +1,1072 @@
+{
+  "handle": "AS3333",
+  "startAutnum": 3333,
+  "endAutnum": 3333,
+  "name": "RIPE-NCC-AS",
+  "status": [
+    "active"
+  ],
+  "entities": [
+    {
+      "handle": "MDIR-RIPE",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Managing Director"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "group"
+          ],
+          [
+            "adr",
+            {
+              "label": "RIPE Network Coordination Centre\nP.O. Box 10096\n1001 EB Amsterdam\nthe Netherlands"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+31 20 535 4444"
+          ],
+          [
+            "org",
+            {},
+            "text",
+            "ORG-NCC1-RIPE"
+          ]
+        ]
+      ],
+      "roles": [
+        "administrative"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.db.ripe.net/autnum/3333",
+          "rel": "self",
+          "href": "https://rdap.db.ripe.net/entity/MDIR-RIPE"
+        },
+        {
+          "value": "http://www.ripe.net/data-tools/support/documentation/terms",
+          "rel": "copyright",
+          "href": "http://www.ripe.net/data-tools/support/documentation/terms"
+        }
+      ],
+      "objectClassName": "entity"
+    },
+    {
+      "handle": "OPS4-RIPE",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "RIPE NCC Operations"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "group"
+          ],
+          [
+            "adr",
+            {
+              "label": "Stationsplein 11\n1012 AB Amsterdam\nThe Netherlands"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+31 20 535 4444"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "text",
+            "+31 20 535 4445"
+          ],
+          [
+            "email",
+            {
+              "type": "abuse"
+            },
+            "text",
+            "abuse@ripe.net"
+          ]
+        ]
+      ],
+      "roles": [
+        "technical"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.db.ripe.net/autnum/3333",
+          "rel": "self",
+          "href": "https://rdap.db.ripe.net/entity/OPS4-RIPE"
+        },
+        {
+          "value": "http://www.ripe.net/data-tools/support/documentation/terms",
+          "rel": "copyright",
+          "href": "http://www.ripe.net/data-tools/support/documentation/terms"
+        }
+      ],
+      "objectClassName": "entity"
+    },
+    {
+      "handle": "ORG-RIEN1-RIPE",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "org"
+          ],
+          [
+            "adr",
+            {
+              "label": "P.O. Box 10096\n1001 EB\nAmsterdam\nNETHERLANDS"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+31205354444"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "text",
+            "+31205354445"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrant"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.db.ripe.net/autnum/3333",
+          "rel": "self",
+          "href": "https://rdap.db.ripe.net/entity/ORG-RIEN1-RIPE"
+        },
+        {
+          "value": "http://www.ripe.net/data-tools/support/documentation/terms",
+          "rel": "copyright",
+          "href": "http://www.ripe.net/data-tools/support/documentation/terms"
+        }
+      ],
+      "objectClassName": "entity"
+    },
+    {
+      "handle": "EXAMPLE-PERSON-1",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Example Person 1"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "individual"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "person-1@example.net"
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "uri",
+            "tel:+00-0000-0000"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrant"
+      ],
+      "objectClassName": "entity"
+    },
+    {
+      "handle": "EXAMPLE-PERSON-2",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Example Person 2"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "individual"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "person-2@example.net"
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "uri",
+            "tel:+00-0000-0000"
+          ]
+        ]
+      ],
+      "roles": [
+        "registrant"
+      ],
+      "objectClassName": "entity"
+    },
+    {
+      "handle": "OPS4-RIPE",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "RIPE NCC Operations"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "group"
+          ],
+          [
+            "adr",
+            {
+              "label": "Stationsplein 11\n1012 AB Amsterdam\nThe Netherlands"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+31 20 535 4444"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "text",
+            "+31 20 535 4445"
+          ],
+          [
+            "email",
+            {
+              "type": "abuse"
+            },
+            "text",
+            "abuse@ripe.net"
+          ]
+        ]
+      ],
+      "roles": [
+        "abuse"
+      ],
+      "entities": [
+        {
+          "handle": "EXAMPLE-PERSON-3",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 3"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-3@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-4",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 4"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-4@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "MDIR-RIPE",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Managing Director"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "group"
+              ],
+              [
+                "adr",
+                {
+                  "label": "RIPE Network Coordination Centre\nP.O. Box 10096\n1001 EB Amsterdam\nthe Netherlands"
+                },
+                "text",
+                [
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                ]
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "text",
+                "+31 20 535 4444"
+              ],
+              [
+                "org",
+                {},
+                "text",
+                "ORG-NCC1-RIPE"
+              ]
+            ]
+          ],
+          "roles": [
+            "administrative"
+          ],
+          "links": [
+            {
+              "value": "https://rdap.db.ripe.net/autnum/3333",
+              "rel": "self",
+              "href": "https://rdap.db.ripe.net/entity/MDIR-RIPE"
+            },
+            {
+              "value": "http://www.ripe.net/data-tools/support/documentation/terms",
+              "rel": "copyright",
+              "href": "http://www.ripe.net/data-tools/support/documentation/terms"
+            }
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-5",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 5"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-5@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-6",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 6"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-6@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-7",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 7"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-7@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-8",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 8"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-8@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "registrant"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-9",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 9"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-9@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-10",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 10"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-10@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-11",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 11"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-11@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        },
+        {
+          "handle": "EXAMPLE-PERSON-12",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Example Person 12"
+              ],
+              [
+                "kind",
+                {},
+                "text",
+                "individual"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "person-12@example.net"
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:+00-0000-0000"
+              ]
+            ]
+          ],
+          "roles": [
+            "technical"
+          ],
+          "objectClassName": "entity"
+        }
+      ],
+      "objectClassName": "entity"
+    }
+  ],
+  "remarks": [
+    {
+      "description": [
+        "[scrubbed]"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-up",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-up/AS3333",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-up rdap-active",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-up/AS3333?status=active",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-down",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-down/AS3333",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-top",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-top/AS3333",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-top rdap-active",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-top/AS3333?status=active",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "rdap-bottom",
+      "href": "https://rdap.db.ripe.net/autnums/rirSearch1/rdap-bottom/AS3333",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://rdap.db.ripe.net/autnum/3333",
+      "rel": "self",
+      "href": "https://rdap.db.ripe.net/autnum/3333",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "http://www.ripe.net/data-tools/support/documentation/terms",
+      "rel": "copyright",
+      "href": "http://www.ripe.net/data-tools/support/documentation/terms"
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2002-08-13T12:58:13Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-03-19T09:33:32Z"
+    }
+  ],
+  "rdapConformance": [
+    "nro_rdap_profile_asn_flat_0",
+    "rirSearch1",
+    "autnums",
+    "cidr0",
+    "rdap_level_0",
+    "nro_rdap_profile_0",
+    "redacted"
+  ],
+  "notices": [
+    {
+      "title": "Filtered",
+      "description": [
+        "[scrubbed]"
+      ]
+    },
+    {
+      "title": "Whois Inaccuracy Reporting",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.db.ripe.net/autnum/3333",
+          "rel": "inaccuracy-report",
+          "href": "https://www.ripe.net/contact-form?topic=ripe_dbm&show_form=true",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Source",
+      "description": [
+        "[scrubbed]"
+      ]
+    },
+    {
+      "title": "Terms and Conditions",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.db.ripe.net/autnum/3333",
+          "rel": "terms-of-service",
+          "href": "http://www.ripe.net/db/support/db-terms-conditions.pdf",
+          "type": "application/pdf"
+        }
+      ]
+    }
+  ],
+  "port43": "whois.ripe.net",
+  "objectClassName": "autnum",
+  "redacted": [
+    {
+      "name": {
+        "description": "Personal e-mail information"
+      },
+      "reason": {
+        "description": "Personal data"
+      },
+      "prePath": "$.entities[?(@.handle=='MDIR-RIPE')].vcardArray[1][?(@[0]=='e-mail')]",
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Personal e-mail information"
+      },
+      "reason": {
+        "description": "Personal data"
+      },
+      "prePath": "$.entities[?(@.handle=='OPS4-RIPE')].vcardArray[1][?(@[0]=='e-mail')]",
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Personal e-mail information"
+      },
+      "reason": {
+        "description": "Personal data"
+      },
+      "prePath": "$.entities[?(@.handle=='ORG-RIEN1-RIPE')].vcardArray[1][?(@[0]=='e-mail')]",
+      "method": "removal"
+    },
+    {
+      "name": {
+        "description": "Personal e-mail information"
+      },
+      "reason": {
+        "description": "Personal data"
+      },
+      "prePath": "$.entities[?(@.handle=='OPS4-RIPE')].vcardArray[1][?(@[0]=='e-mail')]",
+      "method": "removal"
+    }
+  ]
+}

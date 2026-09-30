@@ -1,0 +1,224 @@
+{
+  "rdapConformance": [
+    "history_version_0",
+    "nro_rdap_profile_0",
+    "cidr0",
+    "rdap_level_0"
+  ],
+  "notices": [
+    {
+      "title": "Source",
+      "description": [
+        "[scrubbed]"
+      ]
+    },
+    {
+      "title": "Terms and Conditions",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+          "rel": "terms-of-service",
+          "href": "http://www.apnic.net/db/dbcopyright.html",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Whois Inaccuracy Reporting",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+          "rel": "inaccuracy-report",
+          "href": "https://www.apnic.net/manage-ip/using-whois/abuse-and-spamming/invalid-contact-form",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2018-03-27T00:31:42Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2025-01-07T05:32:55Z"
+    }
+  ],
+  "links": [
+    {
+      "value": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+      "rel": "self",
+      "href": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+      "type": "application/rdap+json"
+    }
+  ],
+  "remarks": [
+    {
+      "description": [
+        "[scrubbed]"
+      ],
+      "title": "description"
+    }
+  ],
+  "entities": [
+    {
+      "roles": [
+        "administrative",
+        "technical"
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventDate": "2011-08-22T06:00:02Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventDate": "2018-04-04T04:26:04Z"
+        }
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+          "rel": "self",
+          "href": "https://rdap.apnic.net/entity/AR302-AP",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "AR302-AP",
+      "objectClassName": "entity",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "APNIC RESEARCH"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "group"
+          ],
+          [
+            "adr",
+            {
+              "label": "PO Box 3646\nSouth Brisbane, QLD 4101\nAustralia"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+61-7-3858-3188"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "text",
+            "+61-7-3858-3199"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "research@apnic.net"
+          ]
+        ]
+      ]
+    }
+  ],
+  "handle": "1.1.1.in-addr.arpa",
+  "nameservers": [
+    {
+      "ldhName": "alec.ns.cloudflare.com.",
+      "objectClassName": "nameserver"
+    },
+    {
+      "ldhName": "mira.ns.cloudflare.com.",
+      "objectClassName": "nameserver"
+    }
+  ],
+  "network": {
+    "country": "AU",
+    "name": "APNIC-LABS",
+    "status": [
+      "active"
+    ],
+    "events": [
+      {
+        "eventAction": "registration",
+        "eventDate": "2011-08-10T23:12:35Z"
+      },
+      {
+        "eventAction": "last changed",
+        "eventDate": "2023-04-26T22:57:58Z"
+      }
+    ],
+    "links": [
+      {
+        "value": "https://rdap.apnic.net/domain/1.1.1.in-addr.arpa",
+        "rel": "self",
+        "href": "https://rdap.apnic.net/ip/1.1.1.0/24",
+        "type": "application/rdap+json"
+      }
+    ],
+    "remarks": [
+      {
+        "description": [
+          "[scrubbed]"
+        ],
+        "title": "description"
+      },
+      {
+        "description": [
+          "[scrubbed]"
+        ],
+        "title": "remarks"
+      }
+    ],
+    "handle": "1.1.1.0 - 1.1.1.255",
+    "type": "ASSIGNED PORTABLE",
+    "startAddress": "1.1.1.0",
+    "endAddress": "1.1.1.255",
+    "objectClassName": "ip network",
+    "ipVersion": "v4",
+    "cidr0_cidrs": [
+      {
+        "v4prefix": "1.1.1.0",
+        "length": 24
+      }
+    ]
+  },
+  "objectClassName": "domain",
+  "ldhName": "1.1.1.in-addr.arpa.",
+  "port43": "whois.apnic.net"
+}

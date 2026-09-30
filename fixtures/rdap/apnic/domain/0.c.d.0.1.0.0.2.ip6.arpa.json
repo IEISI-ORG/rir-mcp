@@ -1,0 +1,284 @@
+{
+  "rdapConformance": [
+    "history_version_0",
+    "nro_rdap_profile_0",
+    "cidr0",
+    "rdap_level_0"
+  ],
+  "notices": [
+    {
+      "title": "Source",
+      "description": [
+        "[scrubbed]"
+      ]
+    },
+    {
+      "title": "Terms and Conditions",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+          "rel": "terms-of-service",
+          "href": "http://www.apnic.net/db/dbcopyright.html",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Whois Inaccuracy Reporting",
+      "description": [
+        "[scrubbed]"
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+          "rel": "inaccuracy-report",
+          "href": "https://www.apnic.net/manage-ip/using-whois/abuse-and-spamming/invalid-contact-form",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2008-09-04T06:43:59Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2024-11-14T08:04:38Z"
+    }
+  ],
+  "links": [
+    {
+      "value": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+      "rel": "self",
+      "href": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+      "type": "application/rdap+json"
+    }
+  ],
+  "remarks": [
+    {
+      "description": [
+        "[scrubbed]"
+      ],
+      "title": "description"
+    }
+  ],
+  "entities": [
+    {
+      "roles": [
+        "technical"
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventDate": "2008-09-04T07:54:16Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventDate": "2026-08-26T00:40:01Z"
+        }
+      ],
+      "links": [
+        {
+          "value": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+          "rel": "self",
+          "href": "https://rdap.apnic.net/entity/AIC1-AP",
+          "type": "application/rdap+json"
+        }
+      ],
+      "handle": "AIC1-AP",
+      "objectClassName": "entity",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "APNIC Infrastructure Contact"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "group"
+          ],
+          [
+            "adr",
+            {
+              "label": "PO Box 3646\nSouth Brisbane\nQLD 4101"
+            },
+            "text",
+            [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "text",
+            "+61 7 3858 3100"
+          ],
+          [
+            "tel",
+            {
+              "type": "fax"
+            },
+            "text",
+            "+61 7 3858 3199"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "helpdesk@apnic.net"
+          ]
+        ]
+      ]
+    },
+    {
+      "roles": [
+        "administrative",
+        "technical"
+      ],
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventDate": "2008-09-04T07:29:15Z"
+        },
+        {
+          "eventAction": "last changed",
+          "eventDate": "2026-08-26T00:40:01Z"
+        }
+      ],
+      "remarks": [
+        {
+          "description": [
+            "[scrubbed]"
+          ],
+          "title": "remarks"
+        }
+      ],
+      "handle": "EXAMPLE-PERSON-1",
+      "objectClassName": "entity",
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Example Person 1"
+          ],
+          [
+            "kind",
+            {},
+            "text",
+            "individual"
+          ],
+          [
+            "email",
+            {},
+            "text",
+            "person-1@example.net"
+          ],
+          [
+            "tel",
+            {
+              "type": "voice"
+            },
+            "uri",
+            "tel:+00-0000-0000"
+          ]
+        ]
+      ]
+    }
+  ],
+  "handle": "0.c.d.0.1.0.0.2.ip6.arpa",
+  "nameservers": [
+    {
+      "ldhName": "ns1.apnic.net.",
+      "objectClassName": "nameserver"
+    },
+    {
+      "ldhName": "ns2.apnic.net.",
+      "objectClassName": "nameserver"
+    },
+    {
+      "ldhName": "ns4.apnic.net.",
+      "objectClassName": "nameserver"
+    }
+  ],
+  "network": {
+    "country": "AU",
+    "name": "APNIC-SERVICES",
+    "status": [
+      "active"
+    ],
+    "events": [
+      {
+        "eventAction": "registration",
+        "eventDate": "2008-09-04T06:49:16Z"
+      },
+      {
+        "eventAction": "last changed",
+        "eventDate": "2026-08-26T00:40:01Z"
+      }
+    ],
+    "links": [
+      {
+        "value": "https://rdap.apnic.net/domain/0.c.d.0.1.0.0.2.ip6.arpa",
+        "rel": "self",
+        "href": "https://rdap.apnic.net/ip/2001:dc0::/32",
+        "type": "application/rdap+json"
+      }
+    ],
+    "remarks": [
+      {
+        "description": [
+          "[scrubbed]"
+        ],
+        "title": "description"
+      }
+    ],
+    "handle": "2001:dc0::/32",
+    "type": "ASSIGNED PORTABLE",
+    "startAddress": "2001:dc0::",
+    "endAddress": "2001:dc0:ffff:ffff:ffff:ffff:ffff:ffff",
+    "objectClassName": "ip network",
+    "ipVersion": "v6",
+    "cidr0_cidrs": [
+      {
+        "v6prefix": "2001:dc0::",
+        "length": 32
+      }
+    ]
+  },
+  "objectClassName": "domain",
+  "ldhName": "0.c.d.0.1.0.0.2.ip6.arpa.",
+  "port43": "whois.apnic.net"
+}
