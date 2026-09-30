@@ -172,6 +172,16 @@ describe('RirService.history', () => {
     expect(rdapCalls().filter((u) => u === HIST_URL)).toHaveLength(2);
   });
 
+  it('answers cold history for a not-found entity on a full bucket at the first call', async () => {
+    const entity = loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json');
+    const { service } = setup({
+      [`${APNIC}history/entity/ORG-GONE1-AP`]: {
+        body: { records: [{ applicableFrom: '2020-01-01T00:00:00Z', applicableUntil: null, content: entity }] },
+      },
+    });
+    expect(await service.history({ resource: 'ORG-GONE1-AP', type: 'entity' })).toMatchObject({ kind: 'record' });
+  });
+
   it('answers cold entity history on a full bucket at the first call', async () => {
     const entity = loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json');
     const { service } = setup({

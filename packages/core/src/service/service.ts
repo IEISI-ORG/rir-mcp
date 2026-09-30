@@ -182,7 +182,9 @@ export class RirService {
       let companion: Answer<{ readonly changed?: string }> | undefined = target.preloaded;
       const load = async () => (companion ??= await target.loadCurrent());
       const force = await this.historyIsStale(key, load);
-      const misses = companion?.kind === 'record' && companion.meta.cache === 'miss' ? 1 : 0;
+      // Any companion that reached upstream (miss, stale after failure, not_found) already spent a token.
+      const misses = companion && ((companion.kind === 'record' && companion.meta.cache !== 'hit')
+        || (companion.kind === 'error' && companion.code === 'not_found')) ? 1 : 0;
       const validatedFor = companion?.kind === 'record' ? companion.record.changed : undefined;
       const out = await this.fetcher.get({
         key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), freshS: TTL_S.history, staleS: TTL_S.historyStale,
