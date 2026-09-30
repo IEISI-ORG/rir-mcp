@@ -68,6 +68,24 @@ describe('fetchJson', () => {
     const down: FetchLike = async () => { throw new TypeError('fetch failed'); };
     expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, deps(down)))).toBe('upstream');
   });
+
+  it('maps streaming body errors to RdapError', async () => {
+    const timeoutBody: FetchLike = async () => new Response(new ReadableStream({
+      start(c) { c.enqueue(new Uint8Array(10)); setTimeout(() => c.error(Object.assign(new Error('t'), { name: 'TimeoutError' })), 0); },
+    }));
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, deps(timeoutBody)))).toBe('timeout');
+
+    const resetBody: FetchLike = async () => new Response(new ReadableStream({
+      start(c) { c.enqueue(new Uint8Array(10)); setTimeout(() => c.error(new TypeError('reset')), 0); },
+    }));
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, deps(resetBody)))).toBe('upstream');
+  });
+
+  it('maps unparseable redirect Location to redirect_blocked', async () => {
+    const badLocation = fakeFetch({ [URL_A]: { status: 302, headers: { location: 'https://[bad' } } });
+    const allow = () => true;
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(badLocation)))).toBe('redirect_blocked');
+  });
 });
 
 describe('buildUserAgent', () => {

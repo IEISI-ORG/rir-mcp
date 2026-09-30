@@ -50,16 +50,26 @@ async function send(target: string, deps: HttpDeps): Promise<Response> {
       signal: AbortSignal.timeout(deps.timeoutMs ?? 10_000),
     });
   } catch (err) {
-    const name = (err as { name?: unknown }).name;
-    if (name === 'TimeoutError' || name === 'AbortError') throw new RdapError('timeout', `Timed out fetching ${target}`);
-    throw new RdapError('upstream', `Network error fetching ${target}`);
+    throw mapNetworkError(err, `Fetching ${target}`);
   }
+}
+
+function mapNetworkError(err: unknown, context: string): RdapError {
+  if (err instanceof RdapError) return err;
+  const name = (err as { name?: unknown }).name;
+  if (name === 'TimeoutError' || name === 'AbortError') return new RdapError('timeout', `Timed out ${context}`);
+  return new RdapError('upstream', `Network error ${context}`);
 }
 
 function redirectTarget(res: Response, from: string, hop: number, opts: FetchJsonOptions): string {
   const location = res.headers.get('location');
   if (!location || hop > 0) throw new RdapError('redirect_blocked', `Unfollowable redirect from ${from}`, { status: res.status });
-  const next = new URL(location, from);
+  let next: URL;
+  try {
+    next = new URL(location, from);
+  } catch {
+    throw new RdapError('redirect_blocked', `Invalid redirect Location from ${from}`, { status: res.status });
+  }
   if (next.protocol !== 'https:' || !opts.allowRedirectTo?.(next.hostname)) {
     throw new RdapError('redirect_blocked', `Redirect to ${next.hostname} is not an RDAP bootstrap host`, { status: res.status });
   }
@@ -73,15 +83,19 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      await reader.cancel();
-      throw new RdapError('too_large', `Response exceeded ${maxBytes} bytes`);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new RdapError('too_large', `Response exceeded ${maxBytes} bytes`);
+      }
+      chunks.push(value);
     }
-    chunks.push(value);
+  } catch (err) {
+    throw mapNetworkError(err, 'reading response body');
   }
   const buf = new Uint8Array(total);
   let offset = 0;
