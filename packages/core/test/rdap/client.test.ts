@@ -97,7 +97,7 @@ describe('buildUserAgent', () => {
       'rir-mcp/0.1.0 (+https://github.com/IEISI-ORG/rir-mcp; operator=noc@example.net)',
     );
   });
-  it.each(['', '  ', 'a\nb', 'x (y)', 'x'.repeat(201)])('rejects %j', (op) => {
+  it.each(['', '  ', 'a\nb', 'x (y)', 'x'.repeat(201), 'ops@例え.jp', 'Иван <ivan@x.ru>', 'nul\u0000x', 'a;b'])('rejects %j', (op) => {
     expect(() => buildUserAgent(op)).toThrow('operator');
   });
 });
