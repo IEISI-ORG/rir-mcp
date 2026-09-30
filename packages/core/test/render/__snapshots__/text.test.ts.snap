@@ -1,0 +1,123 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/afrinic/autnum/33764.json 1`] = `
+"asn       AS33764  ORG-AFNC1-AFRINIC  (active)
+holder    African Network Information Center - (AfriNIC) Ltd  [ORG-AFNC1-AFRINIC]
+abuse     contact@afrinic.net  [ORG-AFNC1-AFRINIC]
+tech      personal contact, not disclosed
+dates     registered 2005-02-21, changed 2016-05-26
+source    AFRINIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/afrinic/ip/196.216.2.1.json 1`] = `
+"network   196.216.2.0/23  ORG-AFNC1-AFRINIC  (ZA, ASSIGNED PI, active)
+holder    African Network Information Center - (AfriNIC) Ltd  [ORG-AFNC1-AFRINIC]
+abuse     contact@afrinic.net  [ORG-AFNC1-AFRINIC]
+tech      personal contact, not disclosed
+dates     registered 2005-02-21, changed 2020-08-18
+source    AFRINIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/autnum/4608.json 1`] = `
+"asn       AS4608  APNIC-SERVICES  (AU, active)
+holder    Asia Pacific Network Information Centre  [ORG-APNI1-AP]
+abuse     helpdesk@apnic.net  [IRT-APNIC-IS-AP]
+tech      helpdesk@apnic.net  [AIC1-AP]
+dates     registered 2008-09-04, changed 2026-08-26
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/domain/0.c.d.0.1.0.0.2.ip6.arpa.json 1`] = `
+"zone      0.c.d.0.1.0.0.2.ip6.arpa
+nameservers ns1.apnic.net, ns2.apnic.net, ns4.apnic.net
+dnssec    not signed (no DS in registry)
+dates     registered 2008-09-04, changed 2024-11-14
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/domain/1.1.1.in-addr.arpa.json 1`] = `
+"zone      1.1.1.in-addr.arpa
+nameservers alec.ns.cloudflare.com, mira.ns.cloudflare.com
+dnssec    not signed (no DS in registry)
+dates     registered 2018-03-27, changed 2025-01-07
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/entity/ORG-ARAD1-AP.json 1`] = `
+"entity    APNIC Research and Development  [ORG-ARAD1-AP]  (org)
+email     helpdesk@apnic.net
+dates     registered 2017-08-08, changed 2023-09-05
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/ip/1.1.1.1.json 1`] = `
+"network   1.1.1.0/24  APNIC-LABS  (AU, ASSIGNED PORTABLE, active)
+holder    APNIC Research and Development  [ORG-ARAD1-AP]
+abuse     helpdesk@apnic.net  [IRT-APNICRANDNET-AU]
+tech      research@apnic.net  [AIC3-AP]
+dates     registered 2011-08-10, changed 2023-04-26
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/apnic/ip/2001_dc0__1.json 1`] = `
+"network   2001:dc0::/35  APNIC-AP-V6-JP  (AU, ASSIGNED PORTABLE, active)
+holder    Asia Pacific Network Information Centre  [ORG-APNI1-AP]
+abuse     helpdesk@apnic.net  [IRT-APNIC-AP]
+tech      personal contact, not disclosed
+dates     registered 2008-09-04, changed 2017-12-14
+source    APNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/arin/autnum/15169.json 1`] = `
+"asn       AS15169  GOOGLE  (active)
+holder    Google LLC  [GOGL]
+abuse     network-abuse@google.com  [ABUSE5250-ARIN]
+tech      arin-contact@google.com  [ZG39-ARIN]
+dates     registered 2000-03-30, changed 2012-02-24
+source    ARIN RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/arin/ip/8.8.8.8.json 1`] = `
+"network   8.8.8.0/24  GOGL  (DIRECT ALLOCATION, active)
+holder    Google LLC  [GOGL]
+abuse     network-abuse@google.com  [ABUSE5250-ARIN]
+tech      arin-contact@google.com  [ZG39-ARIN]
+dates     registered 2023-12-28, changed 2023-12-28
+source    ARIN RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/lacnic/autnum/28000.json 1`] = `
+"asn       AS28000  28000  (active)
+holder    LACNIC - Latin American and Caribbean IP address  [UY-LACN-LACNIC]
+abuse     personal contact, not disclosed; see https://rdap.apnic.net/ip/1.1.1.1
+tech      personal contact, not disclosed
+dates     registered 2005-10-05, changed 2024-09-17
+source    LACNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/lacnic/ip/200.3.14.10.json 1`] = `
+"network   200.3.12.0/22  200.3.12.0 - 200.3.15.255  (ASSIGNED, active)
+holder    LACNIC - Latin American and Caribbean IP address  [UY-LACN-LACNIC]
+abuse     personal contact, not disclosed; see https://rdap.apnic.net/ip/1.1.1.1
+tech      personal contact, not disclosed
+dates     registered 2008-09-02, changed 2008-09-02
+source    LACNIC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/ripe/autnum/3333.json 1`] = `
+"asn       AS3333  RIPE-NCC-AS  (active)
+holder    Reseaux IP Europeens Network Coordination Centre (RIPE NCC)  [ORG-RIEN1-RIPE]
+abuse     abuse@ripe.net  [OPS4-RIPE]
+tech      abuse@ripe.net  [OPS4-RIPE]
+dates     registered 2002-08-13, changed 2026-03-19
+source    RIPE NCC RDAP, fetched just now"
+`;
+
+exports[`token budget: every current-record fixture renders under 600 bytes > rdap/ripe/ip/193.0.6.139.json 1`] = `
+"network   193.0.0.0/21  RIPE-NCC  (NL, ASSIGNED PA, active)
+holder    Reseaux IP Europeens Network Coordination Centre (RIPE NCC)  [ORG-RIEN1-RIPE]
+abuse     abuse@ripe.net  [OPS4-RIPE]
+tech      abuse@ripe.net  [OPS4-RIPE]
+dates     registered 2003-03-17, changed 2026-03-19
+source    RIPE NCC RDAP, fetched just now"
+`;
