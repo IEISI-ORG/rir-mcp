@@ -70,8 +70,12 @@ export class Bootstrap {
     try {
       const raw = await this.fetchAll();
       const t = this.clock.now();
+      const index = this.parse(raw, t);
+      if (index.ip.length === 0 && index.asn.length === 0) {
+        throw new RdapError('bad_response', 'IANA bootstrap response has no valid services');
+      }
       await this.cache.put(CACHE_KEY, { value: raw, fetchedAt: t, freshUntil: t + FRESH_MS, staleUntil: t + STALE_MS });
-      return this.parse(raw, t);
+      return index;
     } catch (err) {
       if (entry) return this.parse(entry.value, entry.fetchedAt);
       if (err instanceof RdapError) throw new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
@@ -94,22 +98,34 @@ export class Bootstrap {
   private parse(raw: RawBootstrap, fetchedAt: number): Index {
     if (this.parsed?.fetchedAt === fetchedAt) return this.parsed.index;
     const index: Index = { ip: [], asn: [], bases: new Map(), hosts: new Set() };
-    const routeOf = (urls: readonly string[]): Route | null => {
-      const https = urls.find((u) => u.startsWith('https://'));
-      if (!https) return null;
-      const host = new URL(https).hostname;
-      const rir = RIR_HOSTS[host];
-      if (!rir) return null;
-      const baseUrl = https.endsWith('/') ? https : `${https}/`;
-      index.bases.set(rir, baseUrl);
-      index.hosts.add(host);
-      return { rir, baseUrl };
+    const routeOf = (urls: unknown): Route | null => {
+      if (!Array.isArray(urls)) return null;
+      for (const url of urls) {
+        if (typeof url !== 'string') continue;
+        if (!url.startsWith('https://')) continue;
+        try {
+          const host = new URL(url).hostname;
+          const rir = RIR_HOSTS[host];
+          if (!rir) continue;
+          const baseUrl = url.endsWith('/') ? url : `${url}/`;
+          index.bases.set(rir, baseUrl);
+          index.hosts.add(host);
+          return { rir, baseUrl };
+        } catch {
+          // Skip URLs that fail to parse.
+        }
+      }
+      return null;
     };
     for (const file of [raw.ipv4, raw.ipv6]) {
-      for (const [ranges, urls] of file.services) {
+      for (const entry of file.services) {
+        if (!Array.isArray(entry) || entry.length !== 2) continue;
+        const [ranges, urls] = entry;
+        if (!Array.isArray(ranges)) continue;
         const route = routeOf(urls);
         if (!route) continue;
         for (const r of ranges) {
+          if (typeof r !== 'string') continue;
           try {
             index.ip.push({ prefix: parseIpOrCidr(r), route });
           } catch {
@@ -118,10 +134,14 @@ export class Bootstrap {
         }
       }
     }
-    for (const [ranges, urls] of raw.asn.services) {
+    for (const entry of raw.asn.services) {
+      if (!Array.isArray(entry) || entry.length !== 2) continue;
+      const [ranges, urls] = entry;
+      if (!Array.isArray(ranges)) continue;
       const route = routeOf(urls);
       if (!route) continue;
       for (const r of ranges) {
+        if (typeof r !== 'string') continue;
         const [a, b] = r.split('-');
         const start = Number(a);
         const end = Number(b ?? a);

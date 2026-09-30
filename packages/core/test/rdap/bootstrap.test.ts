@@ -76,4 +76,40 @@ describe('Bootstrap', () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
   });
+
+  it('skips malformed services and never crashes on unparseable URLs', async () => {
+    const route = (body: unknown) => (): FakeRoute => ({ body });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route({
+        services: [
+          [['1.0.0.0/8'], ['https://rdap.apnic.net/']],
+          [['2.0.0.0/8'], 'not-an-array'],  // Invalid: urls is not an array
+          [['3.0.0.0/8'], ['https://[']],   // Invalid: unparseable URL
+        ],
+      }),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route({ services: [] }),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route({ services: [] }),
+    });
+    const clock = new FakeClock();
+    const cache = new MemoryCache(clock);
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache, clock });
+    expect(await boot.routeIp(parseIpOrCidr('1.1.1.1'))).toEqual({ rir: 'apnic', baseUrl: 'https://rdap.apnic.net/' });
+    expect(await boot.routeIp(parseIpOrCidr('2.2.2.2'))).toBeNull();
+    expect(await boot.routeIp(parseIpOrCidr('3.3.3.3'))).toBeNull();
+  });
+
+  it('uses stale data when fresh fetch yields no routes', async () => {
+    const { fetch, clock, cache } = setup();
+    const first = new Bootstrap({ http: { fetch, userAgent: 't' }, cache, clock });
+    await first.routeAsn(4608);
+    clock.advance(25 * 3_600_000);
+    const noRoutes = (body: unknown) => (): FakeRoute => ({ body });
+    const badFetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: noRoutes({ services: [[['x'], ['https://[']]] }),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: noRoutes({ services: [[['x'], ['https://[']]] }),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: noRoutes({ services: [[['x'], ['https://[']]] }),
+    });
+    const second = new Bootstrap({ http: { fetch: badFetch, userAgent: 't' }, cache, clock });
+    expect((await second.routeAsn(4608))?.rir).toBe('apnic');
+  });
 });
