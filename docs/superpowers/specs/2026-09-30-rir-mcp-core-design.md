@@ -89,7 +89,7 @@ Files stay under 400 lines. `tools/*` only wire input → pipeline → render.
 |---|---|---|
 | `rdap_ip_lookup` | one IPv4/IPv6 address or CIDR | `/ip/{x}` |
 | `rdap_asn_lookup` | `AS4608` or `4608` | `/autnum/{n}` |
-| `rdap_entity_lookup` | handle, `^[A-Z0-9][A-Z0-9-]{0,63}$` (case-insensitive, upper-cased) | `/entity/{h}` |
+| `rdap_entity_lookup` | handle, `^[A-Z0-9][A-Z0-9-]{0,63}$` (case-insensitive, upper-cased) + optional `rir` (inferred from suffixes `-AP`, `-ARIN`, `-RIPE`, `-LACNIC`, `-AFRINIC`; required otherwise, e.g. `IRT-APNICRANDNET-AU`) | `/entity/{h}` |
 | `rdap_reverse_dns` | address or prefix; tool derives the zone | `/domain/{zone}`, walking to shorter zones on 404 (v4: /24 → /16 → /8; v6: nibble boundaries) |
 | `rdap_history` | same inputs as above + `at?` (ISO date), `since?` (ISO date), `detail` = `summary` \| `full` | `/history/{type}/{x}` (APNIC only) |
 
@@ -201,7 +201,7 @@ Keys are exact canonical queries (`ip:1.1.1.1`, `asn:4608`, `hist:ip:1.1.1.0/24`
 | IANA bootstrap | 24 h | 7 days |
 | Special-use tables | bundled per release | — |
 
-**History validation:** history is append-only; closed records never change. Before serving cached history, compare its newest `applicableFrom` with the current record's `last changed` event (from cache, or a weight-1 fetch). Equal → serve; different → refetch history (weight 5).
+**History validation:** history is append-only; closed records never change. Before serving cached history, compare the newest `applicableFrom` date in it with the current record's `last changed` date (from cache, or a weight-1 fetch). `last changed` later than the newest history record → refetch history (weight 5); otherwise serve. (Equality is not the test: embedded contact changes also create history records, so the newest record is often *later* than `last changed` — e.g. 1.1.1.0/24: newest record 2025-11-18, `last changed` 2023-04-26 [PROBE-HIST].) To avoid refetch loops when APNIC's history lags, refetch at most once per `last changed` date.
 
 ### Per-RIR limit profiles
 
@@ -219,7 +219,7 @@ On upstream 429 or 5xx the RIR's rate halves for 5 minutes, then restores. Profi
 
 | | Node | Worker |
 |---|---|---|
-| Cache | in-memory LRU, 10k entries | `StateDO` SQLite |
+| Cache | in-memory LRU, 10k entries (implemented in `core/src/memory/`: no runtime imports, so it lives in core and Node re-uses it) | `StateDO` SQLite |
 | Limiter + quotas + scan counters | in-process | `StateDO` |
 | Keys | `RIR_MCP_API_KEY` env, or keys file of SHA-256 hashes | secret or KV (§7) |
 
