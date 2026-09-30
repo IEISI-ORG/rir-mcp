@@ -78,6 +78,41 @@ describe('reduceHistory (synthetic)', () => {
   });
 });
 
+describe('latestFrom and byte budget (synthetic)', () => {
+  const org = { handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') };
+
+  it('latestFrom is the newest raw applicableFrom even when the state collapses', () => {
+    const raw = {
+      records: [
+        rec('2017-01-01', '2020-01-01', { name: 'BETA', ...live, entities: [org] }),
+        rec('2020-01-01', null, { name: 'BETA', ...live, entities: [org], remarks: [{ description: ['edit'] }] }),
+      ],
+    };
+    const h = reduceHistory(raw, { rir: 'apnic', query: '192.0.2.1' });
+    expect(h.objects[0]?.states).toHaveLength(1);
+    expect(h.latestFrom).toBe('2020-01-01');
+  });
+
+  it('keeps the summary under 1,500 bytes by construction', () => {
+    const records: unknown[] = [];
+    for (let i = 0; i < 40; i++) {
+      const name = `${'N'.repeat(97)}${String(i).padStart(3, '0')}`;
+      const day = String(i + 1).padStart(2, '0');
+      records.push(rec(`2010-01-${day}`, null, { name, ...live }));
+    }
+    for (let i = 0; i < 5; i++) {
+      records.push(rec('2009-01-01', null, { name: `COVER${i}`, ...live }, { v4prefix: '192.0.0.0', length: 16 + i }));
+    }
+    const h = reduceHistory({ records }, { rir: 'apnic', query: '192.0.2.1' });
+    const text = renderHistory(h, meta, { detail: 'summary' });
+    expect(new TextEncoder().encode(text).length).toBeLessThan(1500);
+    expect(text).toContain('earlier changes omitted; narrow with since=YYYY-MM-DD');
+    expect(text.split('\n')[0]).toContain('192.0.2.0/24  history (APNIC RDAP, 45 records');
+    expect(text).toContain('source    APNIC RDAP, fetched just now');
+    expect(text.split('\n').filter((l) => l.startsWith('covering')).length).toBeLessThanOrEqual(3);
+  });
+});
+
 describe('reduceHistory (recorded APNIC fixtures)', () => {
   it('1.1.1.1: provenance of 1.1.1.0/24', () => {
     const h = reduceHistory(loadFixture('rdap/apnic/history-ip/1.1.1.1.json'), { rir: 'apnic', query: '1.1.1.1' });

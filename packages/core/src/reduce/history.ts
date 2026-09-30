@@ -113,6 +113,7 @@ function same(a: StateSummary | null, b: StateSummary | null, fields: readonly F
 export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): HistoryRecord {
   const o = asObject(raw);
   if (!Array.isArray(o.records)) throw new RdapError('bad_response', 'History response has no records array');
+  let latestFrom: string | undefined;
   const groups = new Map<string, { prefixLength: number; rows: Array<StateRow & { ts: string }> }>();
   for (const item of o.records) {
     const r = asObject(item);
@@ -120,6 +121,7 @@ export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): H
     const from = dateOnly(r.applicableFrom);
     const k = keyOf(c);
     if (!from || !k || typeof r.applicableFrom !== 'string') continue;
+    if (!latestFrom || from > latestFrom) latestFrom = from;
     const g = groups.get(k.key) ?? { prefixLength: k.prefixLength, rows: [] };
     g.rows.push({ ts: r.applicableFrom, from, until: dateOnly(r.applicableUntil), s: summarise(c) });
     groups.set(k.key, g);
@@ -136,7 +138,6 @@ export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): H
       return { key, prefixLength: g.prefixLength, states };
     })
     .sort((a, b) => b.prefixLength - a.prefixLength);
-  const latestFrom = objects.flatMap((x) => x.states.map((s) => s.from)).sort().at(-1);
   return { type: 'history', rir: ctx.rir, query: ctx.query, rawRecords: o.records.length, latestFrom, objects };
 }
 

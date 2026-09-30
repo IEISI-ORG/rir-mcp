@@ -10,6 +10,11 @@ export interface HistoryViewOpts {
 }
 
 const MAX_CHANGES = 20;
+const MAX_COVERING = 3;
+const MAX_LINE = 160;
+const BUDGET_BYTES = 1500;
+const cap = (s: string): string => (s.length > MAX_LINE ? `${s.slice(0, MAX_LINE - 1)}…` : s);
+const byteLength = (s: string): number => new TextEncoder().encode(s).length;
 const row = (date: string, label: string, text: string): string => `${date}  ${label.padEnd(11)}${text}`.trimEnd();
 const holderLabel = (f: StateSummary): string =>
   f.holder === 'personal' ? 'private individual' : `${f.holder ?? '(none)'}${f.holderName ? ` (${f.holderName})` : ''}`;
@@ -55,16 +60,23 @@ export function renderHistory(rec: HistoryRecord, meta: Meta, opts: HistoryViewO
   const [primary, ...others] = rec.objects;
   if (!primary) return `${rec.query}  no registration history found\n${lines([['source', sourceText(meta)]])}`;
   const changes = historyChanges(primary, opts.detail, opts.since);
-  const shown = changes.slice(-MAX_CHANGES);
-  const out = [
-    `${primary.key}  history (${RIR_LABEL[rec.rir]} RDAP, ${rec.rawRecords} records -> ${changes.length} changes${opts.since ? ` since ${opts.since}` : ''})`,
-  ];
-  if (shown.length < changes.length) out.push(`... ${changes.length - shown.length} earlier changes omitted; narrow with since=YYYY-MM-DD`);
-  out.push(...shown.map(changeLine));
+  const header = `${primary.key}  history (${RIR_LABEL[rec.rir]} RDAP, ${rec.rawRecords} records -> ${changes.length} changes${opts.since ? ` since ${opts.since}` : ''})`;
+  const tail: string[] = [];
   for (const o of others) {
     const line = coveringLine(o);
-    if (line) out.push(line);
+    if (line && tail.length < MAX_COVERING) tail.push(cap(line));
   }
-  out.push(lines([['source', sourceText(meta)]]));
-  return out.join('\n');
+  tail.push(lines([['source', sourceText(meta)]]));
+  const shown = changes.slice(-MAX_CHANGES).map((c) => cap(changeLine(c)));
+  const build = (): string => {
+    const omitted = changes.length - shown.length;
+    const note = omitted > 0 ? [`... ${omitted} earlier changes omitted; narrow with since=YYYY-MM-DD`] : [];
+    return [header, ...note, ...shown, ...tail].join('\n');
+  };
+  let text = build();
+  while (shown.length > 0 && byteLength(text) >= BUDGET_BYTES) {
+    shown.shift();
+    text = build();
+  }
+  return text;
 }
