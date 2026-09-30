@@ -1,0 +1,67 @@
+import { describe, expect, it } from 'vitest';
+import { MemoryRateLimiter } from '../../src/memory/rate-limiter';
+import { clampProfile, DEFAULT_LIMITS } from '../../src/rdap/limits';
+import { FakeClock } from '../support/fake-clock';
+
+describe('MemoryRateLimiter', () => {
+  it('allows the burst, then refills at the sustained rate', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    for (let i = 0; i < 5; i++) expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: false, retryAfterS: 1 });
+    clock.advance(1_000);
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
+  });
+
+  it('charges history lookups weight 5', async () => {
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
+    expect(await lim.acquire('apnic', 5)).toEqual({ ok: true });
+    expect(await lim.acquire('apnic', 1)).toMatchObject({ ok: false });
+  });
+
+  it('keeps RIR buckets independent', async () => {
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
+    await lim.acquire('ripe', 5);
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
+  });
+
+  it('applies the LACNIC profile: burst 3, then one request per 6 s', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    for (let i = 0; i < 3; i++) expect(await lim.acquire('lacnic', 1)).toEqual({ ok: true });
+    expect(await lim.acquire('lacnic', 1)).toEqual({ ok: false, retryAfterS: 6 });
+    clock.advance(6_000);
+    expect(await lim.acquire('lacnic', 1)).toEqual({ ok: true });
+  });
+
+  it('enforces an hourly cap', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter({ x: { ratePerS: 1000, burst: 1000, hourlyCap: 3 } }, clock);
+    for (let i = 0; i < 3; i++) expect(await lim.acquire('x', 1)).toEqual({ ok: true });
+    expect(await lim.acquire('x', 1)).toEqual({ ok: false, retryAfterS: 3600 });
+    clock.advance(3_600_000);
+    expect(await lim.acquire('x', 1)).toEqual({ ok: true });
+  });
+
+  it('penalise empties the bucket and halves the refill rate for 5 minutes', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    await lim.penalise('apnic');
+    clock.advance(1_000);
+    expect(await lim.acquire('apnic', 1)).toMatchObject({ ok: false });
+    clock.advance(1_000);
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
+  });
+
+  it('throws for an unknown bucket', async () => {
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
+    await expect(lim.acquire('nope', 1)).rejects.toThrow('No rate-limit profile');
+  });
+});
+
+describe('clampProfile', () => {
+  it('lets operators lower limits but never raise them', () => {
+    expect(clampProfile({ ratePerS: 5, burst: 2 }, DEFAULT_LIMITS.apnic)).toEqual({ ratePerS: 1, burst: 2 });
+    expect(clampProfile({ hourlyCap: 5000 }, DEFAULT_LIMITS.lacnic)).toEqual({ ratePerS: 10 / 60, burst: 3, hourlyCap: 1000 });
+  });
+});
