@@ -1,0 +1,443 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reducers on recorded fixtures > rdap/afrinic/autnum/33764.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "contact@afrinic.net",
+    "handle": "ORG-AFNC1-AFRINIC",
+    "name": "African Network Information Center - (AfriNIC) Ltd",
+  },
+  "admin": {
+    "personal": true,
+  },
+  "asnEnd": 33764,
+  "asnStart": 33764,
+  "changed": "2016-05-26",
+  "country": undefined,
+  "handle": "AS33764",
+  "holder": {
+    "email": "contact@afrinic.net",
+    "handle": "ORG-AFNC1-AFRINIC",
+    "name": "African Network Information Center - (AfriNIC) Ltd",
+  },
+  "name": "ORG-AFNC1-AFRINIC",
+  "registered": "2005-02-21",
+  "rir": "afrinic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "personal": true,
+  },
+  "type": "autnum",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/afrinic/ip/196.216.2.1.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "contact@afrinic.net",
+    "handle": "ORG-AFNC1-AFRINIC",
+    "name": "African Network Information Center - (AfriNIC) Ltd",
+  },
+  "admin": {
+    "personal": true,
+  },
+  "allocationType": "ASSIGNED PI",
+  "changed": "2020-08-18",
+  "country": "ZA",
+  "handle": "196.216.2.0 - 196.216.3.255",
+  "holder": {
+    "email": "contact@afrinic.net",
+    "handle": "ORG-AFNC1-AFRINIC",
+    "name": "African Network Information Center - (AfriNIC) Ltd",
+  },
+  "name": "ORG-AFNC1-AFRINIC",
+  "prefixes": [
+    "196.216.2.0/23",
+  ],
+  "registered": "2005-02-21",
+  "rir": "afrinic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "personal": true,
+  },
+  "type": "network",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/autnum/4608.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "helpdesk@apnic.net",
+    "handle": "IRT-APNIC-IS-AP",
+    "name": "IRT-APNIC-IS-AP",
+  },
+  "admin": {
+    "email": "helpdesk@apnic.net",
+    "handle": "AIC1-AP",
+    "name": "APNIC Infrastructure Contact",
+  },
+  "asnEnd": 4608,
+  "asnStart": 4608,
+  "changed": "2026-08-26",
+  "country": "AU",
+  "handle": "AS4608",
+  "holder": {
+    "email": "noc@apnic.net",
+    "handle": "ORG-APNI1-AP",
+    "name": "Asia Pacific Network Information Centre",
+  },
+  "name": "APNIC-SERVICES",
+  "registered": "2008-09-04",
+  "rir": "apnic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "helpdesk@apnic.net",
+    "handle": "AIC1-AP",
+    "name": "APNIC Infrastructure Contact",
+  },
+  "type": "autnum",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/domain/0.c.d.0.1.0.0.2.ip6.arpa.json: class, no leaks, snapshot 1`] = `
+{
+  "changed": "2024-11-14",
+  "nameservers": [
+    "ns1.apnic.net",
+    "ns2.apnic.net",
+    "ns4.apnic.net",
+  ],
+  "registered": "2008-09-04",
+  "rir": "apnic",
+  "signed": false,
+  "type": "domain",
+  "zone": "0.c.d.0.1.0.0.2.ip6.arpa",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/domain/1.1.1.in-addr.arpa.json: class, no leaks, snapshot 1`] = `
+{
+  "changed": "2025-01-07",
+  "nameservers": [
+    "alec.ns.cloudflare.com",
+    "mira.ns.cloudflare.com",
+  ],
+  "registered": "2018-03-27",
+  "rir": "apnic",
+  "signed": false,
+  "type": "domain",
+  "zone": "1.1.1.in-addr.arpa",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/entity/ORG-ARAD1-AP.json: class, no leaks, snapshot 1`] = `
+{
+  "changed": "2023-09-05",
+  "email": "helpdesk@apnic.net",
+  "handle": "ORG-ARAD1-AP",
+  "kind": "org",
+  "name": "APNIC Research and Development",
+  "registered": "2017-08-08",
+  "rir": "apnic",
+  "roles": [],
+  "type": "entity",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/ip/1.1.1.1.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "helpdesk@apnic.net",
+    "handle": "IRT-APNICRANDNET-AU",
+    "name": "IRT-APNICRANDNET-AU",
+  },
+  "admin": {
+    "email": "research@apnic.net",
+    "handle": "AIC3-AP",
+    "name": "APNICRANDNET Infrastructure Contact",
+  },
+  "allocationType": "ASSIGNED PORTABLE",
+  "changed": "2023-04-26",
+  "country": "AU",
+  "handle": "1.1.1.0 - 1.1.1.255",
+  "holder": {
+    "email": "helpdesk@apnic.net",
+    "handle": "ORG-ARAD1-AP",
+    "name": "APNIC Research and Development",
+  },
+  "name": "APNIC-LABS",
+  "prefixes": [
+    "1.1.1.0/24",
+  ],
+  "registered": "2011-08-10",
+  "rir": "apnic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "research@apnic.net",
+    "handle": "AIC3-AP",
+    "name": "APNICRANDNET Infrastructure Contact",
+  },
+  "type": "network",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/apnic/ip/2001_dc0__1.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "helpdesk@apnic.net",
+    "handle": "IRT-APNIC-AP",
+    "name": "IRT-APNIC-AP",
+  },
+  "admin": {
+    "email": "helpdesk@apnic.net",
+    "handle": "DNS3-AP",
+    "name": "DNS Administration",
+  },
+  "allocationType": "ASSIGNED PORTABLE",
+  "changed": "2017-12-14",
+  "country": "AU",
+  "handle": "2001:dc0::/35",
+  "holder": {
+    "email": "noc@apnic.net",
+    "handle": "ORG-APNI1-AP",
+    "name": "Asia Pacific Network Information Centre",
+  },
+  "name": "APNIC-AP-V6-JP",
+  "prefixes": [
+    "2001:dc0::/35",
+  ],
+  "registered": "2008-09-04",
+  "rir": "apnic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "personal": true,
+  },
+  "type": "network",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/arin/autnum/15169.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "network-abuse@google.com",
+    "handle": "ABUSE5250-ARIN",
+    "name": "Abuse",
+  },
+  "admin": {
+    "email": "arin-contact@google.com",
+    "handle": "ZG39-ARIN",
+    "name": "Google LLC",
+  },
+  "asnEnd": 15169,
+  "asnStart": 15169,
+  "changed": "2012-02-24",
+  "country": undefined,
+  "handle": "AS15169",
+  "holder": {
+    "email": undefined,
+    "handle": "GOGL",
+    "name": "Google LLC",
+  },
+  "name": "GOOGLE",
+  "registered": "2000-03-30",
+  "rir": "arin",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "arin-contact@google.com",
+    "handle": "ZG39-ARIN",
+    "name": "Google LLC",
+  },
+  "type": "autnum",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/arin/ip/8.8.8.8.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "network-abuse@google.com",
+    "handle": "ABUSE5250-ARIN",
+    "name": "Abuse",
+  },
+  "admin": {
+    "email": "arin-contact@google.com",
+    "handle": "ZG39-ARIN",
+    "name": "Google LLC",
+  },
+  "allocationType": "DIRECT ALLOCATION",
+  "changed": "2023-12-28",
+  "country": undefined,
+  "handle": "NET-8-8-8-0-2",
+  "holder": {
+    "email": undefined,
+    "handle": "GOGL",
+    "name": "Google LLC",
+  },
+  "name": "GOGL",
+  "prefixes": [
+    "8.8.8.0/24",
+  ],
+  "registered": "2023-12-28",
+  "rir": "arin",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "arin-contact@google.com",
+    "handle": "ZG39-ARIN",
+    "name": "Google LLC",
+  },
+  "type": "network",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/lacnic/autnum/28000.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "personal": true,
+  },
+  "admin": {
+    "personal": true,
+  },
+  "asnEnd": 28000,
+  "asnStart": 28000,
+  "changed": "2024-09-17",
+  "country": undefined,
+  "handle": "AS28000",
+  "holder": {
+    "email": undefined,
+    "handle": "UY-LACN-LACNIC",
+    "name": "LACNIC - Latin American and Caribbean IP address",
+  },
+  "name": "28000",
+  "registered": "2005-10-05",
+  "rir": "lacnic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "personal": true,
+  },
+  "type": "autnum",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/lacnic/ip/200.3.14.10.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "personal": true,
+  },
+  "admin": {
+    "personal": true,
+  },
+  "allocationType": "ASSIGNED",
+  "changed": "2008-09-02",
+  "country": undefined,
+  "handle": "200.3.12.0/22",
+  "holder": {
+    "email": undefined,
+    "handle": "UY-LACN-LACNIC",
+    "name": "LACNIC - Latin American and Caribbean IP address",
+  },
+  "name": "200.3.12.0 - 200.3.15.255",
+  "prefixes": [
+    "200.3.12.0/22",
+  ],
+  "registered": "2008-09-02",
+  "rir": "lacnic",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "personal": true,
+  },
+  "type": "network",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/ripe/autnum/3333.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "abuse@ripe.net",
+    "handle": "OPS4-RIPE",
+    "name": "RIPE NCC Operations",
+  },
+  "admin": {
+    "email": undefined,
+    "handle": "MDIR-RIPE",
+    "name": "Managing Director",
+  },
+  "asnEnd": 3333,
+  "asnStart": 3333,
+  "changed": "2026-03-19",
+  "country": undefined,
+  "handle": "AS3333",
+  "holder": {
+    "email": undefined,
+    "handle": "ORG-RIEN1-RIPE",
+    "name": "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)",
+  },
+  "name": "RIPE-NCC-AS",
+  "registered": "2002-08-13",
+  "rir": "ripe",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "abuse@ripe.net",
+    "handle": "OPS4-RIPE",
+    "name": "RIPE NCC Operations",
+  },
+  "type": "autnum",
+}
+`;
+
+exports[`reducers on recorded fixtures > rdap/ripe/ip/193.0.6.139.json: class, no leaks, snapshot 1`] = `
+{
+  "abuse": {
+    "email": "abuse@ripe.net",
+    "handle": "OPS4-RIPE",
+    "name": "RIPE NCC Operations",
+  },
+  "admin": {
+    "email": undefined,
+    "handle": "MDIR-RIPE",
+    "name": "Managing Director",
+  },
+  "allocationType": "ASSIGNED PA",
+  "changed": "2026-03-19",
+  "country": "NL",
+  "handle": "193.0.0.0 - 193.0.7.255",
+  "holder": {
+    "email": undefined,
+    "handle": "ORG-RIEN1-RIPE",
+    "name": "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)",
+  },
+  "name": "RIPE-NCC",
+  "prefixes": [
+    "193.0.0.0/21",
+  ],
+  "registered": "2003-03-17",
+  "rir": "ripe",
+  "status": [
+    "active",
+  ],
+  "tech": {
+    "email": "abuse@ripe.net",
+    "handle": "OPS4-RIPE",
+    "name": "RIPE NCC Operations",
+  },
+  "type": "network",
+}
+`;
