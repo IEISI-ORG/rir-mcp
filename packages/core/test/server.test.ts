@@ -1,5 +1,5 @@
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryCache } from '../src/memory/cache';
 import { MemoryRateLimiter } from '../src/memory/rate-limiter';
 import { DEFAULT_LIMITS } from '../src/rdap/limits';
@@ -68,5 +68,28 @@ describe('MCP server', () => {
     const c = await connect();
     const r = await c.readResource({ uri: 'guide://usage' });
     expect(JSON.stringify(r.contents)).toContain('rdap_ip_lookup');
+  });
+
+  it('bounds rdap_history structured output to what the text shows', async () => {
+    const c = await connect();
+    const r = await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1', at: '2012-01-01' } });
+    expect((r.structuredContent as { data: { mode: string } }).data.mode).toBe('at');
+    const json = JSON.stringify(r.structuredContent);
+    for (const leak of ['validatedFor', 'latestFrom', 'states']) expect(json).not.toContain(leak);
+  });
+
+  it('never leaks internal errors and reports them to the hook', async () => {
+    const err = new Error('secret path /x');
+    const stub = { ip: () => Promise.reject(err) } as unknown as RirService;
+    const onError = vi.fn();
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await createServer(stub, { onError }).connect(serverT);
+    client = new Client({ name: 'test', version: '0.0.0' }, { versionNegotiation: { mode: 'auto' } });
+    await client.connect(clientT);
+    const r = await client.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });
+    expect(r.isError).toBe(true);
+    expect(text(r)).not.toContain('secret');
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(err);
   });
 });

@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { RIRS } from './rdap/rirs';
-import { renderHistory } from './render/history';
+import { historyView, renderHistory } from './render/history';
 import { renderAutnum, renderDomain, renderEntity, renderNetwork, renderSpecial } from './render/text';
 import type { Answer, Meta } from './service/answer';
 import type { RirService } from './service/service';
@@ -16,6 +16,10 @@ const OUTPUT = z.object({
   cache: z.string().optional(),
   data: z.record(z.string(), z.unknown()),
 });
+
+export interface ServerHooks {
+  onError?: (err: unknown) => void;
+}
 
 interface ToolResult {
   [key: string]: unknown;
@@ -39,10 +43,11 @@ function result<T extends object>(answer: Answer<T>, render: (record: T, meta: M
 }
 
 /** Unexpected failures never leak internals to the model. */
-async function safely(fn: () => Promise<ToolResult>): Promise<ToolResult> {
+async function safely(fn: () => Promise<ToolResult>, hooks: ServerHooks): Promise<ToolResult> {
   try {
     return await fn();
-  } catch {
+  } catch (err) {
+    try { hooks.onError?.(err); } catch { /* a failing hook must not break the answer */ }
     return { content: [{ type: 'text', text: 'Internal error while answering this question.' }], isError: true };
   }
 }
@@ -50,7 +55,7 @@ async function safely(fn: () => Promise<ToolResult>): Promise<ToolResult> {
 const doc = (answers: string, input: string, examples: string, not: string): string =>
   `Answers: ${answers}\nInput forms: ${input}\nExample questions: ${examples}\nDoes not: ${not}`;
 
-export function registerTools(server: McpServer, service: RirService): void {
+export function registerTools(server: McpServer, service: RirService, hooks: ServerHooks = {}): void {
   server.registerTool('rdap_ip_lookup', {
     title: 'IP address / prefix registration',
     description: doc(
@@ -61,7 +66,7 @@ export function registerTools(server: McpServer, service: RirService): void {
     ),
     inputSchema: z.object({ address: z.string().max(64).describe('One IPv4/IPv6 address or CIDR') }),
     outputSchema: OUTPUT,
-  }, async ({ address }) => safely(async () => result(await service.ip(address), renderNetwork)));
+  }, async ({ address }) => safely(async () => result(await service.ip(address), renderNetwork), hooks));
 
   server.registerTool('rdap_asn_lookup', {
     title: 'AS number registration',
@@ -73,7 +78,7 @@ export function registerTools(server: McpServer, service: RirService): void {
     ),
     inputSchema: z.object({ asn: z.string().max(20).describe('AS number, e.g. AS4608') }),
     outputSchema: OUTPUT,
-  }, async ({ asn }) => safely(async () => result(await service.asn(asn), renderAutnum)));
+  }, async ({ asn }) => safely(async () => result(await service.asn(asn), renderAutnum), hooks));
 
   server.registerTool('rdap_entity_lookup', {
     title: 'Organisation / role handle',
@@ -85,7 +90,7 @@ export function registerTools(server: McpServer, service: RirService): void {
     ),
     inputSchema: z.object({ handle: z.string().max(64).describe('Registry handle'), rir: RIR.optional() }),
     outputSchema: OUTPUT,
-  }, async ({ handle, rir }) => safely(async () => result(await service.entity(handle, rir), renderEntity)));
+  }, async ({ handle, rir }) => safely(async () => result(await service.entity(handle, rir), renderEntity), hooks));
 
   server.registerTool('rdap_reverse_dns', {
     title: 'Reverse DNS delegation',
@@ -97,7 +102,7 @@ export function registerTools(server: McpServer, service: RirService): void {
     ),
     inputSchema: z.object({ address: z.string().max(64).describe('One IPv4/IPv6 address or prefix') }),
     outputSchema: OUTPUT,
-  }, async ({ address }) => safely(async () => result(await service.reverseDns(address), renderDomain)));
+  }, async ({ address }) => safely(async () => result(await service.reverseDns(address), renderDomain), hooks));
 
   server.registerTool('rdap_history', {
     title: 'Registration history (whowas) and provenance',
@@ -116,8 +121,13 @@ export function registerTools(server: McpServer, service: RirService): void {
       detail: z.enum(['summary', 'full']).optional(),
     }),
     outputSchema: OUTPUT,
-  }, async ({ resource, type, rir, at, since, detail }) => safely(async () => result(
-    await service.history({ resource, type, rir }),
-    (rec, meta) => renderHistory(rec, meta, { detail: detail ?? 'summary', since, at }),
-  )));
+  }, async ({ resource, type, rir, at, since, detail }) => safely(async () => {
+    const answer = await service.history({ resource, type, rir });
+    const opts = { detail: detail ?? 'summary', since, at } as const;
+    const out = result(answer, (rec, meta) => renderHistory(rec, meta, opts));
+    if (answer.kind === 'record') {
+      out.structuredContent = { answer: 'record', rir: answer.meta.rir, cache: answer.meta.cache, data: historyView(answer.record, opts, answer.meta) };
+    }
+    return out;
+  }, hooks));
 }

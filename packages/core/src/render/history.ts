@@ -30,7 +30,13 @@ function changeLine(c: Change): string {
   return row(c.date, 'changed', keys.map((k) => `${k}=${c.fields[k]}`).join('; '));
 }
 
-function coveringLine(o: ObjectHistory): string | null {
+export interface Covering {
+  readonly key: string;
+  readonly name: string;
+  readonly since: string;
+}
+
+function covering(o: ObjectHistory): Covering | null {
   const current = o.states.at(-1);
   if (o.prefixLength <= 0 || !current?.s) return null;
   let since = current.from;
@@ -39,44 +45,64 @@ function coveringLine(o: ObjectHistory): string | null {
     if (!s || s.name !== current.s.name) break;
     since = o.states[i]?.from ?? since;
   }
-  return `${'covering'.padEnd(12)}${o.key} ${current.s.name ?? ''} (since ${since})`;
+  return { key: o.key, name: current.s.name ?? '', since };
 }
 
-function renderAt(rec: HistoryRecord, meta: Meta, at: string): string {
-  const header = `${rec.query} on ${at} (${RIR_LABEL[rec.rir]} RDAP history)`;
-  const hit = stateAt(rec, at);
-  if (!hit) return `${header}\nno registration record covers that date\n${lines([['source', sourceText(meta)]])}`;
-  const s = hit.row.s;
-  return `${header}\n${lines([
-    ['object', s ? `${hit.object.key}  ${s.name ?? ''}`.trimEnd() + details(s.country, s.type, s.status) : `${hit.object.key}  withdrawn`],
-    ['holder', s?.holder ? holderLabel(s) : undefined],
-    ['valid', `${hit.row.from} .. ${hit.row.until ?? 'now'}`],
-    ['source', sourceText(meta)],
-  ])}`;
+const coveringLine = (c: Covering): string => `${'covering'.padEnd(12)}${c.key} ${c.name} (since ${c.since})`;
+
+export type HistoryView =
+  | { mode: 'empty'; query: string }
+  | { mode: 'at'; query: string; at: string; key?: string; from?: string; until?: string; state: StateSummary | null; covered: boolean }
+  | { mode: 'timeline'; key: string; rawRecords: number; totalChanges: number; omitted: number; changes: Change[]; covering: Covering[]; since?: string };
+
+const sourceLine = (meta?: Meta): string => (meta ? lines([['source', sourceText(meta)]]) : '');
+
+/** The single view shared by the text renderer and structured output; never exposes raw states. */
+export function historyView(rec: HistoryRecord, opts: HistoryViewOpts, meta?: Meta): HistoryView {
+  if (opts.at) {
+    const hit = stateAt(rec, opts.at);
+    if (!hit) return { mode: 'at', query: rec.query, at: opts.at, state: null, covered: false };
+    return {
+      mode: 'at', query: rec.query, at: opts.at, key: hit.object.key, from: hit.row.from,
+      ...(hit.row.until ? { until: hit.row.until } : {}), state: hit.row.s ?? null, covered: true,
+    };
+  }
+  const [primary, ...others] = rec.objects;
+  if (!primary) return { mode: 'empty', query: rec.query };
+  const all = historyChanges(primary, opts.detail, opts.since);
+  const cover: Covering[] = [];
+  for (const o of others) {
+    const c = covering(o);
+    if (c && cover.length < MAX_COVERING) cover.push(c);
+  }
+  let shown = all.slice(-MAX_CHANGES);
+  const build = (): HistoryView => ({
+    mode: 'timeline', key: primary.key, rawRecords: rec.rawRecords, totalChanges: all.length, omitted: all.length - shown.length,
+    changes: shown, covering: cover, ...(opts.since ? { since: opts.since } : {}),
+  });
+  while (shown.length > 0 && byteLength(renderTimeline(build() as TimelineView, rec, meta)) >= BUDGET_BYTES) shown = shown.slice(1);
+  return build();
+}
+
+type TimelineView = Extract<HistoryView, { mode: 'timeline' }>;
+
+function renderTimeline(v: TimelineView, rec: HistoryRecord, meta?: Meta): string {
+  const header = `${v.key}  history (${RIR_LABEL[rec.rir]} RDAP, ${v.rawRecords} records -> ${v.totalChanges} changes${v.since ? ` since ${v.since}` : ''})`;
+  const note = v.omitted > 0 ? [`... ${v.omitted} earlier changes omitted; narrow with since=YYYY-MM-DD`] : [];
+  return [header, ...note, ...v.changes.map((c) => cap(changeLine(c))), ...v.covering.map((c) => cap(coveringLine(c))), sourceLine(meta)].join('\n');
 }
 
 export function renderHistory(rec: HistoryRecord, meta: Meta, opts: HistoryViewOpts): string {
-  if (opts.at) return renderAt(rec, meta, opts.at);
-  const [primary, ...others] = rec.objects;
-  if (!primary) return `${rec.query}  no registration history found\n${lines([['source', sourceText(meta)]])}`;
-  const changes = historyChanges(primary, opts.detail, opts.since);
-  const header = `${primary.key}  history (${RIR_LABEL[rec.rir]} RDAP, ${rec.rawRecords} records -> ${changes.length} changes${opts.since ? ` since ${opts.since}` : ''})`;
-  const tail: string[] = [];
-  for (const o of others) {
-    const line = coveringLine(o);
-    if (line && tail.length < MAX_COVERING) tail.push(cap(line));
-  }
-  tail.push(lines([['source', sourceText(meta)]]));
-  const shown = changes.slice(-MAX_CHANGES).map((c) => cap(changeLine(c)));
-  const build = (): string => {
-    const omitted = changes.length - shown.length;
-    const note = omitted > 0 ? [`... ${omitted} earlier changes omitted; narrow with since=YYYY-MM-DD`] : [];
-    return [header, ...note, ...shown, ...tail].join('\n');
-  };
-  let text = build();
-  while (shown.length > 0 && byteLength(text) >= BUDGET_BYTES) {
-    shown.shift();
-    text = build();
-  }
-  return text;
+  const v = historyView(rec, opts, meta);
+  if (v.mode === 'empty') return `${v.query}  no registration history found\n${sourceLine(meta)}`;
+  if (v.mode === 'timeline') return renderTimeline(v, rec, meta);
+  const header = `${v.query} on ${v.at} (${RIR_LABEL[rec.rir]} RDAP history)`;
+  if (!v.covered) return `${header}\nno registration record covers that date\n${sourceLine(meta)}`;
+  const s = v.state;
+  return `${header}\n${lines([
+    ['object', s ? `${v.key}  ${s.name ?? ''}`.trimEnd() + details(s.country, s.type, s.status) : `${v.key}  withdrawn`],
+    ['holder', s?.holder ? holderLabel(s) : undefined],
+    ['valid', `${v.from} .. ${v.until ?? 'now'}`],
+    ['source', sourceText(meta)],
+  ])}`;
 }

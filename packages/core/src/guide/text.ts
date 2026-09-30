@@ -7,7 +7,7 @@ Tools:
 - rdap_entity_lookup: an organisation or role handle seen in another answer.
 - rdap_reverse_dns: the registered reverse-DNS delegation (nameservers) for an address.
 - rdap_history: registration history and provenance (APNIC only); use at=YYYY-MM-DD for "who held X on that date".
-Rules: one resource per call; no search, lists or bulk queries. Personal contact data is never returned. Answers can be cached for up to an hour; the "source" line says how fresh each one is.
+Rules: one resource per call; no search, lists or bulk queries. Personal contact data is never returned. Answers are cached (current records for about an hour, history for up to 7 days) and may be served marked STALE when a registry cannot be reached; the "source" line gives each answer's age.
 Use is subject to the rir-mcp Terms of Use (${TERMS_URL}): no marketing to, spamming or harassment of RIR members.`;
 
 export const USAGE_GUIDE = `# rir-mcp usage guide
