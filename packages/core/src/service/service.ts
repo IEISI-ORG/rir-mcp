@@ -42,6 +42,8 @@ interface HistoryTarget {
   readonly path: string;
   readonly query: string;
   readonly loadCurrent: () => Promise<Answer<{ readonly changed?: string }>>;
+  /** Companion answer already fetched while resolving the target (entity, reverse DNS). */
+  readonly preloaded?: Answer<{ readonly changed?: string }>;
 }
 
 const CURRENT = { weight: WEIGHT.current, freshS: TTL_S.current, staleS: TTL_S.currentStale, maxBytes: MAX_BYTES.current } as const;
@@ -176,13 +178,16 @@ export class RirService {
       }
       const url = `${await this.bootstrap.baseUrl('apnic')}history/${target.path}`;
       const key = `hist:${target.path}`;
-      const force = await this.historyIsStale(key, target.loadCurrent);
+      // At most one companion lookup per history request; entity / reverse-DNS answers are reused.
+      let companion: Answer<{ readonly changed?: string }> | undefined = target.preloaded;
+      const load = async () => (companion ??= await target.loadCurrent());
+      const force = await this.historyIsStale(key, load);
+      const misses = companion?.kind === 'record' && companion.meta.cache === 'miss' ? 1 : 0;
+      const validatedFor = companion?.kind === 'record' ? companion.record.changed : undefined;
       const out = await this.fetcher.get({
-        // A forced refresh already paid for a current lookup in historyIsStale; bill the pair as one history
-        // lookup, otherwise 1 + 5 tokens can never fit a burst of 5 and the refresh is always rate limited.
-        key, rir: 'apnic', url, weight: force ? WEIGHT.history - WEIGHT.current : WEIGHT.history, freshS: TTL_S.history, staleS: TTL_S.historyStale,
+        key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), freshS: TTL_S.history, staleS: TTL_S.historyStale,
         maxBytes: MAX_BYTES.history, force,
-        reduce: (raw) => reduceHistory(raw, { rir: 'apnic', query: target.query }),
+        reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
       });
       return this.toAnswer(out, 'apnic', url);
     });
@@ -211,24 +216,25 @@ export class RirService {
       const current = await this.entity(handle, req.rir);
       if (current.kind === 'error' && current.code !== 'not_found') return current;
       const rir = req.rir ?? inferRirFromHandle(handle) ?? 'apnic';
-      return { rir, path: `entity/${encodeURIComponent(handle)}`, query: handle, loadCurrent: async () => current };
+      return { rir, path: `entity/${encodeURIComponent(handle)}`, query: handle, loadCurrent: async () => current, preloaded: current };
     }
     const rd = await this.reverseDns(req.resource);
     if (rd.kind !== 'record') return rd;
-    return { rir: rd.meta.rir, path: `domain/${rd.record.zone}`, query: rd.record.zone, loadCurrent: async () => rd };
+    return { rir: rd.meta.rir, path: `domain/${rd.record.zone}`, query: rd.record.zone, loadCurrent: async () => rd, preloaded: rd };
   }
 
   /**
-   * History is append-only. Refetch when the object's `last changed` date is later than the
-   * newest cached history record, at most once per change date (spec §6).
+   * History is append-only. Refetch when the object's `last changed` date is later than the newest
+   * cached history record, at most once per change date: the stored `validatedFor` records the date
+   * a fetch was made against (spec §6).
    */
-  private async historyIsStale(key: string, loadCurrent: HistoryTarget['loadCurrent']): Promise<boolean> {
+  private async historyIsStale(key: string, load: () => Promise<Answer<{ readonly changed?: string }>>): Promise<boolean> {
     const entry = await this.fetcher.peek<HistoryRecord>(key);
     if (!entry || !entry.value.found || !entry.value.value.latestFrom) return false;
-    const current = await loadCurrent();
+    const current = await load();
     const changed = current.kind === 'record' ? current.record.changed : undefined;
     if (!changed) return false;
-    return changed > entry.value.value.latestFrom && entry.fetchedAt < Date.parse(changed) + 86_400_000;
+    return changed > entry.value.value.latestFrom && entry.value.value.validatedFor !== changed;
   }
 
   private toAnswer<T>(out: FetchOutcome<T>, rir: Rir, url: string): Answer<T> {

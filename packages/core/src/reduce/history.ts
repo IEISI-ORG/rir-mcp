@@ -42,6 +42,8 @@ export interface HistoryRecord {
   readonly query: string;
   readonly rawRecords: number;
   readonly latestFrom?: string;
+  /** Set by the service: the `last changed` date of the current object when this history was fetched. */
+  readonly validatedFor?: string;
   readonly objects: readonly ObjectHistory[];
 }
 

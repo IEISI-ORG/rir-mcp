@@ -167,6 +167,19 @@ describe('RirService.history', () => {
     clock.advance(2 * HOUR);
     await service.history({ resource: '1.1.1.1' });
     expect(rdapCalls().filter((u) => u === HIST_URL)).toHaveLength(2);
+    clock.advance(2 * HOUR);
+    await service.history({ resource: '1.1.1.1' });
+    expect(rdapCalls().filter((u) => u === HIST_URL)).toHaveLength(2);
+  });
+
+  it('answers cold entity history on a full bucket at the first call', async () => {
+    const entity = loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json');
+    const { service } = setup({
+      [`${APNIC}history/entity/ORG-ARAD1-AP`]: {
+        body: { records: [{ applicableFrom: '2020-01-01T00:00:00Z', applicableUntil: null, content: entity }] },
+      },
+    });
+    expect(await service.history({ resource: 'ORG-ARAD1-AP', type: 'entity' })).toMatchObject({ kind: 'record' });
   });
 
   it('infers the resource type', async () => {
@@ -175,5 +188,35 @@ describe('RirService.history', () => {
     expect(inferHistoryType('AS4608')).toBe('asn');
     expect(inferHistoryType('4608')).toBe('asn');
     expect(inferHistoryType('ORG-ARAD1-AP')).toBe('entity');
+  });
+});
+
+describe('RirService upstream failures', () => {
+  const spy = () => {
+    const penalised: string[] = [];
+    const limiter: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
+    return { limiter, penalised };
+  };
+
+  it.each([
+    ['503', { status: 503, text: '' }],
+    ['403', { status: 403, text: 'forbidden' }],
+    ['HTML 200', { text: '<html>challenge</html>', headers: { 'content-type': 'text/html' } }],
+  ] as Array<[string, FakeRoute]>)('penalises the limiter on %s', async (_name, route) => {
+    const { limiter, penalised } = spy();
+    const { service } = setup({ [IP_URL]: route }, limiter);
+    expect(await service.ip('1.1.1.1')).toMatchObject({ kind: 'error' });
+    expect(penalised).toContain('apnic');
+  });
+
+  it('serves stale on a challenge page', async () => {
+    let challenge = false;
+    const { service, clock } = setup({
+      [IP_URL]: () => (challenge ? { text: '<html>c</html>', headers: { 'content-type': 'text/html' } } : { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') }),
+    });
+    await service.ip('1.1.1.1');
+    clock.advance(2 * HOUR);
+    challenge = true;
+    expect(await service.ip('1.1.1.1')).toMatchObject({ kind: 'record', meta: { cache: 'stale' } });
   });
 });
