@@ -1,0 +1,57 @@
+# rir-mcp Plan 1 — follow-ups
+
+Deferred findings from the Plan 1 task reviews and the final whole-branch review (2026-09-30). None blocks Plan 1; the final reviewer triaged each as "can wait". Grouped by where they were found.
+
+## Security hardening (do first)
+
+- Sanitiser: also strip variation selectors (U+FE00–FE0F, U+E0100–E01EF) and blank fillers (U+3164, U+115F, U+1160, U+2800) — hidden-payload channel similar to tag characters.
+- Redirect allow-list ignores port and userinfo; reject both.
+- Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
+
+## Parked at final review
+
+- history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
+- sanitiser misses variation selectors U+FE00–FE0F / U+E0100–E01EF (Mn) and blank Lo fillers (U+3164, U+115F, U+1160, U+2800) (real, deferred to a follow-up hardening item (hidden-payload channel similar to tag chars; low likelihood in RIR data))
+- ZWJ/ZWNJ become spaces (acceptable, not a regression)
+- operator contact may end with backslash (RFC 9110 comment quoted-pair) (grammar-only, no injection)
+- redirect test doesn't assert weight; scripts/fixtures-record.ts usage comment still says you@example.net (cosmetic, follow-up)
+
+## Deferred minors by task
+
+- **Task 1**: rangeToCidrs lacks IPv6/single-address/start>end tests; prefixContains lacks IPv6/equal cases.
+- **Task 1**: `1.1.1.1/024` accepted as /24 (non-canonical length digits) — untested.
+- **Task 2**: toUpperCase maps non-ASCII (ß→SS, ı→I) into valid handles; reject non-ASCII before upper-casing.
+- **Task 2**: inferRirFromHandle expects parseHandle output (no normalisation/doc).
+- **Task 2**: no tests for 64-char handle boundary, handle hint, IPv6 /30 /50 /96, IPv4 /24 /16 zones; `4608.0` parses as asdot silently; error messages echo raw input unbounded.
+- **Task 3**: tests cover 10/27 IP rows; no table-driven drift guard; longest-prefix branch unexercised (no overlapping rows).
+- **Task 4**: refill applies one rate across a span straddling penaltyUntil; no test for rate restoration after 5 min.
+- **Task 4**: cost=min(weight,burst) undocumented/untested (LACNIC history would drain 3 not 5; history is APNIC-only so moot today).
+- **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
+- **Task 4**: no clamp for backward clock step (fails safe); clampProfile accepts 0/negative/NaN; penalise ignores unknown bucket while acquire throws.
+- **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
+- **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); HTTP-date Retry-After dropped; unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
+- **Task 5**: reader lock not released on mid-read error; stream-error test setTimeout not cleaned.
+- **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; no negative caching during IANA outage (3 fetches per lookup after 24h); ASN '' → 0 accepted; bases last-write-wins.
+- **Task 6**: rejected payload leaves this.parsed set (harmless); Service type/asRawFile narrower than runtime checks.
+- **Task 7**: remarks/notices titles and redacted[].description not scrubbed or linted (currently boilerplate only); lint lacks no-links/no-adr assertions for people; arin-contact@google.com / network-abuse@google.com are role mailboxes (kept).
+- **Task 7**: PERSON_KEY is a name heuristic (keys like *_holder/*_admin would not match) — rescan key inventory when adding fixtures; scrubber passes object values under PERSON_KEY (lint fails closed); unused k in lint loop.
+- **Task 8**: sanitize.ts / reducers.test.ts contain raw invisible chars (U+200B.., U+202E) instead of \u escapes — fragile; rewrite as escapes.
+- **Task 8**: clean() does not strip U+E0000–E007F tag characters (known prompt-injection channel), U+061C, U+00AD, U+180E.
+- **Task 8**: clean tests don't cover C1/isolates/BOM/boundaries; truncation may split surrogate pair; snapshot stores undefined keys.
+- **Task 9**: STALE text says "<RIR> RDAP is unreachable now" but stale is also served when the local limiter is exhausted or upstream sent a challenge page — use neutral wording ("could not refresh").
+- **Task 9**: personal-contact render test has no negative leak assertion; LACNIC snapshot pointer uses APNIC test URL; budget test doesn't cover stale suffix/many prefixes/nameservers; age() doesn't clamp; render cast in budget loop; LACNIC autnum shows "AS28000  28000".
+- **Task 10**: holder cleared renders "(none) ((none))"; same-timestamp tie-break / malformed null-until shadowing / collapse spans gaps; localeCompare on ISO strings; keyOf handle fallback could show a person handle for entity histories (Task 11 refuses personal entities first); at/since validated only by Task 12 schema; untested paths (full detail render, truncation line, renderAt not-covered/withdrawn, personal registrant, non-IP keys); redundant prev==null.
+- **Task 10**: cap() counts UTF-16 units not bytes — non-ASCII covering names (≤120 chars after clean) could exceed 1500 in theory; header uncapped (bounded by key).
+- **Task 11**: coalescing window between cache.get and inflight check can start a second call after a just-finished refresh; reducer TypeError/cache.put failure propagate without penalise; dead `?? 'apnic'` in entity history path; too_large doesn't penalise; no cache-content assertion for personal entities; no redirect allow-list wiring test.
+- **Task 11**: cold ip/asn history stores no validatedFor, so one extra refetch can occur on the first later call with changed > latestFrom (bounded, once).
+- **Task 11**: companion failing with upstream/too_large and no stale fallback is not counted → total 6; only during an upstream failure (limiter already penalised → history served stale), non-blocking.
+- **Task 12**: Review Focus 2 at MCP boundary only tests AS-FOO (add IP bad-input + schema-rejection cases); DATE regex allows 2012-13-45; no test that since/detail change output; purity regex false-positive prone; outputSchema rir/cache are plain strings; resource test shallow.
+- **Task 12**: historyView without meta ignores source line in byte budget (latent trap); no test for timeline-mode structured output.
+- **Task 13**: README docs reference not a markdown link; TERMS_OF_USE link dead until Plan 4; placeholder contacts `you@example.net` / `github.com/you/...` look copyable — use `<operator contact>`; live.test.ts comment omits corepack.
+- **Task 13**: stderr also carries config-error line/Node warnings; history cost described as 5 (≈5); Claude Desktop PATH/nvm note; no test that onError logs type only or that stdout has only protocol frames; "listening" logged before connection.
+
+## Before the repo goes public (spec §12)
+
+- Plan 4: LICENSE (OpenRAIL-S), TERMS_OF_USE.md, SECURITY.md, CONTRIBUTING.md, CI (tests, weekly live drift, Dependabot, CodeQL, secret scanning) — after APNIC Legal Counsel review.
+- Extend `test:live` to assert holders are non-personal and `meta.rir` is the expected RIR (catches AFRINIC's jCard sunset and redirect mislabelling).
+- Confirm LACNIC limits with LACNIC; create the npm org `ieisi` before publishing.
