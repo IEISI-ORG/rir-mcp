@@ -1,0 +1,19 @@
+{
+  "name": "rir-mcp",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "vitest run",
+    "test:live": "RIR_MCP_LIVE=1 vitest run packages/core/test/live",
+    "typecheck": "tsc -p tsconfig.json",
+    "fixtures:record": "tsx scripts/fixtures-record.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
