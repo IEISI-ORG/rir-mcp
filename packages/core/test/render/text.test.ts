@@ -41,7 +41,7 @@ describe('renderNetwork', () => {
 
   it('labels cache age and staleness', () => {
     expect(renderNetwork(net, meta('hit', 180))).toContain('source    APNIC RDAP, cached 3m ago');
-    expect(renderNetwork(net, meta('stale', 3 * 3600))).toContain('STALE: fetched 3h ago');
+    expect(renderNetwork(net, meta('stale', 3 * 3600))).toContain('APNIC RDAP, STALE: fetched 3h ago; could not refresh');
   });
 });
 

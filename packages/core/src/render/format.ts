@@ -21,7 +21,7 @@ export function sourceText(meta: Meta): string {
   const label = RIR_LABEL[meta.rir];
   if (meta.cache === 'miss') return `${label} RDAP, fetched just now`;
   if (meta.cache === 'hit') return `${label} RDAP, cached ${age(meta.ageS)} ago`;
-  return `${label} RDAP, STALE: fetched ${age(meta.ageS)} ago; ${label} RDAP is unreachable now`;
+  return `${label} RDAP, STALE: fetched ${age(meta.ageS)} ago; could not refresh`;
 }
 
 export function datesText(registered?: string, changed?: string): string | undefined {
