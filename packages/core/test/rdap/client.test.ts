@@ -12,7 +12,7 @@ const code = async (p: Promise<unknown>) => p.then(() => 'resolved', (e: unknown
 describe('fetchJson', () => {
   it('returns parsed JSON and sends Accept and User-Agent', async () => {
     const f = fakeFetch({ [URL_A]: { body: { objectClassName: 'ip network' } } });
-    expect(await fetchJson(URL_A, { maxBytes: 1000 }, deps(f))).toEqual({ objectClassName: 'ip network' });
+    expect((await fetchJson(URL_A, { maxBytes: 1000 }, deps(f))).body).toEqual({ objectClassName: 'ip network' });
     const headers = f.inits[0]?.headers as Record<string, string>;
     expect(headers['user-agent']).toBe('test-agent');
     expect(headers.accept).toContain('application/rdap+json');
@@ -53,7 +53,10 @@ describe('fetchJson', () => {
       [target]: { body: { ok: 1 } },
     });
     const allow = (h: string) => h === 'rdap.arin.net';
-    expect(await fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(f))).toEqual({ ok: 1 });
+    const hosts: string[] = [];
+    const res = await fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow, onRedirect: async (h) => { hosts.push(h); } }, deps(f));
+    expect(res).toEqual({ body: { ok: 1 }, finalUrl: target });
+    expect(hosts).toEqual(['rdap.arin.net']);
 
     const evil = fakeFetch({ [URL_A]: { status: 302, headers: { location: 'https://evil.example/x' } } });
     expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(evil)))).toBe('redirect_blocked');

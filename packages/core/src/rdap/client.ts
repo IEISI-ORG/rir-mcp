@@ -13,14 +13,23 @@ export interface FetchJsonOptions {
   readonly maxBytes: number;
   /** Redirects are followed once, only over https, only to hosts this returns true for. */
   readonly allowRedirectTo?: (host: string) => boolean;
+  /** Called after the allow-list check passes and before the second hop; errors it throws propagate unchanged. */
+  readonly onRedirect?: (host: string) => Promise<void>;
 }
 
-export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpDeps): Promise<unknown> {
+export interface FetchJsonResult {
+  readonly body: unknown;
+  /** The URL that produced the body, after any redirect. */
+  readonly finalUrl: string;
+}
+
+export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpDeps): Promise<FetchJsonResult> {
   let target = url;
   for (let hop = 0; hop < 2; hop++) {
     const res = await send(target, deps);
     if (res.status >= 300 && res.status < 400) {
       target = redirectTarget(res, target, hop, opts);
+      await opts.onRedirect?.(new URL(target).hostname);
       continue;
     }
     if (res.status === 404) throw new RdapError('not_found', `Not found: ${target}`, { status: 404 });
@@ -34,7 +43,7 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
     if (res.status !== 200) throw new RdapError('bad_response', `Unexpected HTTP ${res.status}`, { status: res.status });
     const text = await readCapped(res, opts.maxBytes);
     try {
-      return JSON.parse(text) as unknown;
+      return { body: JSON.parse(text) as unknown, finalUrl: target };
     } catch {
       throw new RdapError('bad_response', `Non-JSON response from ${new URL(target).hostname}`, { status: 200 });
     }

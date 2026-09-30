@@ -101,9 +101,9 @@ export class RirService {
       const url = `${route.baseUrl}ip/${query}`;
       const out = await this.fetcher.get({
         ...CURRENT, key: `ip:${query}`, rir: route.rir, url,
-        reduce: (raw) => reduceNetwork(expectClass(raw, 'ip network'), { rir: route.rir }),
+        reduce: (raw, rir) => reduceNetwork(expectClass(raw, 'ip network'), { rir }),
       });
-      return this.toAnswer(out, route.rir, url);
+      return this.toAnswer(out);
     });
   }
 
@@ -118,9 +118,9 @@ export class RirService {
       const url = `${route.baseUrl}autnum/${n}`;
       const out = await this.fetcher.get({
         ...CURRENT, key: `asn:${n}`, rir: route.rir, url,
-        reduce: (raw) => reduceAutnum(expectClass(raw, 'autnum'), { rir: route.rir }),
+        reduce: (raw, rir) => reduceAutnum(expectClass(raw, 'autnum'), { rir }),
       });
-      return this.toAnswer(out, route.rir, url);
+      return this.toAnswer(out);
     });
   }
 
@@ -134,9 +134,9 @@ export class RirService {
       const url = `${await this.bootstrap.baseUrl(rir)}entity/${encodeURIComponent(handle)}`;
       const out = await this.fetcher.get({
         ...CURRENT, key: `entity:${rir}:${handle}`, rir, url,
-        reduce: (raw) => reduceEntity(expectClass(raw, 'entity'), { rir }),
+        reduce: (raw, actual) => reduceEntity(expectClass(raw, 'entity'), { rir: actual }),
       });
-      const answer = this.toAnswer(out, rir, url);
+      const answer = this.toAnswer(out);
       if (answer.kind !== 'record') return answer;
       if (answer.record.type === 'personal-entity') {
         return { kind: 'error', code: 'personal_record', message: `${handle} is a personal record; this service does not disclose personal contact data.` };
@@ -161,9 +161,9 @@ export class RirService {
         const url = `${route.baseUrl}domain/${zone}`;
         const out = await this.fetcher.get({
           ...CURRENT, key: `rdns:${zone}`, rir: route.rir, url,
-          reduce: (raw) => reduceDomain(expectClass(raw, 'domain'), { rir: route.rir }),
+          reduce: (raw, rir) => reduceDomain(expectClass(raw, 'domain'), { rir }),
         });
-        if (out.ok || out.code !== 'not_found') return this.toAnswer(out, route.rir, url);
+        if (out.ok || out.code !== 'not_found') return this.toAnswer(out);
       }
       return { kind: 'error', code: 'not_found', message: `No reverse DNS delegation is registered in ${RIR_LABEL[route.rir]} for ${query} (checked ${zones.join(', ')}).` };
     });
@@ -173,13 +173,20 @@ export class RirService {
     return guard(async () => {
       const target = await this.historyTarget(req.type ?? inferHistoryType(req.resource), req);
       if ('kind' in target) return target;
+      let redirected: Answer<{ readonly changed?: string }> | undefined;
+      let servedBy: Rir = target.rir;
       if (target.rir !== 'apnic') {
-        return { kind: 'error', code: 'history_unavailable', message: `Registration history is not published via RDAP by ${RIR_LABEL[target.rir]}; only APNIC provides it.` };
+        // The route may redirect to another RIR; only an APNIC-served record has APNIC history.
+        redirected = await target.loadCurrent();
+        if (redirected.kind === 'record') servedBy = redirected.meta.rir;
+        if (servedBy !== 'apnic') {
+          return { kind: 'error', code: 'history_unavailable', message: `Registration history is not published via RDAP by ${RIR_LABEL[servedBy]}; only APNIC provides it.` };
+        }
       }
       const url = `${await this.bootstrap.baseUrl('apnic')}history/${target.path}`;
       const key = `hist:${target.path}`;
       // At most one companion lookup per history request; entity / reverse-DNS answers are reused.
-      let companion: Answer<{ readonly changed?: string }> | undefined = target.preloaded;
+      let companion: Answer<{ readonly changed?: string }> | undefined = target.preloaded ?? redirected;
       const load = async () => (companion ??= await target.loadCurrent());
       const force = await this.historyIsStale(key, load);
       // Any companion that reached upstream (miss, stale after failure, not_found) already spent a token.
@@ -191,7 +198,7 @@ export class RirService {
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
       });
-      return this.toAnswer(out, 'apnic', url);
+      return this.toAnswer(out);
     });
   }
 
@@ -239,9 +246,9 @@ export class RirService {
     return changed > entry.value.value.latestFrom && entry.value.value.validatedFor !== changed;
   }
 
-  private toAnswer<T>(out: FetchOutcome<T>, rir: Rir, url: string): Answer<T> {
+  private toAnswer<T>(out: FetchOutcome<T>): Answer<T> {
     if (!out.ok) return { kind: 'error', code: out.code, message: out.message, retryAfterS: out.retryAfterS };
     const ageS = Math.max(0, Math.round((this.clock.now() - out.fetchedAt) / 1000));
-    return { kind: 'record', record: out.value, meta: { rir, cache: out.cache, ageS, url } };
+    return { kind: 'record', record: out.value, meta: { rir: out.rir, cache: out.cache, ageS, url: out.url } };
   }
 }

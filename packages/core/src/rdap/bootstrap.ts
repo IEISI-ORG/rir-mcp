@@ -86,7 +86,7 @@ export class Bootstrap {
   private fetchAll(): Promise<RawBootstrap> {
     this.inflight ??= (async () => {
       const [ipv4, ipv6, asn] = await Promise.all(
-        FILES.map((f) => fetchJson(`${IANA_BOOTSTRAP_BASE}${f}.json`, { maxBytes: 1_000_000 }, this.http)),
+        FILES.map((f) => fetchJson(`${IANA_BOOTSTRAP_BASE}${f}.json`, { maxBytes: 1_000_000 }, this.http).then((r) => r.body)),
       );
       return { ipv4: asRawFile(ipv4), ipv6: asRawFile(ipv6), asn: asRawFile(asn) };
     })().finally(() => {

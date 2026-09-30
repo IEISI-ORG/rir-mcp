@@ -230,3 +230,47 @@ describe('RirService upstream failures', () => {
     expect(await service.ip('1.1.1.1')).toMatchObject({ kind: 'record', meta: { cache: 'stale' } });
   });
 });
+
+describe('RirService cross-RIR redirect', () => {
+  const ARIN_URL = 'https://rdap.arin.net/registry/ip/8.8.8.8';
+  const APNIC_8 = `${APNIC}ip/8.8.8.8`;
+  const redirectRoutes = (): Record<string, FakeRoute> => ({
+    [ARIN_URL]: { status: 302, headers: { location: APNIC_8 } },
+    [APNIC_8]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
+    [`${APNIC}history/ip/8.8.8.8`]: { body: loadFixture('rdap/apnic/history-ip/1.1.1.1.json') },
+  });
+  const spy = (deny?: string) => {
+    const acquired: string[] = [];
+    const penalised: string[] = [];
+    const limiter: RateLimiter = {
+      acquire: async (r) => { acquired.push(r); return r === deny ? { ok: false, retryAfterS: 7 } : { ok: true }; },
+      penalise: async (r) => { penalised.push(r); },
+    };
+    return { limiter, acquired, penalised };
+  };
+
+  it('attributes the answer to the RIR that served it and bills both buckets', async () => {
+    const { limiter, acquired } = spy();
+    const { service } = setup(redirectRoutes(), limiter);
+    const a = await service.ip('8.8.8.8');
+    expect(a).toMatchObject({ kind: 'record', record: { rir: 'apnic' }, meta: { rir: 'apnic', url: APNIC_8 } });
+    expect(acquired).toEqual(['arin', 'apnic']);
+    const { renderNetwork } = await import('../../src/render/text');
+    expect(a.kind === 'record' && renderNetwork(a.record, a.meta)).toContain('APNIC RDAP, fetched just now');
+    expect(await service.ip('8.8.8.8')).toMatchObject({ meta: { rir: 'apnic', cache: 'hit', url: APNIC_8 } });
+  });
+
+  it('reports rate_limited without penalising when the target bucket is empty', async () => {
+    const { limiter, penalised } = spy('apnic');
+    const { service } = setup(redirectRoutes(), limiter);
+    const a = await service.ip('8.8.8.8');
+    expect(a).toMatchObject({ kind: 'error', code: 'rate_limited', retryAfterS: 7 });
+    expect(a.kind === 'error' && a.message).toContain('APNIC');
+    expect(penalised).toEqual([]);
+  });
+
+  it('serves APNIC history when the ARIN route redirects to APNIC', async () => {
+    const { service } = setup(redirectRoutes());
+    expect(await service.history({ resource: '8.8.8.8' })).toMatchObject({ kind: 'record', record: { type: 'history' } });
+  });
+});

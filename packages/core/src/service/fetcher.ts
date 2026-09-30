@@ -1,7 +1,7 @@
 import type { CacheEntry, CacheStore, Clock, RateLimiter } from '../ports';
 import { fetchJson, type HttpDeps } from '../rdap/client';
 import { RdapError } from '../rdap/errors';
-import { RIR_LABEL, type Rir } from '../rdap/rirs';
+import { RIR_HOSTS, RIR_LABEL, type Rir } from '../rdap/rirs';
 import type { ErrorCode } from './answer';
 
 export const TTL_S = {
@@ -14,10 +14,18 @@ export const TTL_S = {
 
 export const WEIGHT = { current: 1, history: 5 } as const;
 
-export type Stored<T> = { readonly found: true; readonly value: T } | { readonly found: false };
+/** `rir` and `url` are those of the registry that actually served the record (may differ after a redirect). */
+export type Stored<T> = { readonly found: true; readonly value: T; readonly rir: Rir; readonly url: string } | { readonly found: false };
 
 export type FetchOutcome<T> =
-  | { readonly ok: true; readonly value: T; readonly cache: 'miss' | 'hit' | 'stale'; readonly fetchedAt: number }
+  | {
+    readonly ok: true;
+    readonly value: T;
+    readonly cache: 'miss' | 'hit' | 'stale';
+    readonly fetchedAt: number;
+    readonly rir: Rir;
+    readonly url: string;
+  }
   | { readonly ok: false; readonly code: ErrorCode; readonly message: string; readonly retryAfterS?: number };
 
 export interface FetchRequest<T> {
@@ -29,7 +37,7 @@ export interface FetchRequest<T> {
   readonly staleS: number;
   readonly maxBytes: number;
   /** Must drop personal data: its output is what gets cached. */
-  readonly reduce: (raw: unknown) => T;
+  readonly reduce: (raw: unknown, rir: Rir) => T;
   readonly force?: boolean;
 }
 
@@ -48,8 +56,27 @@ const notFound = (rir: Rir): FetchOutcome<never> => ({
 });
 
 function fromEntry<T>(entry: CacheEntry<Stored<T>>, cache: 'hit' | 'stale', rir: Rir): FetchOutcome<T> {
-  return entry.value.found ? { ok: true, value: entry.value.value, cache, fetchedAt: entry.fetchedAt } : notFound(rir);
+  const v = entry.value;
+  return v.found ? { ok: true, value: v.value, cache, fetchedAt: entry.fetchedAt, rir: v.rir, url: v.url } : notFound(rir);
 }
+
+/** Thrown from the redirect hook when the redirect target's local bucket is empty. */
+class LocalRateLimit extends Error {
+  readonly retryAfterS: number;
+  readonly rir: Rir;
+  constructor(rir: Rir, retryAfterS: number) {
+    super('local rate limit');
+    this.rir = rir;
+    this.retryAfterS = retryAfterS;
+  }
+}
+
+const rateLimited = (rir: Rir, retryAfterS: number): FetchOutcome<never> => ({
+  ok: false,
+  code: 'rate_limited',
+  message: `Rate limit for ${RIR_LABEL[rir]} lookups reached; retry in ${retryAfterS}s.`,
+  retryAfterS,
+});
 
 /** cache -> coalesce -> limiter -> fetch -> reduce -> cache, with stale-on-error (spec §5). */
 export class CachedFetcher {
@@ -77,32 +104,42 @@ export class CachedFetcher {
   private async refresh<T>(req: FetchRequest<T>, entry: CacheEntry<Stored<T>> | null): Promise<FetchOutcome<T>> {
     const fallback = entry ? fromEntry(entry, 'stale', req.rir) : null;
     const permit = await this.deps.limiter.acquire(req.rir, req.weight);
-    if (!permit.ok) {
-      return fallback ?? {
-        ok: false,
-        code: 'rate_limited',
-        message: `Rate limit for ${RIR_LABEL[req.rir]} lookups reached; retry in ${permit.retryAfterS}s.`,
-        retryAfterS: permit.retryAfterS,
-      };
-    }
+    if (!permit.ok) return fallback ?? rateLimited(req.rir, permit.retryAfterS);
+    let actual: Rir = req.rir;
     try {
       const hosts = await this.deps.rdapHosts();
-      const raw = await fetchJson(req.url, { maxBytes: req.maxBytes, allowRedirectTo: (h) => hosts.has(h) }, this.deps.http);
-      const value = req.reduce(raw);
-      await this.store(req.key, { found: true, value }, req.freshS, req.staleS);
-      return { ok: true, value, cache: 'miss', fetchedAt: this.deps.clock.now() };
+      const { body, finalUrl } = await fetchJson(
+        req.url,
+        {
+          maxBytes: req.maxBytes,
+          allowRedirectTo: (h) => hosts.has(h),
+          onRedirect: async (host) => {
+            const target = RIR_HOSTS[host];
+            if (!target || target === req.rir) return;
+            const p = await this.deps.limiter.acquire(target, req.weight);
+            if (!p.ok) throw new LocalRateLimit(target, p.retryAfterS);
+            actual = target;
+          },
+        },
+        this.deps.http,
+      );
+      actual = RIR_HOSTS[new URL(finalUrl).hostname] ?? req.rir;
+      const value = req.reduce(body, actual);
+      await this.store(req.key, { found: true, value, rir: actual, url: finalUrl }, req.freshS, req.staleS);
+      return { ok: true, value, cache: 'miss', fetchedAt: this.deps.clock.now(), rir: actual, url: finalUrl };
     } catch (err) {
+      if (err instanceof LocalRateLimit) return fallback ?? rateLimited(err.rir, err.retryAfterS);
       if (!(err instanceof RdapError)) throw err;
       if (err.code === 'not_found') {
         await this.store(req.key, { found: false }, TTL_S.notFound, TTL_S.notFound);
         return notFound(req.rir);
       }
       if (err.code === 'too_large') return { ok: false, code: 'too_large', message: 'The registry response was too large to use.' };
-      await this.deps.limiter.penalise(req.rir);
+      await this.deps.limiter.penalise(actual);
       return fallback ?? {
         ok: false,
         code: 'upstream',
-        message: `${RIR_LABEL[req.rir]} RDAP is unavailable right now (${err.code}); try again later.`,
+        message: `${RIR_LABEL[actual]} RDAP is unavailable right now (${err.code}); try again later.`,
         retryAfterS: err.retryAfterS,
       };
     }
