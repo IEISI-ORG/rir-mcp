@@ -1,0 +1,239 @@
+import { parseAsn } from '../input/asn';
+import { InputError } from '../input/errors';
+import { inferRirFromHandle, parseHandle } from '../input/handle';
+import { formatPrefix, parseIpOrCidr } from '../input/ip';
+import { reverseZones } from '../input/reverse-zone';
+import type { CacheStore, Clock, FetchLike, RateLimiter } from '../ports';
+import { Bootstrap } from '../rdap/bootstrap';
+import { MAX_BYTES, type HttpDeps } from '../rdap/client';
+import { RdapError } from '../rdap/errors';
+import { RIR_LABEL, type Rir } from '../rdap/rirs';
+import { reduceAutnum } from '../reduce/autnum';
+import { reduceDomain } from '../reduce/domain';
+import { reduceEntity } from '../reduce/entity';
+import { reduceHistory, type HistoryRecord } from '../reduce/history';
+import { reduceNetwork } from '../reduce/network';
+import type { AutnumRecord, DomainRecord, EntityRecord, NetworkRecord } from '../reduce/types';
+import { expectClass } from '../reduce/util';
+import { specialUseForAsn, specialUseForIp } from '../special-use';
+import type { Answer } from './answer';
+import { CachedFetcher, TTL_S, WEIGHT, type FetchOutcome } from './fetcher';
+
+export interface ServiceDeps {
+  readonly fetch: FetchLike;
+  readonly cache: CacheStore;
+  readonly limiter: RateLimiter;
+  readonly clock: Clock;
+  readonly userAgent: string;
+  readonly timeoutMs?: number;
+}
+
+export type HistoryType = 'ip' | 'asn' | 'entity' | 'reverse_dns';
+
+export interface HistoryRequest {
+  readonly resource: string;
+  readonly type?: HistoryType;
+  readonly rir?: Rir;
+}
+
+type NoRecord = Exclude<Answer<never>, { kind: 'record' }>;
+interface HistoryTarget {
+  readonly rir: Rir;
+  readonly path: string;
+  readonly query: string;
+  readonly loadCurrent: () => Promise<Answer<{ readonly changed?: string }>>;
+}
+
+const CURRENT = { weight: WEIGHT.current, freshS: TTL_S.current, staleS: TTL_S.currentStale, maxBytes: MAX_BYTES.current } as const;
+
+export function inferHistoryType(resource: string): HistoryType {
+  const s = resource.trim();
+  try {
+    parseIpOrCidr(s);
+    return 'ip';
+  } catch {
+    // not an IP address
+  }
+  return /^(AS\s*)?\d+(\.\d+)?$/i.test(s) ? 'asn' : 'entity';
+}
+
+const notDelegated = (query: string): NoRecord => ({
+  kind: 'error',
+  code: 'not_delegated',
+  message: `${query} is not delegated to a single RIR in the IANA bootstrap registry.`,
+});
+
+async function guard<T>(fn: () => Promise<Answer<T>>): Promise<Answer<T>> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof InputError) return { kind: 'error', code: 'invalid_input', message: `${err.message}. ${err.hint}` };
+    if (err instanceof RdapError) return { kind: 'error', code: 'upstream', message: err.message };
+    throw err;
+  }
+}
+
+export class RirService {
+  private readonly clock: Clock;
+  private readonly bootstrap: Bootstrap;
+  private readonly fetcher: CachedFetcher;
+
+  constructor(deps: ServiceDeps) {
+    const http: HttpDeps = { fetch: deps.fetch, userAgent: deps.userAgent, timeoutMs: deps.timeoutMs };
+    this.clock = deps.clock;
+    this.bootstrap = new Bootstrap({ http, cache: deps.cache, clock: deps.clock });
+    this.fetcher = new CachedFetcher({
+      http, cache: deps.cache, limiter: deps.limiter, clock: deps.clock,
+      rdapHosts: () => this.bootstrap.rdapHosts(),
+    });
+  }
+
+  ip(input: string): Promise<Answer<NetworkRecord>> {
+    return guard(async () => {
+      const p = parseIpOrCidr(input);
+      const query = formatPrefix(p);
+      const special = specialUseForIp(p);
+      if (special) return { kind: 'special', query, special };
+      const route = await this.bootstrap.routeIp(p);
+      if (!route) return notDelegated(query);
+      const url = `${route.baseUrl}ip/${query}`;
+      const out = await this.fetcher.get({
+        ...CURRENT, key: `ip:${query}`, rir: route.rir, url,
+        reduce: (raw) => reduceNetwork(expectClass(raw, 'ip network'), { rir: route.rir }),
+      });
+      return this.toAnswer(out, route.rir, url);
+    });
+  }
+
+  asn(input: string | number): Promise<Answer<AutnumRecord>> {
+    return guard(async () => {
+      const n = parseAsn(input);
+      const query = `AS${n}`;
+      const special = specialUseForAsn(n);
+      if (special) return { kind: 'special', query, special };
+      const route = await this.bootstrap.routeAsn(n);
+      if (!route) return notDelegated(query);
+      const url = `${route.baseUrl}autnum/${n}`;
+      const out = await this.fetcher.get({
+        ...CURRENT, key: `asn:${n}`, rir: route.rir, url,
+        reduce: (raw) => reduceAutnum(expectClass(raw, 'autnum'), { rir: route.rir }),
+      });
+      return this.toAnswer(out, route.rir, url);
+    });
+  }
+
+  entity(handleInput: string, rirInput?: Rir): Promise<Answer<EntityRecord>> {
+    return guard(async () => {
+      const handle = parseHandle(handleInput);
+      const rir = rirInput ?? inferRirFromHandle(handle);
+      if (!rir) {
+        return { kind: 'error', code: 'invalid_input', message: `Cannot tell which RIR holds ${handle}; pass rir as one of apnic, arin, ripe, lacnic, afrinic.` };
+      }
+      const url = `${await this.bootstrap.baseUrl(rir)}entity/${encodeURIComponent(handle)}`;
+      const out = await this.fetcher.get({
+        ...CURRENT, key: `entity:${rir}:${handle}`, rir, url,
+        reduce: (raw) => reduceEntity(expectClass(raw, 'entity'), { rir }),
+      });
+      const answer = this.toAnswer(out, rir, url);
+      if (answer.kind !== 'record') return answer;
+      if (answer.record.type === 'personal-entity') {
+        return { kind: 'error', code: 'personal_record', message: `${handle} is a personal record; this service does not disclose personal contact data.` };
+      }
+      return { ...answer, record: answer.record };
+    });
+  }
+
+  reverseDns(input: string): Promise<Answer<DomainRecord>> {
+    return guard(async () => {
+      const p = parseIpOrCidr(input);
+      const query = formatPrefix(p);
+      const special = specialUseForIp(p);
+      if (special) return { kind: 'special', query, special };
+      const zones = reverseZones(p);
+      if (zones.length === 0) {
+        return { kind: 'error', code: 'invalid_input', message: `${query} is too short for a reverse DNS zone; use an IPv4 /8 or longer, or an IPv6 /4 or longer.` };
+      }
+      const route = await this.bootstrap.routeIp(p);
+      if (!route) return notDelegated(query);
+      for (const zone of zones) {
+        const url = `${route.baseUrl}domain/${zone}`;
+        const out = await this.fetcher.get({
+          ...CURRENT, key: `rdns:${zone}`, rir: route.rir, url,
+          reduce: (raw) => reduceDomain(expectClass(raw, 'domain'), { rir: route.rir }),
+        });
+        if (out.ok || out.code !== 'not_found') return this.toAnswer(out, route.rir, url);
+      }
+      return { kind: 'error', code: 'not_found', message: `No reverse DNS delegation is registered in ${RIR_LABEL[route.rir]} for ${query} (checked ${zones.join(', ')}).` };
+    });
+  }
+
+  history(req: HistoryRequest): Promise<Answer<HistoryRecord>> {
+    return guard(async () => {
+      const target = await this.historyTarget(req.type ?? inferHistoryType(req.resource), req);
+      if ('kind' in target) return target;
+      if (target.rir !== 'apnic') {
+        return { kind: 'error', code: 'history_unavailable', message: `Registration history is not published via RDAP by ${RIR_LABEL[target.rir]}; only APNIC provides it.` };
+      }
+      const url = `${await this.bootstrap.baseUrl('apnic')}history/${target.path}`;
+      const key = `hist:${target.path}`;
+      const force = await this.historyIsStale(key, target.loadCurrent);
+      const out = await this.fetcher.get({
+        // A forced refresh already paid for a current lookup in historyIsStale; bill the pair as one history
+        // lookup, otherwise 1 + 5 tokens can never fit a burst of 5 and the refresh is always rate limited.
+        key, rir: 'apnic', url, weight: force ? WEIGHT.history - WEIGHT.current : WEIGHT.history, freshS: TTL_S.history, staleS: TTL_S.historyStale,
+        maxBytes: MAX_BYTES.history, force,
+        reduce: (raw) => reduceHistory(raw, { rir: 'apnic', query: target.query }),
+      });
+      return this.toAnswer(out, 'apnic', url);
+    });
+  }
+
+  private async historyTarget(type: HistoryType, req: HistoryRequest): Promise<HistoryTarget | NoRecord> {
+    if (type === 'ip') {
+      const p = parseIpOrCidr(req.resource);
+      const query = formatPrefix(p);
+      const special = specialUseForIp(p);
+      if (special) return { kind: 'special', query, special };
+      const route = await this.bootstrap.routeIp(p);
+      if (!route) return notDelegated(query);
+      return { rir: route.rir, path: `ip/${query}`, query, loadCurrent: () => this.ip(query) };
+    }
+    if (type === 'asn') {
+      const n = parseAsn(req.resource);
+      const special = specialUseForAsn(n);
+      if (special) return { kind: 'special', query: `AS${n}`, special };
+      const route = await this.bootstrap.routeAsn(n);
+      if (!route) return notDelegated(`AS${n}`);
+      return { rir: route.rir, path: `autnum/${n}`, query: `AS${n}`, loadCurrent: () => this.asn(n) };
+    }
+    if (type === 'entity') {
+      const handle = parseHandle(req.resource);
+      const current = await this.entity(handle, req.rir);
+      if (current.kind === 'error' && current.code !== 'not_found') return current;
+      const rir = req.rir ?? inferRirFromHandle(handle) ?? 'apnic';
+      return { rir, path: `entity/${encodeURIComponent(handle)}`, query: handle, loadCurrent: async () => current };
+    }
+    const rd = await this.reverseDns(req.resource);
+    if (rd.kind !== 'record') return rd;
+    return { rir: rd.meta.rir, path: `domain/${rd.record.zone}`, query: rd.record.zone, loadCurrent: async () => rd };
+  }
+
+  /**
+   * History is append-only. Refetch when the object's `last changed` date is later than the
+   * newest cached history record, at most once per change date (spec §6).
+   */
+  private async historyIsStale(key: string, loadCurrent: HistoryTarget['loadCurrent']): Promise<boolean> {
+    const entry = await this.fetcher.peek<HistoryRecord>(key);
+    if (!entry || !entry.value.found || !entry.value.value.latestFrom) return false;
+    const current = await loadCurrent();
+    const changed = current.kind === 'record' ? current.record.changed : undefined;
+    if (!changed) return false;
+    return changed > entry.value.value.latestFrom && entry.fetchedAt < Date.parse(changed) + 86_400_000;
+  }
+
+  private toAnswer<T>(out: FetchOutcome<T>, rir: Rir, url: string): Answer<T> {
+    if (!out.ok) return { kind: 'error', code: out.code, message: out.message, retryAfterS: out.retryAfterS };
+    const ageS = Math.max(0, Math.round((this.clock.now() - out.fetchedAt) / 1000));
+    return { kind: 'record', record: out.value, meta: { rir, cache: out.cache, ageS, url } };
+  }
+}
