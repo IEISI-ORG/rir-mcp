@@ -13,10 +13,31 @@ const vc = (kind: string, fn: string, email?: string) => ['vcard', [
 
 describe('clean', () => {
   it('strips control, bidi and zero-width characters and truncates', () => {
-    expect(clean('Evil‮ Corp\u0007​  Ltd')).toBe('Evil Corp Ltd');
+    expect(clean('Evil\u202e Corp\u0007\u200b  Ltd')).toBe('Evil Corp Ltd');
     expect(clean('x'.repeat(130))).toBe(`${'x'.repeat(119)}…`);
     expect(clean('   ')).toBeUndefined();
     expect(clean(42)).toBeUndefined();
+  });
+
+  it('removes tag-encoded payloads', () => {
+    expect(clean('ACME\u{E0069}\u{E0067}\u{E006E}')).toBe('ACME');
+  });
+
+  it.each([
+    ['soft hyphen', '\u00ad'], ['Arabic letter mark', '\u061c'], ['Mongolian vowel separator', '\u180e'],
+    ['bidi isolate', '\u2066'], ['BOM', '\ufeff'], ['NEL', '\u0085'], ['private use', '\ue000'],
+  ])('replaces %s with a space', (_name, ch) => {
+    expect(clean(`A${ch}B`)).toBe('A B');
+  });
+
+  it('truncates by code point without splitting a surrogate pair', () => {
+    const out = clean(`${'x'.repeat(119)}\u{1F600}\u{1F600}`, 120) ?? '';
+    expect(out.endsWith('…')).toBe(true);
+    expect(out).toBe(`${'x'.repeat(119)}…`);
+    expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(out)).toBe(false);
+    const emoji = clean('\u{1F600}'.repeat(121), 120) ?? '';
+    expect(Array.from(emoji)).toHaveLength(120);
+    expect(emoji.endsWith('\u{1F600}…')).toBe(true);
   });
 });
 

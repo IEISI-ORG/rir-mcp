@@ -2056,7 +2056,7 @@ const vc = (kind: string, fn: string, email?: string) => ['vcard', [
 
 describe('clean', () => {
   it('strips control, bidi and zero-width characters and truncates', () => {
-    expect(clean('Evil‮ Corp\u0007​  Ltd')).toBe('Evil Corp Ltd');
+    expect(clean('Evil\u202e Corp\u0007\u200b  Ltd')).toBe('Evil Corp Ltd');
     expect(clean('x'.repeat(130))).toBe(`${'x'.repeat(119)}…`);
     expect(clean('   ')).toBeUndefined();
     expect(clean(42)).toBeUndefined();
@@ -2236,17 +2236,20 @@ Expected: FAIL — cannot resolve `../../src/reduce/domain`.
 
 `packages/core/src/reduce/sanitize.ts`:
 ```ts
-// C0/C1 controls, zero-width, bidi embeddings/overrides/isolates, BOM.
-const UNSAFE = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁩﻿]/g;
+// Control (Cc), format (Cf: zero-width, bidi, BOM, soft hyphen, tag characters) and private-use (Co).
+const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}]/gu;
 
 /** Registry text is data, never instructions: strip unsafe characters and cap length. */
 export function clean(value: unknown, max = 120): string | undefined {
   if (typeof value !== 'string') return undefined;
   const s = value.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim();
   if (s === '') return undefined;
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+  const cps = Array.from(s);
+  return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : s;
 }
 ```
+
+Updated in the final fix wave: Unicode property classes replace the explicit ranges.
 
 `packages/core/src/reduce/util.ts`:
 ```ts
