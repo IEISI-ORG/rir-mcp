@@ -192,6 +192,19 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
 
+  packages/node:
+    dependencies:
+      '@ieisi/rir-mcp-core':
+        specifier: workspace:*
+        version: link:../core
+      '@modelcontextprotocol/server':
+        specifier: ^2.2.0
+        version: 2.2.0
+    devDependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.2.0
+        version: 2.2.0
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':
