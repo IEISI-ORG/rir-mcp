@@ -102,3 +102,43 @@ There is still no git remote, so all work is local on `main`.
 
 **Reply (2026-10-03, iteration 3):** Not done. Claude Code's permission check blocked repo creation and pushing in this unattended session, so nothing was created or pushed, and README work stopped too. This is waiting on you. Before you go public, note the earlier decision that LICENSE/TERMS_OF_USE (Plan 4) should follow APNIC Legal Counsel review. A private repo first would avoid that conflict. Checks already done: no secrets in history; only role or `example.*` email addresses; the amended-out commit `fcc65eb` is not reachable from any branch or tag.
 
+
+---
+
+## Q9 (2026-10-04, Plan 3) — Durable Object layout: "DO as the server"
+
+Spec §6 has one `StateDO` that the Worker calls for each cache, limiter and quota operation. A Durable Object lives in one location. A user far from it would pay a cross-region round trip for each of the ~5 sequential calls per lookup, which is over a second from the other side of the world.
+
+**Default:** the Worker does the cheap checks at the edge (path, Host, Origin, API key via KV/secret), then forwards the request to the single `StateDO`, which runs the MCP handler itself. Cache, limiter, quota and scan state are then local SQLite calls, so there is one round trip per request. A single instance also makes rate limits and in-flight de-duplication exact worldwide. Expected volume (Slack-style Q&A) is far below one DO's capacity. If it ever isn't, the ports allow sharding by RIR later.
+
+**Answer:**
+
+---
+
+## Q10 (2026-10-04, Plan 3) — Immediate revocation and lifting suspensions on Cloudflare
+
+Spec §7 mentions a `StateDO` deny-list for urgent revocation. Writing to it needs an admin endpoint (or similar) on a public Worker, which is new attack surface.
+
+**Default:** no admin endpoint in Plan 3. Revocation goes through KV (`revoked: true`, effective within about 60 s), and suspensions expire after 24 h (Q1). An admin endpoint protected by a separate `ADMIN_API_KEY` secret can be added later if you need faster revocation or manual unsuspend.
+
+**Answer:**
+
+---
+
+## Q11 (2026-10-04, Plan 3) — Deploying to Cloudflare
+
+Plan 3 builds and tests the Worker locally (workerd via the Cloudflare Vitest plugin). It does not deploy, log in to Cloudflare, or create KV namespaces.
+
+**Default:** no deployment. The docs give the exact `wrangler` commands for you to run when you're ready. Tell me if you want a deploy and which account to use.
+
+**Answer:**
+
+---
+
+## Q12 (2026-10-04, Plan 3) — Test runner version for the Worker package
+
+Cloudflare's Vitest plugin (`@cloudflare/vitest-plugin` 1.3.6) supports Vitest 4 only. The repo uses Vitest 5.
+
+**Default:** `packages/worker` pins Vitest 4 with its own config and runs as `corepack pnpm test:worker`. `corepack pnpm test` stays on Vitest 5 for core and node. I'll unify the two when the plugin supports Vitest 5.
+
+**Answer:**
