@@ -81,8 +81,9 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 The repo is public at `github.com/tcsweetser/apnic-mcp`. Code and docs already point at `github.com/IEISI-ORG/rir-mcp`, so those links 404 until the move:
 the User-Agent sent to every RIR (`REPO_URL` in `packages/core/src/rdap/user-agent.ts`), the operator contact `…/IEISI-ORG/rir-mcp/issues`, `TERMS_URL` in `packages/core/src/guide/text.ts`, and the clone commands in `README.md` and `docs/deployment.md`.
 
-- [ ] Transfer the repo to `IEISI-ORG` **and rename it to `rir-mcp`** (Settings → Transfer, or `gh api repos/tcsweetser/apnic-mcp/transfer -f new_owner=IEISI-ORG -f new_name=rir-mcp`). Keeping the name `apnic-mcp` would leave every URL above broken.
-- [ ] Point the local clone at the new home: `git remote set-url origin git@github.com:IEISI-ORG/rir-mcp.git`.
+- [x] (done 2026-10-04) Transfer the repo to `IEISI-ORG` **and rename it to `rir-mcp`** (Settings → Transfer, or `gh api repos/tcsweetser/apnic-mcp/transfer -f new_owner=IEISI-ORG -f new_name=rir-mcp`). Keeping the name `apnic-mcp` would leave every URL above broken.
+- [x] (done 2026-10-04) Point the local clone at the new home: `git remote set-url origin git@github.com:IEISI-ORG/rir-mcp.git`.
+- [ ] **Blocked 2026-10-04:** the API reports the repo public and not disabled, but git refuses it: SSH fetch says "Repository 'IEISI-ORG/rir-mcp' is disabled", and an anonymous HTTPS ls-remote asks for credentials. Check org settings (SSH key authorisation, billing or policy) or wait for the transfer to finish. Description and Issues did carry over; branch protection not yet checked.
 - [ ] Check that the description, Issues (needed for the operator contact URL) and branch protection on `main` survived the transfer.
 - [ ] Don't create a new `tcsweetser/apnic-mcp` afterwards: that breaks GitHub's redirect from the old URL.
 - [ ] Re-run `corepack pnpm test:live` once, so the User-Agent link the RIRs see resolves.
