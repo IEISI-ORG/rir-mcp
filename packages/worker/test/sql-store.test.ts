@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import type { CacheEntry, Clock } from '@ieisi/rir-mcp-core';
 import { describe, expect, it } from 'vitest';
-import { createTables, SqlCache, SqlStateMap } from '../src/sql-store';
+import { createTables, purgeExpiredScanUnits, SqlCache, SqlStateMap } from '../src/sql-store';
 
 class FakeClock implements Clock {
   t = 1_000_000;
@@ -106,6 +106,24 @@ describe('SqlCache', () => {
     await inDo('cache-evict', (sql) => new SqlCache(sql, new FakeClock()).put('k', e));
     await evictDurableObject(stub('cache-evict'));
     expect(await inDo('cache-evict', (sql) => new SqlCache(sql, new FakeClock()).get('k'))).toEqual(e);
+  });
+});
+
+describe('purgeExpiredScanUnits', () => {
+  it('clears scan digests of expired windows only, keeps counts, and returns when the next one expires', async () => {
+    await inDo('purge', (sql) => {
+      const gate = new SqlStateMap<{ windowStart: number; used: number; units: string[]; suspendedUntil: number }>(sql, 'gate');
+      const HOUR = 3_600_000;
+      const now = 10 * HOUR;
+      gate.set('old', { windowStart: now - HOUR, used: 3, units: ['aa', 'bb'], suspendedUntil: 0 });
+      gate.set('live', { windowStart: now - 60_000, used: 1, units: ['cc'], suspendedUntil: 0 });
+      gate.set('none', { windowStart: now - 5 * HOUR, used: 0, units: [], suspendedUntil: 0 });
+      expect(purgeExpiredScanUnits(sql, now)).toBe(now - 60_000 + HOUR);
+      expect(gate.get('old')).toEqual({ windowStart: now - HOUR, used: 3, units: [], suspendedUntil: 0 });
+      expect(gate.get('live')?.units).toEqual(['cc']);
+      expect(purgeExpiredScanUnits(sql, now + HOUR)).toBeNull();
+      expect(gate.get('live')?.units).toEqual([]);
+    });
   });
 });
 

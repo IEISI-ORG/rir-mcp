@@ -3,12 +3,14 @@ import {
   type BucketState, type ClientInfo, type ClientState, type FetchLike, type McpHandler,
 } from '@ieisi/rir-mcp-core';
 import { DurableObject } from 'cloudflare:workers';
-import { createTables, SqlCache, SqlStateMap } from './sql-store';
+import { createTables, purgeExpiredScanUnits, SqlCache, SqlStateMap } from './sql-store';
 
 // One JSON line per event, read by Workers observability. Never pass header values, keys, query values or error messages.
 const log = (line: Record<string, unknown>): void => console.log(JSON.stringify(line));
 // Error messages and stacks may contain query values: log the type only.
 const onError = (err: unknown): void => log({ t: new Date().toISOString(), error: err instanceof Error ? err.name : typeof err });
+
+const HOUR_MS = 3_600_000;
 
 function randomSalt(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -53,6 +55,15 @@ export class StateDO extends DurableObject<Env> {
 
   /** RPC from the edge Worker, only after `edgeGate` admitted the request: `client` is trusted here. */
   async serve(request: Request, client: ClientInfo): Promise<Response> {
-    return this.handler.fetch(request, client);
+    const res = await this.handler.fetch(request, client);
+    // Make sure scan digests get purged even if no further request ever arrives.
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
+    return res;
+  }
+
+  /** Purges scan digests of ended windows; re-arms only while some remain. */
+  override async alarm(): Promise<void> {
+    const next = purgeExpiredScanUnits(this.ctx.storage.sql, Date.now());
+    if (next !== null) await this.ctx.storage.setAlarm(next);
   }
 }

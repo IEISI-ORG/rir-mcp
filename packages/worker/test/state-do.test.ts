@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import type { ClientInfo } from '@ieisi/rir-mcp-core';
 import { describe, expect, it, vi } from 'vitest';
 // workerd has no filesystem: fixtures are bundled as JSON imports instead of read with node:fs.
@@ -91,5 +91,32 @@ describe('StateDO.serve', () => {
     const parsed = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
     expect(parsed).toContainEqual(expect.objectContaining({ tool: 'rdap_ip_lookup', client: 'alpha' }));
     expect(lines.join('\n')).not.toContain('1.1.1.1');
+  });
+
+  it('keeps the scan-detector salt across eviction, so a repeated unit is not counted twice', async () => {
+    await inDo('do-salt', async (d) => text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha)));
+    await evictDurableObject(stub('do-salt'));
+    const units = await inDo('do-salt', async (d) => {
+      await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.7' }), alpha)); // same /24
+      return runInDurableObject(stub('do-salt'), (_i, state) =>
+        (JSON.parse(state.storage.sql.exec<{ value: string }>("SELECT value FROM gate WHERE key = 'alpha'").one().value) as { units: string[] }).units);
+    });
+    expect(units).toHaveLength(1);
+  });
+
+  it('schedules an alarm that purges scan digests of expired windows', async () => {
+    const alarm = await inDo('do-alarm', async (d) => {
+      await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha));
+      return runInDurableObject(stub('do-alarm'), (_i, state) => state.storage.getAlarm());
+    });
+    expect(alarm).toBeGreaterThan(Date.now());
+    await runInDurableObject(stub('do-alarm'), (_i, state) => {
+      // Age the window so the alarm finds it expired.
+      state.storage.sql.exec("UPDATE gate SET value = json_set(value, '$.windowStart', 0) WHERE key = 'alpha'");
+    });
+    expect(await runDurableObjectAlarm(stub('do-alarm'))).toBe(true);
+    const units = await runInDurableObject(stub('do-alarm'), (_i, state) =>
+      (JSON.parse(state.storage.sql.exec<{ value: string }>("SELECT value FROM gate WHERE key = 'alpha'").one().value) as { units: string[] }).units);
+    expect(units).toEqual([]);
   });
 });

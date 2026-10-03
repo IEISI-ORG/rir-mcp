@@ -68,6 +68,8 @@ export class MemoryClientGate implements ClientGate {
       return OK;
     }
     s.suspendedUntil = now + this.opts.suspendMs;
+    // Suspension makes the digests irrelevant until it ends (current() resets the window), so drop them now.
+    s.units = [];
     this.state.set(client.clientId, s);
     try { this.opts.onSuspend?.(client.clientId); } catch { /* alerting must not break answering */ }
     return this.suspended(s, now);

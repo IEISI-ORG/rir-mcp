@@ -112,3 +112,23 @@ export class SqlCache implements CacheStore {
     }
   }
 }
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * Clears the scan-detector digests of every client whose hourly window has ended, keeping counts and suspensions.
+ * Spec §7 keeps counts, not values; the digests are salted but brute-forceable, so they must not outlive their hour
+ * for a client that stops querying. Returns when the next window with digests ends, or null if none remain.
+ * Reads the `ClientState` fields `windowStart` and `units` as JSON.
+ */
+export function purgeExpiredScanUnits(sql: SqlStorage, now: number): number | null {
+  sql.exec(
+    `UPDATE gate SET value = json_set(value, '$.units', json('[]'))
+     WHERE json_array_length(value, '$.units') > 0 AND json_extract(value, '$.windowStart') <= ?`,
+    now - HOUR_MS,
+  );
+  const next = sql.exec<{ w: number | null }>(
+    `SELECT min(json_extract(value, '$.windowStart')) AS w FROM gate WHERE json_array_length(value, '$.units') > 0`,
+  ).one().w;
+  return next === null ? null : next + HOUR_MS;
+}

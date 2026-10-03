@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MemoryClientGate } from '../../src/memory/client-gate';
+import { MemoryClientGate, type ClientState } from '../../src/memory/client-gate';
 import { FakeClock } from '../support/fake-clock';
 
 const alpha = { clientId: 'alpha', quotaPerHour: 10 };
@@ -57,6 +57,14 @@ describe('MemoryClientGate scan detector', () => {
     expect(await g.observe(alpha, 'as:1')).toMatchObject({ ok: false, reason: 'suspended' });
     expect(alerts).toEqual(['alpha']);
     expect((await g.observe(beta, 'as:15169')).ok).toBe(true);
+  });
+
+  it('drops the scan digests once a client is suspended: only the suspension needs keeping', async () => {
+    const state = new Map<string, ClientState>();
+    const g = new MemoryClientGate(new FakeClock(), { scanThreshold: 2, state });
+    for (const u of ['as:1', 'as:2', 'as:3']) await g.observe(alpha, u);
+    expect(state.get('alpha')?.suspendedUntil).toBeGreaterThan(0);
+    expect(state.get('alpha')?.units).toEqual([]);
   });
 
   it('lifts the suspension after suspendMs and starts a fresh count', async () => {
