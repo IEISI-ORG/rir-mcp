@@ -26,6 +26,8 @@ Rules from the user:
 
 | 9 | 2026-10-04 | work | No new answers. Plan 3 Task 4 (`SqlStateMap`; `SqlCache` LRU bounded by 10k entries and 50 MB, oversize values skipped — closes audit Low #4 for the Worker) and Task 5 (`StateDO.serve` runs the MCP handler over SQLite state; quota survives eviction). Found and fixed in core: `AbortSignal.timeout` left a 10 s timer pending after every upstream lookup, keeping a DO request in flight (eviction hung; billed active time). 444 root + 15 worker tests pass. | `2b61922`, `c1c81ba`, `5758939` |
 
-**Next iteration:** 10 — code review (fresh reviewer) of `c83bfe4..HEAD` (Plan 3 Tasks 1–5, README, timer fix). Then Plan 3 Task 6 (`KvKeyStore`).
-**Next code review:** iteration 10.
+| 10 | 2026-10-04 | code review | Fresh reviewer (Opus) on `c83bfe4..0367cd9`: 0 Critical, 2 Important, 7 Minor; Review Focus 3 (state survives eviction) and 4 (bounded cache) verified. Fixed: unread upstream bodies left open after the timer fix; scan digests (salted but brute-forceable) kept indefinitely in the DO — re-graded to Important — now dropped on suspension and purged hourly by an alarm. Bad-`OPERATOR` 503 and `serve` error handling carried into Task 7. 6 Minors to follow-ups. 449 root + 18 worker tests pass. | `10b5234`, `26f3922` |
+
+**Next iteration:** 11 — daily security audit (due 2026-10-05) if the date has turned; then Plan 3 Task 6 (`KvKeyStore`) and Task 7 (Worker entry, edge checks, 503 fail-closed, with the review's Task 7 requirements).
+**Next code review:** iteration 15.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.

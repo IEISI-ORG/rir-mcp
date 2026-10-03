@@ -34,6 +34,17 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 
 - ~~README: add the HTTP-mode one-liner~~ Done 2026-10-04 (iteration 8, `347d3b8`): README rewritten with an HTTP quick start.
 
+## Code review, iteration 10 (2026-10-04, Plan 3 Tasks 1–5) — deferred Minors
+
+Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan digests are dropped on suspension and purged by a DO alarm after their window (`26f3922`). The Task 7 requirements (validate `OPERATOR` via `buildUserAgent`, catch `serve` errors) are in the Plan 3 ledger.
+
+- **Before the first Worker deploy:** the `cache` table reads every row's `bytes` on each put (`count(*)`, `sum(bytes)`), and `bytes` sits after the large `value` column. Move `bytes` before `value` or keep running totals in `meta`. Also write a `schema_version` to `meta` now: `CREATE TABLE IF NOT EXISTS` cannot change an existing table.
+- Each cache hit is a SQLite row write (`used_at`), and the IANA bootstrap row (~11.5 KB) is read and parsed 2–3 times per lookup. Skip recent recency updates, or keep the parsed bootstrap in memory keyed on `fetchedAt`.
+- Test gaps: suspension and LACNIC hourly window surviving `evictDurableObject`; `SqlCache` run through the `MemoryCache` cases; a history lookup through the DO.
+- `authInfo` is built in both `core/src/http/edge.ts` and `handler.ts`: extract `authInfoFor(client)`.
+- README says raw RDAP JSON is "4–250 KB"; the fixtures go up to 370 KB (history). Reword.
+- Task 8 docs: describe Worker persistence accurately (suspensions survive restarts; salted digests persist for up to an hour), and check whether Workers Logs records request headers such as `Authorization` before deploying.
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
