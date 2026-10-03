@@ -32,7 +32,7 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 
 ## Plan 2 Task 8 — deferred
 
-- README: add the HTTP-mode one-liner (Task 8 step). Held until QUESTIONS.md Q8 is answered, because README work was blocked with repo publication on 2026-10-03.
+- ~~README: add the HTTP-mode one-liner~~ Done 2026-10-04 (iteration 8, `347d3b8`): README rewritten with an HTTP quick start.
 
 ## Parked at final review
 

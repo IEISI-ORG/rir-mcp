@@ -22,6 +22,8 @@ Rules from the user:
 | 7 | 2026-10-04 | plan | Researched current Cloudflare tooling (Vitest plugin 1.3.6 needs Vitest 4; no outbound fetch mocking). Wrote Plan 3 (Worker; "StateDO as the server" to avoid ~5 cross-region DO round trips per lookup). Opened Q9–Q12 with defaults. | `f39956f`, `53905e1` |
 | 7 (cont.) | 2026-10-04 | work | Plan 3 Task 1: limiter and gate run over an injectable `StateMap` (Map in Node, SQLite in the DO); digest before read for DO atomicity. 432 tests pass. | `c15bd68` |
 
-**Next iteration:** 8 — Plan 3 Task 2 (move HTTP gate/handler to core) and Task 3 (worker scaffold).
+| 8 | 2026-10-04 | work | Repo transferred by the user to `IEISI-ORG/rir-mcp`; description set; local remote repointed, but git access to the new repo is refused ("disabled") although the API shows it enabled — recorded in the migration TODO. Q8–Q10, Q12 answers committed. Plan 3 Task 2 (`edgeGate` + `mcpHandler` in core; node composes them) and Task 3 (worker package, workerd smoke test under Vitest 4). README rewritten for the public repo (Q8). 442 root tests + 2 worker tests pass. Nothing pushed. | `8ef9862`, `50db450`, `347d3b8` |
+
+**Next iteration:** 9 — Plan 3 Task 4 (`SqlStateMap`, `SqlCache` with count and byte LRU) and Task 5 (`StateDO.serve`).
 **Next code review:** iteration 10.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
