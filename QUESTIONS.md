@@ -40,7 +40,27 @@ Per-user mode reads `RIR_MCP_KEYS_FILE`, a JSON array of `{sha256, clientId, quo
 
 **Default:** read at startup only, no live reload. Reloading on SIGHUP can come later if you want it.
 
-**Answer:**
+**Answer:** rethink spec, if this deployed on CloudFlare, how does this work?
+
+**Reply (2026-10-03, iteration 2):** On Cloudflare there is no keys file and no restart. Here is how Plan 3 works under spec §7:
+
+| | Cloudflare (Plan 3) | Node (Plan 2, revised) |
+|---|---|---|
+| Where keys live | KV namespace `API_KEYS`: key = `sha256(apiKey)`, value = `{clientId, quotaPerHour, touVersion, revoked}` | `RIR_MCP_KEYS_FILE`, same records |
+| Lookup per request | Worker hashes the bearer token and calls `KV.get(hash)` (edge-cached ≤ 60 s) | in-memory map, rebuilt when the file changes |
+| Add a key | `scripts/keys.ts new` → writes KV; active within ~60 s everywhere | `scripts/keys.ts new` → appends to file; active within 30 s |
+| Revoke | set `revoked: true` in KV (≤ 60 s) **and** add the hash to a deny-list in the `StateDO` Durable Object (immediate). The deny-list check uses the per-request DO call the quota check already makes, so it adds no extra round trip. | set `revoked: true` in the file; active within 30 s |
+| Quota, scan counts, suspensions | `StateDO` (global, survives deploys); an operator can lift a suspension | memory (lost on restart) |
+| Single-key mode | Worker secret `API_KEY`; rotate with `wrangler secret put` | `RIR_MCP_API_KEY`; restart to rotate |
+
+The rethink: Node should behave like KV, so operators get the same model on both runtimes ("edit the keys, wait under a minute"). Plan 2 changes:
+1. **Node reloads the keys file when it changes.** Check mtime at most every 30 s. If the new file is invalid, keep the last good key set and log one error line. Fail closed only at startup.
+2. **The `KeyStore` port and `RecordKeyStore` are unchanged.** Cloudflare gets `KvKeyStore` plus the DO deny-list in Plan 3. Node gets `FileKeyStore`, which wraps `RecordKeyStore`.
+3. **`scripts/keys.ts` gets `--target file|kv`.** Plan 2 builds `file`; Plan 3 adds `kv`.
+
+**Default from now on:** the revised Node design above. It replaces "read at startup only" and is recorded in spec §7. Say so below if you'd rather keep restart-to-revoke on Node.
+
+**Answer (follow-up):**
 
 ---
 
@@ -48,9 +68,7 @@ Per-user mode reads `RIR_MCP_KEYS_FILE`, a JSON array of `{sha256, clientId, quo
 
 A lookup that APNIC redirects to ARIN makes two upstream HTTP requests, but answers one question.
 
-**Default:** charge the client's quota once per logical lookup. Each RIR's own rate limiter is still charged per hop, so the RIRs stay protected.
-
-**Answer:**
+**Answer:** charge the client's quota once per logical lookup. Each RIR's own rate limiter is still charged per hop, so the RIRs stay protected.
 
 ---
 

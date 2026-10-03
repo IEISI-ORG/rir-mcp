@@ -233,13 +233,14 @@ One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatical
 
 | Mode | Cloudflare | Node | clientId |
 |---|---|---|---|
-| Key per user | KV namespace `API_KEYS`: `sha256(key)` → `{clientId, quotaPerHour, touVersion, revoked}` | keys file of hashes | from record |
+| Key per user | KV namespace `API_KEYS`: `sha256(key)` → `{clientId, quotaPerHour, touVersion, revoked}` | keys file of the same records (`RIR_MCP_KEYS_FILE`), reloaded on change | from record |
 | Single key | Worker secret `API_KEY` | `RIR_MCP_API_KEY` | `default` |
 | Neither configured | reject all requests | refuse to start HTTP | — |
 
 - Per-user mode takes precedence if both are configured.
 - Keys: `rirmcp_` + 32 random bytes base64url; only hashes stored (per-user mode). Comparison is constant-time.
 - KV is eventually consistent: changes "may take up to 60 seconds or more" to reach other locations [CF-KV], so a revoked key can keep working briefly. Accepted: data is public and quotas still apply. For urgent revocation, also add the key's hash to a deny-list in `StateDO` (strongly consistent).
+- Revocation parity (decided 2026-10-03, QUESTIONS.md Q4): operators get one model on both runtimes ("edit the keys; effective in under a minute"). Node re-reads the keys file when its mtime changes, checked at most every 30 s; an invalid file keeps the last good key set and logs an error (fail closed applies at startup). Cloudflare checks the `StateDO` deny-list on the same per-request DO call the quota check already makes.
 - `scripts/keys.ts create|revoke|list` manages KV records; a key is issued only after the client accepts the ToU (version recorded).
 - Node HTTP binds to `127.0.0.1` by default; both HTTP entry points validate `Origin` and return 403 when it is present and invalid [MCP-HTTP]; public binding is an explicit option.
 - stdio: no auth (local user is the operator).
