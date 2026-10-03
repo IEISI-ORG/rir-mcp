@@ -18,7 +18,8 @@ Rules from the user:
 | 3 | 2026-10-03 | work (cut short) | Answers: Q1 approved, Q4 follow-up approved, Q7 → default port 4608 (IANA-unassigned), Q8 → create public repo. Repo creation/push was denied by Claude Code's auto-mode permission check, which then also blocked local reads; stopped the iteration. Nothing pushed. | `8b84a94` |
 | 4 | 2026-10-03 | work | Q8 left for the user (no answer, no remote). Plan 2 Task 6 (authenticated Streamable HTTP: path → Host → Origin → Bearer → MCP; smoke-tested) and Task 7 (`--stdio/--http` CLI, `scripts/keys.ts`). 404 tests pass. | `76e0fb7`, `48853ba` |
 | 5 | 2026-10-04 | code review | Fresh reviewer (Opus) on `81f92a3..cb38d86`: 0 Critical, 2 Important, 7 Minor; all 5 Plan 2 Review Focus items verified. Fixed: rDNS charged per zone (Q5), limiter refusal spent quota (refund), NaN quota fail-open (re-graded). Allow-list validation → Task 8; 6 Minors to follow-ups. 410 tests pass. | `2d68a06` |
+| 6 | 2026-10-04 | audit + work | Daily audit (fresh reviewer, snapshot `af76a4c`): 1 Medium (SSE `subscriptions/listen` held open indefinitely, bypassing quota/scan/timeouts), 2 Low (backslash request target set URL host; prototype keys as RIR hosts) — all fixed test-first. Plan 2 Task 8: allow-list validation + HTTP deployment docs (commands smoke-tested). **Plan 2 closed.** 428 tests pass. | `82c1a0f`, `4ee9b0c`, `7e34186` |
 
-**Next iteration:** 6 — daily security audit (2026-10-04), then Plan 2 Task 8 (docs + allow-list validation).
+**Next iteration:** 7 — write Plan 3 (Cloudflare Worker: StateDO cache/limiter/gate, KV keys + DO deny-list, wrangler config), then start executing it.
 **Next code review:** iteration 10.
-**Security audit:** 2026-10-03 done (iteration 2); next due 2026-10-04 — iteration 6.
+**Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.

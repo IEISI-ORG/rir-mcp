@@ -867,3 +867,49 @@ Content for `deployment.md`:
 - Spec §7 "deny-list in StateDO" is Worker-only → Plan 3.
 - Spec §9 "Auth: mode selection incl. fail-closed; revoked key; constant-time compare" → Tasks 1 and 5.
 - Spec §10 Docker → deferred to Plan 4 (packaging/CI); noted in QUESTIONS.md.
+
+---
+
+## Execution record (inline, 2026-10-03 – 2026-10-04)
+
+Copied from the git-ignored execution ledger when the plan closed. `Ruling:` lines are decisions taken on the user's behalf.
+
+```text
+Setup: Ruling: executing on main without a worktree — user instruction "merge to main, keep using main, we're not deployed" — cost if wrong: work would need moving to a branch.
+Pre-flight: T1→T5/T6 KeyStore/SingleKeyStore/RecordKeyStore/parseKeyRecords consistent. T2→T3 ClientGate.charge(client, weight)/observe(client, unit) consistent. T3 ClientScope defined in fetcher.ts, re-exported by service.ts (avoids cycle) — consistent with Produces. T4 onCall→T6 log consumer consistent. T1 KEY_RE/CLIENT_ID_RE→T7 consistent.
+Task 1: Ruling: plan test 'accepts a valid array' reused one sha256 for two records, which the duplicate-hash rule rejects — gave the second record a distinct hash — cost if wrong: none (test data only).
+Task 1: complete (commits 0ed7203..8a22d28, tests passed)
+Task 2: complete (commits 8a22d28..bbec943, tests passed)
+Task 3: Ruling: scan-unit.ts was written in the same step as its test, so scan-unit.test.ts was never seen failing — the five cases assert exact strings against an independent formatter (formatCidr), and client-scope tests were seen failing first — cost if wrong: a vacuous scan-unit test (low; the assertions are concrete).
+Task 3: complete (commits bbec943..4d38215, tests passed)
+Post-T3: fixed cross-client denial via in-flight coalescing (security review of 4d38215) — fetcher-scope.test.ts RED→GREEN, suite 348/348 — commit a62a194
+Plan-level: Ruling: Q4 answer (rethink for Cloudflare) → Node keys file reloads on change (mtime check ≤ every 30 s; invalid file keeps last good set); implemented as FileKeyStore in Task 5 — matches KV semantics planned for Plan 3 — cost if wrong: one small module to remove.
+Task 4: Ruling: brief's single test called ip then history on one service; history needs the full APNIC burst (5) so it was correctly rate_limited — split into an ip/asn/special test (adds a cache-hit case) and a separate history test; added an 'internal' outcome test with a throwing stub service and a throwing-hook test — cost if wrong: none (tests only).
+Task 4: complete (commits 449b6fc..520a3b7, tests passed)
+Task 5: Ruling: signature is loadHttpConfig(env, io: KeysFileIo, clock?, onKeysReloadError?) instead of (env, readFile) — needed for the Q4 reload (mtime + clock); ConfigError moved to errors.ts (re-exported from config.ts) to avoid a config↔keys-file import cycle — cost if wrong: Task 6 call site only.
+Task 5: complete (commits 520a3b7..54db90f, tests passed)
+Post-T5: fixed fail-open state drift in FileKeyStore (security review of 54db90f) — 3 tests RED→GREEN (same-mtime edit, invalid file fails closed, missing file fails closed), suite 371/371 — commit f808a36. Ruling superseded: Q4 'invalid file keeps last good set' → fail closed.
+Task 6: Ruling: default port 4608 (Q7 answer) instead of brief's 8787 — user asked for a less common port — cost if wrong: one constant.
+Task 6: Ruling: startHttp lives in http-bridge.ts and takes {host, port} (HttpConfig satisfies it) plus optional onError — tests start it without a full config — cost if wrong: none.
+Task 6: Ruling: toWebRequest honours origin-form targets only (absolute-form and //host map to "/") + test — hardening beyond brief so a request target cannot steer the URL host — cost if wrong: such clients get 404 (none exist for MCP).
+Task 6: Ruling: Host-header test uses node:http, not fetch — undici always sends the real Host (verified), so the brief's fetch-based test could not exercise the gate; mutation check: disabling the Host gate fails the test.
+Task 6: smoke: no key 401, /x 404, valid key initialize 200; stderr has rejection lines and no key.
+Task 6: complete (commits 584981e..76e0fb7, tests passed)
+Task 7: Ruling: added tests for keys.ts (record matches key, --raw, hash, rejects non-opaque clientId/bad quota/malformed key with exit 2 and empty stdout) and --http dispatch — brief only named the --bogus case — cost if wrong: none.
+Task 7: complete (commits 76e0fb7..48853ba, tests passed)
+Review (iteration 5, fresh reviewer, 81f92a3..cb38d86): 0 Critical, 2 Important, 7 Minor. Verdict: with fixes.
+Review: fixed Important #1 rDNS zone walk charged per zone — client-scope 'charges a reverse-DNS zone walk once' RED→GREEN, suite 410/410 — 2d68a06
+Review: fixed Important #2 limiter refusal spent quota — client-scope 'refunds the quota when the shared RIR limiter refuses' + client-gate 'refunds charges' RED→GREEN, suite 410/410 — 2d68a06
+Review: Ruling: re-graded Minor #1 (NaN quota → unlimited in MemoryClientGate) to Important — fail-open in a core port that Plan 3's Worker will also call — fixed: client-gate 'fails closed on a non-numeric quota' RED→GREEN — 2d68a06
+Review: Ruling: Minor #2 (allow-list entries with scheme/port never match) folded into Task 8 — fails safe (403), and Task 8 owns config docs — cost if wrong: confusing 403s until Task 8 lands.
+Review: minor (deferred): keys-file logs no recovery line after a failed reload.
+Review: minor (deferred): scripts/keys.ts hash takes the key on argv (shell history / ps); read from stdin.
+Review: minor (deferred): rir-mcp bin runs only via tsx (extensionless imports, TS workspace source) — Plan 4 build.
+Review: minor (deferred): spec §7 lists upstream HTTP status in logs; CallLog logs the outcome code — update spec or add field.
+Review: minor (deferred): no slow-body timeout test; 413 test does not assert the server factory never ran.
+Review: declined-to-judge lines accepted as stated (Q2 default, deferred audit #4/#5, Q1 restart, coalescing free ride, history weights, SDK hostname-only Origin match, json responseMode warning, unparseable body after auth, EADDRINUSE as unhandled rejection, Q8).
+Task 8: Ruling: README one-liner not written — README work was tied to the blocked Q8 publication; held until Q8 is answered (recorded in follow-ups) — cost if wrong: README lacks one HTTP line meanwhile; docs/deployment.md has the full section.
+Task 8: complete (commits af76a4c..4ee9b0c, tests passed)
+Audit 2026-10-04 (snapshot af76a4c): 1 Medium (SSE subscriptions held open), 2 Low (backslash request target, prototype hosts) — all fixed in 7e34186, 428 tests pass.
+Plan 2 closed 2026-10-04.
+```
