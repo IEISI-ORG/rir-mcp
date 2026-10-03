@@ -43,7 +43,9 @@ export function createHttpApp(o: HttpAppOptions): FetchApp {
       onError: o.onError,
       onCall: (l) => o.log({ t: new Date().toISOString(), ...l, client: client.clientId }),
     });
-  }, { maxRequestBodySize: MAX_BODY_BYTES, responseMode: 'json', onerror: (err) => o.onError?.(err) });
+    // maxSubscriptions 0: refuse subscriptions/listen. This server never emits list-changed events, and an open
+  // SSE stream would bypass the quota, scan detector and request timeouts (audit 2026-10-04).
+}, { maxRequestBodySize: MAX_BODY_BYTES, maxSubscriptions: 0, responseMode: 'json', onerror: (err) => o.onError?.(err) });
 
   const reject = (status: number, reason: Reason, res: Response): Response => {
     o.log({ t: new Date().toISOString(), status, reason });

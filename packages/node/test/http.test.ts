@@ -1,9 +1,10 @@
 import { DEFAULT_LIMITS, MemoryCache, MemoryClientGate, MemoryRateLimiter, RirService, SingleKeyStore } from '@ieisi/rir-mcp-core';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { CLIENT_CAPABILITIES_META_KEY, CLIENT_INFO_META_KEY, PROTOCOL_VERSION_META_KEY } from '@modelcontextprotocol/server';
 import { request } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHttpApp } from '../src/http-app';
-import { startHttp } from '../src/http-bridge';
+import { startHttp, toWebRequest } from '../src/http-bridge';
 import { fakeFetch } from '../../core/test/support/fake-fetch';
 import { ianaRoutes, loadFixture } from '../../core/test/support/fixtures';
 import { FakeClock } from '../../core/test/support/fake-clock';
@@ -111,5 +112,48 @@ describe('Streamable HTTP server', () => {
     expect(logs).toContainEqual(expect.objectContaining({ tool: 'rdap_ip_lookup', client: 'default', outcome: 'record' }));
     expect(logs).toContainEqual(expect.objectContaining({ status: 401, reason: 'unauthorized' }));
     expect(text).not.toMatch(/1\.1\.1\.1|rirmcp_|Bearer/);
+  });
+
+  it('refuses subscriptions/listen instead of holding an open stream (audit 2026-10-04 #1)', async () => {
+    const body = JSON.stringify({
+      jsonrpc: '2.0', id: 7, method: 'subscriptions/listen',
+      params: { notifications: { toolsListChanged: true }, _meta: {
+        [PROTOCOL_VERSION_META_KEY]: '2026-07-28', [CLIENT_CAPABILITIES_META_KEY]: {}, [CLIENT_INFO_META_KEY]: { name: 'x', version: '0' },
+      } },
+    });
+    const text = await new Promise<string>((resolve, reject) => {
+      const req = request(`${base}/mcp`, { method: 'POST', headers: {
+        ...POST_HEADERS, authorization: `Bearer ${KEY}`, 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'subscriptions/listen',
+      } }, (res) => {
+        let out = '';
+        res.on('data', (d) => { out += String(d); });
+        res.on('end', () => resolve(out));
+      });
+      req.setTimeout(3_000, () => { req.destroy(); reject(new Error('stream held open')); });
+      req.on('error', reject);
+      req.end(body);
+    });
+    expect(text).toContain('Subscription limit');
+  });
+
+  it('maps a backslash request target to 404 (audit 2026-10-04 #2)', async () => {
+    for (const path of ['/\\evil.example/mcp', '/\\/evil.example/mcp']) {
+      const status = await new Promise<number>((resolve, reject) => {
+        const req = request({ host: '127.0.0.1', port: Number(new URL(base).port), path, method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}` } }, (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        });
+        req.on('error', reject);
+        req.end(INIT);
+      });
+      expect(status).toBe(404);
+    }
+  });
+});
+
+describe('toWebRequest', () => {
+  it.each(['/\\evil.example/mcp', '//evil.example/mcp', 'http://evil.example/mcp', '/mcp\\..\\x'])('never lets target %j choose the URL host', (target) => {
+    const req = toWebRequest({ url: target, method: 'GET', headers: {} } as never);
+    expect(new URL(req.url).host).toBe('rir-mcp.invalid');
   });
 });

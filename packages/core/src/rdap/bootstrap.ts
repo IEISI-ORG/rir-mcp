@@ -2,7 +2,7 @@ import { parseIpOrCidr, prefixContains, type IpPrefix } from '../input/ip';
 import type { CacheStore, Clock } from '../ports';
 import { fetchJson, type HttpDeps } from './client';
 import { RdapError } from './errors';
-import { RIR_HOSTS, type Rir } from './rirs';
+import { rirForHost, type Rir } from './rirs';
 
 export const IANA_BOOTSTRAP_BASE = 'https://data.iana.org/rdap/';
 const FILES = ['ipv4', 'ipv6', 'asn'] as const;
@@ -105,7 +105,7 @@ export class Bootstrap {
         if (!url.startsWith('https://')) continue;
         try {
           const host = new URL(url).hostname;
-          const rir = RIR_HOSTS[host];
+          const rir = rirForHost(host);
           if (!rir) continue;
           const baseUrl = url.endsWith('/') ? url : `${url}/`;
           index.bases.set(rir, baseUrl);

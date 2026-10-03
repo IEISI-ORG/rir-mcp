@@ -1,7 +1,7 @@
 import type { CacheEntry, CacheStore, ClientGate, ClientInfo, Clock, GateResult, RateLimiter } from '../ports';
 import { fetchJson, type HttpDeps } from '../rdap/client';
 import { RdapError } from '../rdap/errors';
-import { RIR_HOSTS, RIR_LABEL, type Rir } from '../rdap/rirs';
+import { RIR_LABEL, rirForHost, type Rir } from '../rdap/rirs';
 import type { ErrorCode } from './answer';
 
 export const TTL_S = {
@@ -164,7 +164,7 @@ export class CachedFetcher {
           maxBytes: req.maxBytes,
           allowRedirectTo: (h) => hosts.has(h),
           onRedirect: async (host) => {
-            const target = RIR_HOSTS[host];
+            const target = rirForHost(host);
             if (!target || target === req.rir) return;
             const p = await this.deps.limiter.acquire(target, req.weight);
             if (!p.ok) throw new LocalRateLimit(target, p.retryAfterS);
@@ -173,7 +173,7 @@ export class CachedFetcher {
         },
         this.deps.http,
       );
-      actual = RIR_HOSTS[new URL(finalUrl).hostname] ?? req.rir;
+      actual = rirForHost(new URL(finalUrl).hostname) ?? req.rir;
       const value = req.reduce(body, actual);
       await this.store(req.key, { found: true, value, rir: actual, url: finalUrl }, req.freshS, req.staleS);
       return { ok: true, value, cache: 'miss', fetchedAt: this.deps.clock.now(), rir: actual, url: finalUrl };

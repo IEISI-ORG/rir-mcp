@@ -12,8 +12,9 @@ export interface FetchApp {
 const INTERNAL_ORIGIN = 'http://rir-mcp.invalid';
 
 /**
- * Only origin-form targets ("/path?query") are honoured. Absolute-form ("http://other/x") and "//other/x"
- * map to "/" (and so to 404), so a request target can never steer the URL's host.
+ * Only origin-form targets ("/path?query") are honoured. Absolute-form ("http://other/x"), "//other/x" and any
+ * target with a backslash (WHATWG URL parsing treats a backslash as "/", so /\other/x is protocol-relative) map to "/"
+ * (and so to 404): a request target can never steer the URL's host.
  */
 export function toWebRequest(req: IncomingMessage, origin = INTERNAL_ORIGIN): Request {
   const headers = new Headers();
@@ -21,7 +22,7 @@ export function toWebRequest(req: IncomingMessage, origin = INTERNAL_ORIGIN): Re
     if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
   }
   const target = req.url ?? '/';
-  const path = target.startsWith('/') && !target.startsWith('//') ? target : '/';
+  const path = target.startsWith('/') && !target.startsWith('//') && !target.includes('\\') ? target : '/';
   const method = req.method ?? 'GET';
   const init: RequestInit & { duplex?: 'half' } = { method, headers };
   if (method !== 'GET' && method !== 'HEAD') {
