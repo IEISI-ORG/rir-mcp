@@ -30,6 +30,10 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 - Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
 - EADDRINUSE at startup surfaces as an unhandled rejection rather than a clean `rir-mcp:` message.
 
+## Plan 2 Task 8 — deferred
+
+- README: add the HTTP-mode one-liner (Task 8 step). Held until QUESTIONS.md Q8 is answered, because README work was blocked with repo publication on 2026-10-03.
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
