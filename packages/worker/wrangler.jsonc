@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rir-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": { "bindings": [{ "name": "STATE", "class_name": "StateDO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StateDO"] }],
+  // Create with `wrangler kv namespace create API_KEYS` and put its id here before deploying.
+  "kv_namespaces": [{ "binding": "API_KEYS", "id": "<set-on-deploy>" }],
+  // Required at deploy time; the Worker answers 503 while OPERATOR or ALLOWED_HOSTS is empty.
+  "vars": { "OPERATOR": "", "ALLOWED_HOSTS": "", "ALLOWED_ORIGINS": "" },
+  "observability": { "enabled": true }
+}

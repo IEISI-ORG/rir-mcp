@@ -4,12 +4,12 @@
     "lib": ["ES2023"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"],
+    "types": ["@cloudflare/vitest-plugin/types"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["packages/core/src", "packages/core/test", "packages/node/src", "packages/node/test", "scripts", "vitest.config.ts"]
+  "include": ["worker-configuration.d.ts", "src", "test", "vitest.config.ts"]
 }

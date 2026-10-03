@@ -7,7 +7,8 @@
   "scripts": {
     "test": "vitest run",
     "test:live": "RIR_MCP_LIVE=1 vitest run packages/core/test/live",
-    "typecheck": "tsc -p tsconfig.json",
+    "test:worker": "corepack pnpm --filter @ieisi/rir-mcp-worker test",
+    "typecheck": "tsc -p tsconfig.json && tsc -p packages/worker/tsconfig.json",
     "fixtures:record": "tsx scripts/fixtures-record.ts",
     "keys": "tsx scripts/keys.ts"
   },
