@@ -83,7 +83,7 @@ the User-Agent sent to every RIR (`REPO_URL` in `packages/core/src/rdap/user-age
 
 - [x] (done 2026-10-04) Transfer the repo to `IEISI-ORG` **and rename it to `rir-mcp`** (Settings → Transfer, or `gh api repos/tcsweetser/apnic-mcp/transfer -f new_owner=IEISI-ORG -f new_name=rir-mcp`). Keeping the name `apnic-mcp` would leave every URL above broken.
 - [x] (done 2026-10-04) Point the local clone at the new home: `git remote set-url origin git@github.com:IEISI-ORG/rir-mcp.git`.
-- [ ] **Blocked 2026-10-04:** the API reports the repo public and not disabled, but git refuses it: SSH fetch says "Repository 'IEISI-ORG/rir-mcp' is disabled", and an anonymous HTTPS ls-remote asks for credentials. Check org settings (SSH key authorisation, billing or policy) or wait for the transfer to finish. Description and Issues did carry over; branch protection not yet checked.
+- [x] (resolved 2026-10-04) git access was briefly refused as "disabled" right after the transfer; a later `git fetch` from `IEISI-ORG/rir-mcp` succeeded.
 - [ ] Check that the description, Issues (needed for the operator contact URL) and branch protection on `main` survived the transfer.
 - [ ] Don't create a new `tcsweetser/apnic-mcp` afterwards: that breaks GitHub's redirect from the old URL.
 - [ ] Re-run `corepack pnpm test:live` once, so the User-Agent link the RIRs see resolves.
