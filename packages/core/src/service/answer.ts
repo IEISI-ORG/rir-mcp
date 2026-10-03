@@ -17,7 +17,9 @@ export type ErrorCode =
   | 'upstream'
   | 'history_unavailable'
   | 'personal_record'
-  | 'too_large';
+  | 'too_large'
+  | 'quota_exceeded'
+  | 'suspended';
 
 export type Answer<T> =
   | { readonly kind: 'record'; readonly record: T; readonly meta: Meta }

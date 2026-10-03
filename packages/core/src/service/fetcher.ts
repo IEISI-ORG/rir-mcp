@@ -1,4 +1,4 @@
-import type { CacheEntry, CacheStore, Clock, RateLimiter } from '../ports';
+import type { CacheEntry, CacheStore, ClientGate, ClientInfo, Clock, GateResult, RateLimiter } from '../ports';
 import { fetchJson, type HttpDeps } from '../rdap/client';
 import { RdapError } from '../rdap/errors';
 import { RIR_HOSTS, RIR_LABEL, type Rir } from '../rdap/rirs';
@@ -39,6 +39,20 @@ export interface FetchRequest<T> {
   /** Must drop personal data: its output is what gets cached. */
   readonly reduce: (raw: unknown, rir: Rir) => T;
   readonly force?: boolean;
+  /** Set on client-scoped services: upstream calls are charged to this client's quota. */
+  readonly scope?: ClientScope;
+}
+
+/** The authenticated client a service view acts for (HTTP), and the gate that limits it. */
+export interface ClientScope {
+  readonly client: ClientInfo;
+  readonly gate: ClientGate;
+}
+
+export function gateDenied(g: Exclude<GateResult, { ok: true }>): Extract<FetchOutcome<never>, { ok: false }> {
+  return g.reason === 'quota'
+    ? { ok: false, code: 'quota_exceeded', message: `Hourly lookup quota for this API key is used up; cached answers still work. Retry in ${g.retryAfterS}s.`, retryAfterS: g.retryAfterS }
+    : { ok: false, code: 'suspended', message: 'This API key is suspended for unusual query volume; contact the operator.', retryAfterS: g.retryAfterS };
 }
 
 export interface FetcherDeps {
@@ -103,6 +117,10 @@ export class CachedFetcher {
 
   private async refresh<T>(req: FetchRequest<T>, entry: CacheEntry<Stored<T>> | null): Promise<FetchOutcome<T>> {
     const fallback = entry ? fromEntry(entry, 'stale', req.rir) : null;
+    if (req.scope) {
+      const g = await req.scope.gate.charge(req.scope.client, req.weight);
+      if (!g.ok) return fallback ?? gateDenied(g);
+    }
     const permit = await this.deps.limiter.acquire(req.rir, req.weight);
     if (!permit.ok) return fallback ?? rateLimited(req.rir, permit.retryAfterS);
     let actual: Rir = req.rir;

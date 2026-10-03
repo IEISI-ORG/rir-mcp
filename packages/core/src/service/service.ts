@@ -17,7 +17,10 @@ import type { AutnumRecord, DomainRecord, EntityRecord, NetworkRecord } from '..
 import { expectClass } from '../reduce/util';
 import { specialUseForAsn, specialUseForIp } from '../special-use';
 import type { Answer } from './answer';
-import { CachedFetcher, TTL_S, WEIGHT, type FetchOutcome } from './fetcher';
+import { CachedFetcher, gateDenied, TTL_S, WEIGHT, type ClientScope, type FetchOutcome, type FetchRequest } from './fetcher';
+import { scanUnitForAsn, scanUnitForHandle, scanUnitForIp } from './scan-unit';
+
+export type { ClientScope } from './fetcher';
 
 export interface ServiceDeps {
   readonly fetch: FetchLike;
@@ -79,15 +82,30 @@ export class RirService {
   private readonly clock: Clock;
   private readonly bootstrap: Bootstrap;
   private readonly fetcher: CachedFetcher;
+  private readonly deps: ServiceDeps;
+  private readonly scope?: ClientScope;
 
-  constructor(deps: ServiceDeps) {
-    const http: HttpDeps = { fetch: deps.fetch, userAgent: deps.userAgent, timeoutMs: deps.timeoutMs };
+  constructor(deps: ServiceDeps, shared?: { readonly bootstrap: Bootstrap; readonly fetcher: CachedFetcher }, scope?: ClientScope) {
+    this.deps = deps;
     this.clock = deps.clock;
-    this.bootstrap = new Bootstrap({ http, cache: deps.cache, clock: deps.clock });
+    this.scope = scope;
+    if (shared) {
+      this.bootstrap = shared.bootstrap;
+      this.fetcher = shared.fetcher;
+      return;
+    }
+    const http: HttpDeps = { fetch: deps.fetch, userAgent: deps.userAgent, timeoutMs: deps.timeoutMs };
+    const bootstrap = new Bootstrap({ http, cache: deps.cache, clock: deps.clock });
+    this.bootstrap = bootstrap;
     this.fetcher = new CachedFetcher({
       http, cache: deps.cache, limiter: deps.limiter, clock: deps.clock,
-      rdapHosts: () => this.bootstrap.rdapHosts(),
+      rdapHosts: () => bootstrap.rdapHosts(),
     });
+  }
+
+  /** A view for one authenticated client: same cache, bootstrap and in-flight coalescing, plus quota and scan checks. */
+  forClient(scope: ClientScope): RirService {
+    return new RirService(this.deps, { bootstrap: this.bootstrap, fetcher: this.fetcher }, scope);
   }
 
   ip(input: string): Promise<Answer<NetworkRecord>> {
@@ -96,10 +114,12 @@ export class RirService {
       const query = formatPrefix(p);
       const special = specialUseForIp(p);
       if (special) return { kind: 'special', query, special };
+      const denied = await this.admit(scanUnitForIp(p));
+      if (denied) return denied;
       const route = await this.bootstrap.routeIp(p);
       if (!route) return notDelegated(query);
       const url = `${route.baseUrl}ip/${query}`;
-      const out = await this.fetcher.get({
+      const out = await this.get({
         ...CURRENT, key: `ip:${query}`, rir: route.rir, url,
         reduce: (raw, rir) => reduceNetwork(expectClass(raw, 'ip network'), { rir }),
       });
@@ -113,10 +133,12 @@ export class RirService {
       const query = `AS${n}`;
       const special = specialUseForAsn(n);
       if (special) return { kind: 'special', query, special };
+      const denied = await this.admit(scanUnitForAsn(n));
+      if (denied) return denied;
       const route = await this.bootstrap.routeAsn(n);
       if (!route) return notDelegated(query);
       const url = `${route.baseUrl}autnum/${n}`;
-      const out = await this.fetcher.get({
+      const out = await this.get({
         ...CURRENT, key: `asn:${n}`, rir: route.rir, url,
         reduce: (raw, rir) => reduceAutnum(expectClass(raw, 'autnum'), { rir }),
       });
@@ -131,8 +153,10 @@ export class RirService {
       if (!rir) {
         return { kind: 'error', code: 'invalid_input', message: `Cannot tell which RIR holds ${handle}; pass rir as one of apnic, arin, ripe, lacnic, afrinic.` };
       }
+      const denied = await this.admit(scanUnitForHandle(rir, handle));
+      if (denied) return denied;
       const url = `${await this.bootstrap.baseUrl(rir)}entity/${encodeURIComponent(handle)}`;
-      const out = await this.fetcher.get({
+      const out = await this.get({
         ...CURRENT, key: `entity:${rir}:${handle}`, rir, url,
         reduce: (raw, actual) => reduceEntity(expectClass(raw, 'entity'), { rir: actual }),
       });
@@ -151,6 +175,8 @@ export class RirService {
       const query = formatPrefix(p);
       const special = specialUseForIp(p);
       if (special) return { kind: 'special', query, special };
+      const denied = await this.admit(scanUnitForIp(p));
+      if (denied) return denied;
       const zones = reverseZones(p);
       if (zones.length === 0) {
         return { kind: 'error', code: 'invalid_input', message: `${query} is too short for a reverse DNS zone; use an IPv4 /8 or longer, or an IPv6 /4 or longer.` };
@@ -159,7 +185,7 @@ export class RirService {
       if (!route) return notDelegated(query);
       for (const zone of zones) {
         const url = `${route.baseUrl}domain/${zone}`;
-        const out = await this.fetcher.get({
+        const out = await this.get({
           ...CURRENT, key: `rdns:${zone}`, rir: route.rir, url,
           reduce: (raw, rir) => reduceDomain(expectClass(raw, 'domain'), { rir }),
         });
@@ -193,7 +219,7 @@ export class RirService {
       const misses = companion && ((companion.kind === 'record' && companion.meta.cache !== 'hit')
         || (companion.kind === 'error' && companion.code === 'not_found')) ? 1 : 0;
       const validatedFor = companion?.kind === 'record' ? companion.record.changed : undefined;
-      const out = await this.fetcher.get({
+      const out = await this.get({
         key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), freshS: TTL_S.history, staleS: TTL_S.historyStale,
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
@@ -208,6 +234,8 @@ export class RirService {
       const query = formatPrefix(p);
       const special = specialUseForIp(p);
       if (special) return { kind: 'special', query, special };
+      const denied = await this.admit(scanUnitForIp(p));
+      if (denied) return denied;
       const route = await this.bootstrap.routeIp(p);
       if (!route) return notDelegated(query);
       return { rir: route.rir, path: `ip/${query}`, query, loadCurrent: () => this.ip(query) };
@@ -216,6 +244,8 @@ export class RirService {
       const n = parseAsn(req.resource);
       const special = specialUseForAsn(n);
       if (special) return { kind: 'special', query: `AS${n}`, special };
+      const denied = await this.admit(scanUnitForAsn(n));
+      if (denied) return denied;
       const route = await this.bootstrap.routeAsn(n);
       if (!route) return notDelegated(`AS${n}`);
       return { rir: route.rir, path: `autnum/${n}`, query: `AS${n}`, loadCurrent: () => this.asn(n) };
@@ -244,6 +274,19 @@ export class RirService {
     const changed = current.kind === 'record' ? current.record.changed : undefined;
     if (!changed) return false;
     return changed > entry.value.value.latestFrom && entry.value.value.validatedFor !== changed;
+  }
+
+  /** Scan detector: every query a scoped client makes counts, cache hits included (spec §7). */
+  private async admit(unit: string): Promise<NoRecord | null> {
+    if (!this.scope) return null;
+    const g = await this.scope.gate.observe(this.scope.client, unit);
+    if (g.ok) return null;
+    const { code, message, retryAfterS } = gateDenied(g);
+    return { kind: 'error', code, message, retryAfterS };
+  }
+
+  private get<T>(req: FetchRequest<T>): Promise<FetchOutcome<T>> {
+    return this.fetcher.get(this.scope ? { ...req, scope: this.scope } : req);
   }
 
   private toAnswer<T>(out: FetchOutcome<T>): Answer<T> {
