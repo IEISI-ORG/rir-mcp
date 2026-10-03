@@ -28,37 +28,50 @@ export interface FetchJsonResult {
 export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpDeps): Promise<FetchJsonResult> {
   let target = url;
   for (let hop = 0; hop < 2; hop++) {
-    const res = await send(target, deps);
-    if (res.status >= 300 && res.status < 400) {
-      target = redirectTarget(res, target, hop, opts);
-      await opts.onRedirect?.(new URL(target).hostname);
-      continue;
-    }
-    if (res.status === 404) throw new RdapError('not_found', `Not found: ${target}`, { status: 404 });
-    if (res.status === 429) {
-      throw new RdapError('rate_limited', 'Upstream rate limit (HTTP 429)', {
-        status: 429,
-        retryAfterS: parseRetryAfter(res.headers.get('retry-after')),
-      });
-    }
-    if (res.status >= 500) throw new RdapError('upstream', `Upstream error (HTTP ${res.status})`, { status: res.status });
-    if (res.status !== 200) throw new RdapError('bad_response', `Unexpected HTTP ${res.status}`, { status: res.status });
-    const text = await readCapped(res, opts.maxBytes);
+    const timer = deadline(deps.timeoutMs ?? 10_000);
     try {
-      return { body: JSON.parse(text) as unknown, finalUrl: target };
-    } catch {
-      throw new RdapError('bad_response', `Non-JSON response from ${new URL(target).hostname}`, { status: 200 });
+      const res = await send(target, deps, timer.signal);
+      if (res.status >= 300 && res.status < 400) {
+        target = redirectTarget(res, target, hop, opts);
+        await opts.onRedirect?.(new URL(target).hostname);
+        continue;
+      }
+      if (res.status === 404) throw new RdapError('not_found', `Not found: ${target}`, { status: 404 });
+      if (res.status === 429) {
+        throw new RdapError('rate_limited', 'Upstream rate limit (HTTP 429)', {
+          status: 429,
+          retryAfterS: parseRetryAfter(res.headers.get('retry-after')),
+        });
+      }
+      if (res.status >= 500) throw new RdapError('upstream', `Upstream error (HTTP ${res.status})`, { status: res.status });
+      if (res.status !== 200) throw new RdapError('bad_response', `Unexpected HTTP ${res.status}`, { status: res.status });
+      const text = await readCapped(res, opts.maxBytes);
+      try {
+        return { body: JSON.parse(text) as unknown, finalUrl: target };
+      } catch {
+        throw new RdapError('bad_response', `Non-JSON response from ${new URL(target).hostname}`, { status: 200 });
+      }
+    } finally {
+      // Cleared once the body is read: a pending timer would keep a Durable Object's request in flight.
+      timer.clear();
     }
   }
   throw new RdapError('redirect_blocked', 'Too many redirects');
 }
 
-async function send(target: string, deps: HttpDeps): Promise<Response> {
+/** Like AbortSignal.timeout, but clearable. Covers the response headers and the body read. */
+function deadline(ms: number): { readonly signal: AbortSignal; clear(): void } {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+async function send(target: string, deps: HttpDeps, signal: AbortSignal): Promise<Response> {
   try {
     return await deps.fetch(target, {
       redirect: 'manual',
       headers: { accept: 'application/rdap+json, application/json', 'user-agent': deps.userAgent },
-      signal: AbortSignal.timeout(deps.timeoutMs ?? 10_000),
+      signal,
     });
   } catch (err) {
     throw mapNetworkError(err, `Fetching ${target}`);

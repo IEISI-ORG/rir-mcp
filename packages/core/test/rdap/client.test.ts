@@ -72,6 +72,29 @@ describe('fetchJson', () => {
     expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, deps(down)))).toBe('upstream');
   });
 
+  it('clears its timeout once the body is read, so no timer outlives the request', async () => {
+    // A pending timer keeps a Durable Object's request in flight (blocks eviction, billed as active time).
+    let signal: AbortSignal | undefined;
+    const ok: FetchLike = async (_url, init) => {
+      signal = init?.signal ?? undefined;
+      return new Response('{"a":1}');
+    };
+    await fetchJson(URL_A, { maxBytes: 1000 }, { ...deps(ok), timeoutMs: 20 });
+    await new Promise((r) => setTimeout(r, 60));
+    expect(signal?.aborted).toBe(false);
+  });
+
+  it('times out a stalled response and a stalled body', async () => {
+    const onAbort = (signal: AbortSignal | null | undefined, fn: () => void) => signal?.addEventListener('abort', fn);
+    const stalled: FetchLike = (_url, init) => new Promise((_, reject) => onAbort(init?.signal, () => reject(init?.signal?.reason)));
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, { ...deps(stalled), timeoutMs: 20 }))).toBe('timeout');
+
+    const stalledBody: FetchLike = async (_url, init) => new Response(new ReadableStream({
+      start(c) { c.enqueue(new Uint8Array(10)); onAbort(init?.signal, () => c.error(init?.signal?.reason)); },
+    }));
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, { ...deps(stalledBody), timeoutMs: 20 }))).toBe('timeout');
+  });
+
   it('maps streaming body errors to RdapError', async () => {
     const timeoutBody: FetchLike = async () => new Response(new ReadableStream({
       start(c) { c.enqueue(new Uint8Array(10)); setTimeout(() => c.error(Object.assign(new Error('t'), { name: 'TimeoutError' })), 0); },
