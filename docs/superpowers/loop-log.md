@@ -19,7 +19,8 @@ Rules from the user:
 | 4 | 2026-10-03 | work | Q8 left for the user (no answer, no remote). Plan 2 Task 6 (authenticated Streamable HTTP: path → Host → Origin → Bearer → MCP; smoke-tested) and Task 7 (`--stdio/--http` CLI, `scripts/keys.ts`). 404 tests pass. | `76e0fb7`, `48853ba` |
 | 5 | 2026-10-04 | code review | Fresh reviewer (Opus) on `81f92a3..cb38d86`: 0 Critical, 2 Important, 7 Minor; all 5 Plan 2 Review Focus items verified. Fixed: rDNS charged per zone (Q5), limiter refusal spent quota (refund), NaN quota fail-open (re-graded). Allow-list validation → Task 8; 6 Minors to follow-ups. 410 tests pass. | `2d68a06` |
 | 6 | 2026-10-04 | audit + work | Daily audit (fresh reviewer, snapshot `af76a4c`): 1 Medium (SSE `subscriptions/listen` held open indefinitely, bypassing quota/scan/timeouts), 2 Low (backslash request target set URL host; prototype keys as RIR hosts) — all fixed test-first. Plan 2 Task 8: allow-list validation + HTTP deployment docs (commands smoke-tested). **Plan 2 closed.** 428 tests pass. | `82c1a0f`, `4ee9b0c`, `7e34186` |
+| 7 | 2026-10-04 | plan | Researched current Cloudflare tooling (Vitest plugin 1.3.6 needs Vitest 4; no outbound fetch mocking). Wrote Plan 3 (Worker; "StateDO as the server" to avoid ~5 cross-region DO round trips per lookup). Opened Q9–Q12 with defaults. | `f39956f`, plan commit |
 
-**Next iteration:** 7 — write Plan 3 (Cloudflare Worker: StateDO cache/limiter/gate, KV keys + DO deny-list, wrangler config), then start executing it.
+**Next iteration:** 8 — execute Plan 3 Tasks 1–3 (state maps, move HTTP gate/handler to core, worker scaffold).
 **Next code review:** iteration 10.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
