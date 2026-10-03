@@ -54,7 +54,7 @@ Per-user mode reads `RIR_MCP_KEYS_FILE`, a JSON array of `{sha256, clientId, quo
 | Single-key mode | Worker secret `API_KEY`; rotate with `wrangler secret put` | `RIR_MCP_API_KEY`; restart to rotate |
 
 The rethink: Node should behave like KV, so operators get the same model on both runtimes ("edit the keys, wait under a minute"). Plan 2 changes:
-1. **Node reloads the keys file when it changes.** Check mtime at most every 30 s. If the new file is invalid, keep the last good key set and log one error line. Fail closed only at startup.
+1. **Node reloads the keys file when it changes.** Read it at most every 30 s and reload when the contents differ. If the file becomes unreadable or invalid, reject every key until it is fixed and log one error line. Fail closed, at startup and at runtime. *(Revised the same day: the first version kept the old keys on a bad file, so a revocation with a typo in it would have left old keys working.)*
 2. **The `KeyStore` port and `RecordKeyStore` are unchanged.** Cloudflare gets `KvKeyStore` plus the DO deny-list in Plan 3. Node gets `FileKeyStore`, which wraps `RecordKeyStore`.
 3. **`scripts/keys.ts` gets `--target file|kv`.** Plan 2 builds `file`; Plan 3 adds `kv`.
 

@@ -22,7 +22,7 @@ describe('loadConfig', () => {
 describe('loadHttpConfig', () => {
   const OP = { RIR_MCP_OPERATOR: 'noc@example.net' };
   const KEY = `rirmcp_${'A'.repeat(43)}`;
-  const io = (text = '[]') => ({ read: () => text, mtimeMs: () => 1 });
+  const io = (text = '[]') => ({ read: () => text });
 
   it('defaults to loopback, port 8787, localhost hosts/origins, single-key mode', () => {
     const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY }, io());
