@@ -730,7 +730,7 @@ export function gateDenied(g: Exclude<GateResult, { ok: true }>): Extract<FetchO
 ```ts
 export interface HttpConfig extends NodeConfig {
   readonly host: string;            // RIR_MCP_HTTP_HOST, default 127.0.0.1
-  readonly port: number;            // RIR_MCP_HTTP_PORT, default 8787
+  readonly port: number;            // RIR_MCP_HTTP_PORT, default 4608
   readonly allowedHosts: string[];  // RIR_MCP_ALLOWED_HOSTS (comma list); default localhost names when host is loopback; required otherwise
   readonly allowedOrigins: string[];// RIR_MCP_ALLOWED_ORIGINS (comma list of hostnames); default localhostAllowedOrigins()
   readonly keyStore: KeyStore;
@@ -818,7 +818,7 @@ it('logs calls with clientId and without query values or keys', async () => {
 - [ ] **Step 2: Run** — FAIL (modules missing).
 - [ ] **Step 3: Implement** the three files. In `http-bridge.ts` build the `Request` with `body: Readable.toWeb(req)` and `duplex: 'half'` for non-GET/HEAD; copy headers (joining arrays with `, `); in `sendWebResponse` write status + headers, then pipe `Readable.fromWeb(r.body)` to `res` (or `res.end()` when no body).
 - [ ] **Step 4: Run all tests, typecheck** — PASS.
-- [ ] **Step 5: Manual smoke** — `RIR_MCP_OPERATOR=https://github.com/IEISI-ORG/rir-mcp/issues RIR_MCP_API_KEY=$(corepack pnpm -s tsx scripts/keys.ts new --raw) node_modules/.bin/tsx packages/node/src/http.ts` then `curl -i -X POST localhost:8787/mcp` → 401.
+- [ ] **Step 5: Manual smoke** — `RIR_MCP_OPERATOR=https://github.com/IEISI-ORG/rir-mcp/issues RIR_MCP_API_KEY=$(corepack pnpm -s tsx scripts/keys.ts new --raw) node_modules/.bin/tsx packages/node/src/http.ts` then `curl -i -X POST localhost:4608/mcp` → 401.
 - [ ] **Step 6: Commit** — `feat(node): serve rir-mcp over authenticated Streamable HTTP`
 
 ---

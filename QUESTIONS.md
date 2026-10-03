@@ -10,7 +10,7 @@ Spec §7 says "above 200 → suspend client, alert operator" but gives no durati
 
 **Default:** 24 hours, then the client starts with a fresh count. The alert is one JSON line on stderr: `{"alert":"client_suspended","client":"<id>"}`.
 
-**Answer:**
+**Answer:** Approved.
 
 ---
 
@@ -60,7 +60,7 @@ The rethink: Node should behave like KV, so operators get the same model on both
 
 **Default from now on:** the revised Node design above. It replaces "read at startup only" and is recorded in spec §7. Say so below if you'd rather keep restart-to-revoke on Node.
 
-**Answer (follow-up):**
+**Answer (follow-up):** Approved.
 
 ---
 
@@ -86,7 +86,9 @@ Spec §10 lists Docker for self-hosted HTTP. Plan 2 does not include it.
 
 **Default:** `8787`, override with `RIR_MCP_HTTP_PORT`. The server binds `127.0.0.1` unless `RIR_MCP_HTTP_HOST` is set. A non-loopback bind also needs `RIR_MCP_ALLOWED_HOSTS`, as protection against DNS rebinding.
 
-**Answer:**
+**Answer:** pick a port not in use so commonly
+
+**Reply (2026-10-03, iteration 3):** Default is now **4608**. IANA lists it as unassigned (block 4607–4620), it is clear of common dev ports (8787 is `wrangler dev`'s default and would collide in Plan 3), and it is APNIC's AS number, so it is easy to remember. Override with `RIR_MCP_HTTP_PORT`.
 
 ---
 
@@ -96,4 +98,7 @@ There is still no git remote, so all work is local on `main`.
 
 **Default:** stay local. I won't add a remote or push unless you say so. Pushing needs a check first that the amended-out commit `fcc65eb` is not reachable.
 
-**Answer:**
+**Answer:**  set up a public repo under https://github.com/orgs/IEISI-ORG/ and make sure there's a well written README
+
+**Reply (2026-10-03, iteration 3):** Not done. Claude Code's permission check blocked repo creation and pushing in this unattended session, so nothing was created or pushed, and README work stopped too. This is waiting on you. Before you go public, note the earlier decision that LICENSE/TERMS_OF_USE (Plan 4) should follow APNIC Legal Counsel review. A private repo first would avoid that conflict. Checks already done: no secrets in history; only role or `example.*` email addresses; the amended-out commit `fcc65eb` is not reachable from any branch or tag.
+

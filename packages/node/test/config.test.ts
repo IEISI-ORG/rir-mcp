@@ -24,9 +24,9 @@ describe('loadHttpConfig', () => {
   const KEY = `rirmcp_${'A'.repeat(43)}`;
   const io = (text = '[]') => ({ read: () => text });
 
-  it('defaults to loopback, port 8787, localhost hosts/origins, single-key mode', () => {
+  it('defaults to loopback, port 4608, localhost hosts/origins, single-key mode', () => {
     const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY }, io());
-    expect(c).toMatchObject({ host: '127.0.0.1', port: 8787, authMode: 'single', userAgent: expect.stringContaining('noc@example.net') });
+    expect(c).toMatchObject({ host: '127.0.0.1', port: 4608, authMode: 'single', userAgent: expect.stringContaining('noc@example.net') });
     expect(c.allowedHosts).toEqual(['localhost', '127.0.0.1', '[::1]']);
     expect(c.allowedOrigins).toEqual(['localhost', '127.0.0.1', '[::1]']);
   });

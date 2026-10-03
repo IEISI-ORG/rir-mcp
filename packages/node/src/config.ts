@@ -54,7 +54,8 @@ function integer(env: Env, name: string, fallback: number, min: number, max: num
 export function loadHttpConfig(env: Env, io: KeysFileIo, clock: Clock = systemClock, onKeysReloadError?: (message: string) => void): HttpConfig {
   const base = loadConfig(env);
   const host = env.RIR_MCP_HTTP_HOST?.trim() || '127.0.0.1';
-  const port = integer(env, 'RIR_MCP_HTTP_PORT', 8787, 0, 65_535);
+  // 4608: IANA-unassigned (4607-4620), clear of common dev ports (wrangler dev uses 8787), and APNIC's ASN.
+  const port = integer(env, 'RIR_MCP_HTTP_PORT', 4608, 0, 65_535);
   const quota = integer(env, 'RIR_MCP_QUOTA_PER_HOUR', DEFAULT_QUOTA_PER_HOUR, 1, 1_000_000);
   const allowedHosts = list(env.RIR_MCP_ALLOWED_HOSTS) ?? (LOOPBACK.has(host) ? localhostAllowedHostnames() : undefined);
   if (!allowedHosts) {
