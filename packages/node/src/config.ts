@@ -38,9 +38,17 @@ export interface HttpConfig extends NodeConfig {
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
 
-function list(value: string | undefined): string[] | undefined {
-  const items = value?.split(',').map((s) => s.trim()).filter((s) => s !== '');
-  return items && items.length > 0 ? items : undefined;
+// The SDK matches Host/Origin by bare hostname (no scheme, no port; IPv6 in brackets), so anything else never matches.
+const BARE_HOST = /^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)$/;
+
+function list(env: Env, name: string): string[] | undefined {
+  const items = env[name]?.split(',').map((s) => s.trim()).filter((s) => s !== '');
+  if (!items || items.length === 0) return undefined;
+  const bad = items.find((h) => !BARE_HOST.test(h));
+  if (bad !== undefined) {
+    throw new ConfigError(`${name}: "${bad}" is not a bare hostname. Use e.g. rdap.example.net or [::1] (no scheme, port or path).`);
+  }
+  return items;
 }
 
 function integer(env: Env, name: string, fallback: number, min: number, max: number): number {
@@ -57,11 +65,11 @@ export function loadHttpConfig(env: Env, io: KeysFileIo, clock: Clock = systemCl
   // 4608: IANA-unassigned (4607-4620), clear of common dev ports (wrangler dev uses 8787), and APNIC's ASN.
   const port = integer(env, 'RIR_MCP_HTTP_PORT', 4608, 0, 65_535);
   const quota = integer(env, 'RIR_MCP_QUOTA_PER_HOUR', DEFAULT_QUOTA_PER_HOUR, 1, 1_000_000);
-  const allowedHosts = list(env.RIR_MCP_ALLOWED_HOSTS) ?? (LOOPBACK.has(host) ? localhostAllowedHostnames() : undefined);
+  const allowedHosts = list(env, 'RIR_MCP_ALLOWED_HOSTS') ?? (LOOPBACK.has(host) ? localhostAllowedHostnames() : undefined);
   if (!allowedHosts) {
     throw new ConfigError(`RIR_MCP_ALLOWED_HOSTS is required when binding ${host}: list the hostnames clients use to reach this server (DNS-rebinding protection).`);
   }
-  const allowedOrigins = list(env.RIR_MCP_ALLOWED_ORIGINS) ?? localhostAllowedOrigins();
+  const allowedOrigins = list(env, 'RIR_MCP_ALLOWED_ORIGINS') ?? localhostAllowedOrigins();
   const keysFile = env.RIR_MCP_KEYS_FILE?.trim();
   const apiKey = env.RIR_MCP_API_KEY?.trim();
   let keyStore: KeyStore;

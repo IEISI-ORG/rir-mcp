@@ -65,4 +65,20 @@ describe('loadHttpConfig', () => {
   it('allows port 0 for tests', () => {
     expect(loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_HTTP_PORT: '0' }, io()).port).toBe(0);
   });
+
+  it.each([
+    ['RIR_MCP_ALLOWED_ORIGINS', 'https://app.example.net'],
+    ['RIR_MCP_ALLOWED_ORIGINS', 'app.example.net:8443'],
+    ['RIR_MCP_ALLOWED_HOSTS', 'rdap.example.net:443'],
+    ['RIR_MCP_ALLOWED_HOSTS', '::1'],
+    ['RIR_MCP_ALLOWED_HOSTS', 'rdap.example.net/mcp'],
+  ])('rejects %s entry %j that could never match (bare hostnames only)', (name, value) => {
+    const env = { ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_HTTP_HOST: '0.0.0.0', RIR_MCP_ALLOWED_HOSTS: 'rdap.example.net', [name]: value };
+    expect(() => loadHttpConfig(env, io())).toThrow(new RegExp(`${name}.*bare hostname`));
+  });
+
+  it('accepts bracketed IPv6 and plain hostnames in allow-lists', () => {
+    const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_ALLOWED_HOSTS: '[::1], localhost, rdap.example.net' }, io());
+    expect(c.allowedHosts).toEqual(['[::1]', 'localhost', 'rdap.example.net']);
+  });
 });
