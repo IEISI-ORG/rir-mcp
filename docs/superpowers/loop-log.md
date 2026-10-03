@@ -20,7 +20,8 @@ Rules from the user:
 | 5 | 2026-10-04 | code review | Fresh reviewer (Opus) on `81f92a3..cb38d86`: 0 Critical, 2 Important, 7 Minor; all 5 Plan 2 Review Focus items verified. Fixed: rDNS charged per zone (Q5), limiter refusal spent quota (refund), NaN quota fail-open (re-graded). Allow-list validation → Task 8; 6 Minors to follow-ups. 410 tests pass. | `2d68a06` |
 | 6 | 2026-10-04 | audit + work | Daily audit (fresh reviewer, snapshot `af76a4c`): 1 Medium (SSE `subscriptions/listen` held open indefinitely, bypassing quota/scan/timeouts), 2 Low (backslash request target set URL host; prototype keys as RIR hosts) — all fixed test-first. Plan 2 Task 8: allow-list validation + HTTP deployment docs (commands smoke-tested). **Plan 2 closed.** 428 tests pass. | `82c1a0f`, `4ee9b0c`, `7e34186` |
 | 7 | 2026-10-04 | plan | Researched current Cloudflare tooling (Vitest plugin 1.3.6 needs Vitest 4; no outbound fetch mocking). Wrote Plan 3 (Worker; "StateDO as the server" to avoid ~5 cross-region DO round trips per lookup). Opened Q9–Q12 with defaults. | `f39956f`, `53905e1` |
+| 7 (cont.) | 2026-10-04 | work | Plan 3 Task 1: limiter and gate run over an injectable `StateMap` (Map in Node, SQLite in the DO); digest before read for DO atomicity. 432 tests pass. | `c15bd68` |
 
-**Next iteration:** 8 — execute Plan 3 Tasks 1–3 (state maps, move HTTP gate/handler to core, worker scaffold).
+**Next iteration:** 8 — Plan 3 Task 2 (move HTTP gate/handler to core) and Task 3 (worker scaffold).
 **Next code review:** iteration 10.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
