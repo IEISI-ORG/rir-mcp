@@ -37,3 +37,15 @@ export interface KeyStore {
   /** The client a presented API key belongs to, or null when unknown or revoked. */
   verify(presentedKey: string): Promise<ClientInfo | null>;
 }
+
+export type GateResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'quota' | 'suspended'; readonly retryAfterS: number };
+
+/** Per-client anti-harvesting controls (spec §7): hourly upstream quota and scan detection. */
+export interface ClientGate {
+  /** Charge `weight` upstream calls to the client's hourly quota. Denied charges are not counted. */
+  charge(client: ClientInfo, weight: number): Promise<GateResult>;
+  /** Record one distinct /24, /48, ASN or handle queried this hour; suspends the client above the threshold. */
+  observe(client: ClientInfo, unit: string): Promise<GateResult>;
+}
