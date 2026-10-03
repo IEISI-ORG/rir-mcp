@@ -201,6 +201,24 @@ describe('RirService.history', () => {
   });
 });
 
+describe('RirService.history personal records (audit 2026-10-03)', () => {
+  it('refuses the history of a deleted personal entity and caches nothing personal', async () => {
+    const person = {
+      objectClassName: 'entity', handle: 'JD1-AP', status: ['active'],
+      vcardArray: ['vcard', [['version', {}, 'text', '4.0'], ['fn', {}, 'text', 'Example Person'], ['kind', {}, 'text', 'individual']]],
+    };
+    const { service } = setup({
+      [`${APNIC}entity/JD1-AP`]: { status: 404, text: '{}' },
+      [`${APNIC}history/entity/JD1-AP`]: { body: { records: [
+        { applicableFrom: '2008-03-01T00:00:00Z', applicableUntil: '2019-06-01T00:00:00Z', content: person },
+      ] } },
+    });
+    const a = await service.history({ resource: 'JD1-AP', type: 'entity' });
+    expect(a).toMatchObject({ kind: 'error', code: 'personal_record' });
+    expect(JSON.stringify(a)).not.toMatch(/2008|2019|Example Person/);
+  });
+});
+
 describe('RirService upstream failures', () => {
   const spy = () => {
     const penalised: string[] = [];

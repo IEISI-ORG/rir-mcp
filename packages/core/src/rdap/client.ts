@@ -7,6 +7,8 @@ export interface HttpDeps {
   readonly timeoutMs?: number;
 }
 
+const RDAP_PATH = /^\/[A-Za-z0-9._:\/%-]{1,200}$/;
+
 export const MAX_BYTES = { current: 2_000_000, history: 5_000_000 } as const;
 
 export interface FetchJsonOptions {
@@ -79,7 +81,10 @@ function redirectTarget(res: Response, from: string, hop: number, opts: FetchJso
   } catch {
     throw new RdapError('redirect_blocked', `Invalid redirect Location from ${from}`, { status: res.status });
   }
-  const plain = next.port === '' && next.username === '' && next.password === '';
+  // The final URL is shown to the model (meta.url), so only the host may come from the bootstrap and the rest
+  // must look like an RDAP path: no query, no fragment, a short path of RDAP characters.
+  const plain = next.port === '' && next.username === '' && next.password === ''
+    && next.search === '' && next.hash === '' && RDAP_PATH.test(next.pathname);
   if (next.protocol !== 'https:' || !plain || !opts.allowRedirectTo?.(next.hostname)) {
     throw new RdapError('redirect_blocked', `Redirect to ${next.hostname} is not an RDAP bootstrap host`, { status: res.status });
   }

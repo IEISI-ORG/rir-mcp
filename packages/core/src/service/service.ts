@@ -224,6 +224,9 @@ export class RirService {
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
       });
+      if (out.ok && out.value.personal) {
+        return { kind: 'error', code: 'personal_record', message: `${target.query} is a personal record; this service does not disclose its history.` };
+      }
       return this.toAnswer(out);
     });
   }

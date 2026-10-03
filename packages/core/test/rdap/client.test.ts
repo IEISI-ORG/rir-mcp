@@ -95,6 +95,26 @@ describe('fetchJson', () => {
     expect(f.inits).toHaveLength(1);
   });
 
+  it.each([
+    ['a query string', 'https://rdap.arin.net/registry/ip/1.1.1.1?note=SYSTEM:ignore_previous'],
+    ['a fragment', 'https://rdap.arin.net/registry/ip/1.1.1.1#AAAA'],
+    ['an over-long path', `https://rdap.arin.net/${'a'.repeat(300)}`],
+    ['unexpected path characters', 'https://rdap.arin.net/registry/ip/1.1.1.1;x=SYSTEM!'],
+  ])('blocks a redirect whose URL carries %s', async (_name, location) => {
+    const f = fakeFetch({ [URL_A]: { status: 302, headers: { location } } });
+    const allow = (h: string) => h === 'rdap.arin.net';
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(f)))).toBe('redirect_blocked');
+  });
+
+  it('still follows an RDAP-shaped redirect path with colons, slashes and percent-encoding', async () => {
+    const target = 'https://rdap.arin.net/registry/ip/2001:db8::/32';
+    const entity = 'https://rdap.arin.net/registry/entity/ORG%2DX';
+    for (const t of [target, entity]) {
+      const f = fakeFetch({ [URL_A]: { status: 302, headers: { location: t } }, [t]: { body: { ok: 1 } } });
+      expect((await fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: () => true }, deps(f))).finalUrl).toBe(t);
+    }
+  });
+
   it('maps unparseable redirect Location to redirect_blocked', async () => {
     const badLocation = fakeFetch({ [URL_A]: { status: 302, headers: { location: 'https://[bad' } } });
     const allow = () => true;

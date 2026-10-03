@@ -11,6 +11,14 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Daily security audit 2026-10-03 (snapshot 998bb8a) — deferred Lows
+
+Fixed the same day: Medium #1 (history domain keys raw → `dnsName`), Medium #2 (deleted personal entity's history served → reducer marks `personal`, service refuses), Low #3 (redirect query/fragment/path → RDAP-path check), Low #6 (`SingleKeyStore` NaN quota → validated).
+
+- **#4 Byte-bounded memory:** `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
+- **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
+- **IANA bootstrap refetch before `charge`:** during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)

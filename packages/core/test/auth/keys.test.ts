@@ -33,6 +33,10 @@ describe('SingleKeyStore', () => {
     expect(await s.verify('')).toBeNull();
   });
 
+  it.each([NaN, 0, -1, 1.5, Infinity])('rejects quota %s instead of failing open', (q) => {
+    expect(() => new SingleKeyStore(KEY, q)).toThrow(/quota/);
+  });
+
   it('rejects a configured key that is not in the documented format', () => {
     expect(() => new SingleKeyStore('short')).toThrow(/rirmcp_/);
   });

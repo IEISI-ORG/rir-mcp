@@ -6,6 +6,7 @@ import { prefixesOf } from './network';
 import { clean } from './sanitize';
 import { isPersonal, type Party } from './types';
 import { asObject, strings, type Obj } from './util';
+import { dnsName } from './domain';
 import { isPersonLike, vcardValue } from './vcard';
 
 export type Detail = 'summary' | 'full';
@@ -45,6 +46,8 @@ export interface HistoryRecord {
   /** Set by the service: the `last changed` date of the current object when this history was fetched. */
   readonly validatedFor?: string;
   readonly objects: readonly ObjectHistory[];
+  /** The history is of an individual: nothing about it (not even dates) is kept; the service refuses it. */
+  readonly personal?: true;
 }
 
 export interface Change {
@@ -100,8 +103,10 @@ function keyOf(c: Obj): { key: string; prefixLength: number } | null {
     const end = typeof c.endAutnum === 'number' && c.endAutnum !== c.startAutnum ? `-AS${c.endAutnum}` : '';
     return { key: `AS${c.startAutnum}${end}`, prefixLength: -1 };
   }
-  if (c.objectClassName === 'domain' && typeof c.ldhName === 'string') {
-    return { key: c.ldhName.toLowerCase().replace(/\.$/, ''), prefixLength: -1 };
+  if (c.objectClassName === 'domain') {
+    // Keys reach output verbatim (headers, `at` mode, structured data): registry text, so clean and cap it.
+    const name = dnsName(c.ldhName);
+    return name ? { key: name, prefixLength: -1 } : null;
   }
   const handle = clean(c.handle, 64);
   return handle ? { key: handle, prefixLength: -1 } : null;
@@ -120,6 +125,10 @@ export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): H
   for (const item of o.records) {
     const r = asObject(item);
     const c = asObject(r.content);
+    // A deleted person's handle has no current record to refuse on, so check every version here (spec §7: no PII).
+    if (c.objectClassName === 'entity' && isPersonLike(c)) {
+      return { type: 'history', rir: ctx.rir, query: ctx.query, rawRecords: 0, objects: [], personal: true };
+    }
     const from = dateOnly(r.applicableFrom);
     const k = keyOf(c);
     if (!from || !k || typeof r.applicableFrom !== 'string') continue;

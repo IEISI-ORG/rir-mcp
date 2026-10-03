@@ -65,6 +65,8 @@ export class SingleKeyStore implements KeyStore {
 
   constructor(key: string, quotaPerHour = DEFAULT_QUOTA_PER_HOUR) {
     if (!KEY_RE.test(key)) throw new Error('API key must be rirmcp_ followed by 43 base64url characters (generate one with scripts/keys.ts)');
+    // NaN would make every quota comparison false, i.e. unlimited: fail closed instead.
+    if (!Number.isInteger(quotaPerHour) || quotaPerHour < 1) throw new Error('quotaPerHour must be a positive integer');
     this.hash = sha256Hex(key);
     this.quotaPerHour = quotaPerHour;
   }
