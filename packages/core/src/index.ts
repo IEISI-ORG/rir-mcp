@@ -10,6 +10,8 @@ export { systemClock, type CacheStore, type ClientGate, type ClientInfo, type Cl
 export { clampProfile, DEFAULT_LIMITS, type LimitProfile } from './rdap/limits';
 export type { Rir } from './rdap/rirs';
 export { buildUserAgent } from './rdap/user-agent';
+export { edgeGate, type EdgeGateOptions } from './http/edge';
+export { mcpHandler, type McpHandler, type McpHandlerOptions } from './http/handler';
 export { createServer } from './server';
 export { RirService, type ClientScope, type ServiceDeps } from './service/service';
 export { TOOL_NAMES, type CallLog, type ServerHooks, type ToolName } from './tools';
