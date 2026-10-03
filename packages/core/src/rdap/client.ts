@@ -11,7 +11,7 @@ export const MAX_BYTES = { current: 2_000_000, history: 5_000_000 } as const;
 
 export interface FetchJsonOptions {
   readonly maxBytes: number;
-  /** Redirects are followed once, only over https, only to hosts this returns true for. */
+  /** Redirects are followed once, only over https on the default port, without userinfo, only to hosts this returns true for. */
   readonly allowRedirectTo?: (host: string) => boolean;
   /** Called after the allow-list check passes and before the second hop; errors it throws propagate unchanged. */
   readonly onRedirect?: (host: string) => Promise<void>;
@@ -79,7 +79,8 @@ function redirectTarget(res: Response, from: string, hop: number, opts: FetchJso
   } catch {
     throw new RdapError('redirect_blocked', `Invalid redirect Location from ${from}`, { status: res.status });
   }
-  if (next.protocol !== 'https:' || !opts.allowRedirectTo?.(next.hostname)) {
+  const plain = next.port === '' && next.username === '' && next.password === '';
+  if (next.protocol !== 'https:' || !plain || !opts.allowRedirectTo?.(next.hostname)) {
     throw new RdapError('redirect_blocked', `Redirect to ${next.hostname} is not an RDAP bootstrap host`, { status: res.status });
   }
   return next.toString();
@@ -105,6 +106,8 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
     }
   } catch (err) {
     throw mapNetworkError(err, 'reading response body');
+  } finally {
+    reader.releaseLock();
   }
   const buf = new Uint8Array(total);
   let offset = 0;

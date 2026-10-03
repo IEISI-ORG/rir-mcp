@@ -1,13 +1,14 @@
 import type { Rir } from '../rdap/rirs';
 import { InputError } from './errors';
 
-const HANDLE_RE = /^[A-Z0-9][A-Z0-9-]{0,63}$/;
+// Case-insensitive ASCII only: test before upper-casing, which maps some non-ASCII letters (ß, ı) into ASCII.
+const HANDLE_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
 const HANDLE_HINT = 'Use a registry handle such as ORG-ARAD1-AP or IRT-APNICRANDNET-AU.';
 
 export function parseHandle(raw: string): string {
-  const s = raw.trim().toUpperCase();
+  const s = raw.trim();
   if (!HANDLE_RE.test(s)) throw new InputError(`Not a registry handle: "${raw}"`, HANDLE_HINT);
-  return s;
+  return s.toUpperCase();
 }
 
 const SUFFIXES: ReadonlyArray<readonly [string, Rir]> = [

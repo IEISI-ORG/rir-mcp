@@ -26,6 +26,9 @@ describe('clean', () => {
   it.each([
     ['soft hyphen', '\u00ad'], ['Arabic letter mark', '\u061c'], ['Mongolian vowel separator', '\u180e'],
     ['bidi isolate', '\u2066'], ['BOM', '\ufeff'], ['NEL', '\u0085'], ['private use', '\ue000'],
+    ['variation selector', '\ufe0f'], ['supplementary variation selector', '\u{e0100}'],
+    ['Hangul filler', '\u3164'], ['Hangul choseong filler', '\u115f'], ['Hangul jungseong filler', '\u1160'],
+    ['halfwidth Hangul filler', '\uffa0'], ['blank Braille pattern', '\u2800'], ['lone surrogate', '\ud800'],
   ])('replaces %s with a space', (_name, ch) => {
     expect(clean(`A${ch}B`)).toBe('A B');
   });

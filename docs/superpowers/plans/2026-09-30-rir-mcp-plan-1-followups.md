@@ -4,8 +4,11 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 
 ## Security hardening (do first)
 
-- Sanitiser: also strip variation selectors (U+FE00–FE0F, U+E0100–E01EF) and blank fillers (U+3164, U+115F, U+1160, U+2800) — hidden-payload channel similar to tag characters.
-- Redirect allow-list ignores port and userinfo; reject both.
+- ~~Sanitiser: also strip variation selectors and blank fillers~~ — done 2026-10-03 (also U+FFA0 and lone surrogates).
+- ~~Redirect allow-list ignores port and userinfo~~ — done 2026-10-03.
+- ~~Non-ASCII handles upper-cased into ASCII (ß→SS, ı→I)~~ — done 2026-10-03; validated before upper-casing.
+- ~~Reader lock not released on mid-read error~~ — done 2026-10-03.
+- Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
 ## Parked at final review

@@ -21,7 +21,7 @@ describe('parseHandle', () => {
   it('trims and upper-cases', () => {
     expect(parseHandle(' org-arad1-ap ')).toBe('ORG-ARAD1-AP');
   });
-  it.each(['', '-LEADING', 'HAS SPACE', 'A/B', 'X'.repeat(65), 'ORG_UNDERSCORE'])('rejects %j', (input) => {
+  it.each(['', '-LEADING', 'HAS SPACE', 'A/B', 'X'.repeat(65), 'ORG_UNDERSCORE', 'stra\u00dfe', '\u0131rr-ap', 'K\u212a-AP'])('rejects %j', (input) => {
     expect(() => parseHandle(input)).toThrow(InputError);
   });
 });
