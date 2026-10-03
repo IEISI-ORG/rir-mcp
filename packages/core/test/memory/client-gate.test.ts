@@ -27,6 +27,25 @@ describe('MemoryClientGate quota', () => {
   });
 });
 
+describe('MemoryClientGate quota hardening', () => {
+  it.each([NaN, Infinity * 0, undefined as unknown as number])('fails closed on a non-numeric quota (%s)', async (q) => {
+    const g = new MemoryClientGate(new FakeClock());
+    expect(await g.charge({ clientId: 'x', quotaPerHour: q }, 1)).toMatchObject({ ok: false, reason: 'quota' });
+  });
+
+  it('refunds charges that reached no upstream, never below zero', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock);
+    await g.charge(alpha, 10);
+    await g.refund(alpha, 2);
+    expect((await g.charge(alpha, 2)).ok).toBe(true);
+    expect((await g.charge(alpha, 1)).ok).toBe(false);
+    await g.refund(beta, 5);
+    expect((await g.charge(beta, 10)).ok).toBe(true);
+    expect((await g.charge(beta, 1)).ok).toBe(false);
+  });
+});
+
 describe('MemoryClientGate scan detector', () => {
   it('counts distinct units, suspends above the threshold and alerts once', async () => {
     const clock = new FakeClock();

@@ -20,6 +20,7 @@ class FakeGate implements ClientGate {
   async observe(): Promise<GateResult> {
     return { ok: true };
   }
+  async refund(): Promise<void> {}
 }
 
 function setup(denied: ReadonlyMap<string, GateResult>) {

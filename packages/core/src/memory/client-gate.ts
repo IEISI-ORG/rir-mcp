@@ -33,11 +33,17 @@ export class MemoryClientGate implements ClientGate {
     const now = this.clock.now();
     const s = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
-    if (s.used + weight > client.quotaPerHour) {
+    // Written as !(<=) so a NaN or missing quota denies instead of allowing everything.
+    if (!(s.used + weight <= client.quotaPerHour)) {
       return { ok: false, reason: 'quota', retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
     }
     s.used += weight;
     return OK;
+  }
+
+  async refund(client: ClientInfo, weight: number): Promise<void> {
+    const s = this.current(client.clientId, this.clock.now());
+    s.used = Math.max(0, s.used - weight);
   }
 
   async observe(client: ClientInfo, unit: string): Promise<GateResult> {

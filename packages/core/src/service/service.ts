@@ -17,7 +17,7 @@ import type { AutnumRecord, DomainRecord, EntityRecord, NetworkRecord } from '..
 import { expectClass } from '../reduce/util';
 import { specialUseForAsn, specialUseForIp } from '../special-use';
 import type { Answer } from './answer';
-import { CachedFetcher, gateDenied, TTL_S, WEIGHT, type ClientScope, type FetchOutcome, type FetchRequest } from './fetcher';
+import { CachedFetcher, gateDenied, TTL_S, WEIGHT, type ClientScope, type FetchOutcome, type FetchRequest, type QuotaTicket } from './fetcher';
 import { scanUnitForAsn, scanUnitForHandle, scanUnitForIp } from './scan-unit';
 
 export type { ClientScope } from './fetcher';
@@ -183,11 +183,12 @@ export class RirService {
       }
       const route = await this.bootstrap.routeIp(p);
       if (!route) return notDelegated(query);
+      const ticket: QuotaTicket = { charged: false };
       for (const zone of zones) {
         const url = `${route.baseUrl}domain/${zone}`;
         const out = await this.get({
           ...CURRENT, key: `rdns:${zone}`, rir: route.rir, url,
-          reduce: (raw, rir) => reduceDomain(expectClass(raw, 'domain'), { rir }),
+          ticket, reduce: (raw, rir) => reduceDomain(expectClass(raw, 'domain'), { rir }),
         });
         if (out.ok || out.code !== 'not_found') return this.toAnswer(out);
       }

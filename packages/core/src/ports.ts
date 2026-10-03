@@ -48,4 +48,6 @@ export interface ClientGate {
   charge(client: ClientInfo, weight: number): Promise<GateResult>;
   /** Record one distinct /24, /48, ASN or handle queried this hour; suspends the client above the threshold. */
   observe(client: ClientInfo, unit: string): Promise<GateResult>;
+  /** Return a charge that reached no upstream (e.g. the shared RIR limiter refused). Never goes below zero. */
+  refund(client: ClientInfo, weight: number): Promise<void>;
 }

@@ -41,6 +41,12 @@ export interface FetchRequest<T> {
   readonly force?: boolean;
   /** Set on client-scoped services: upstream calls are charged to this client's quota. */
   readonly scope?: ClientScope;
+  /** Shared by the fetches of one logical lookup (e.g. a reverse-DNS zone walk) so the quota is charged once (Q5). */
+  readonly ticket?: QuotaTicket;
+}
+
+export interface QuotaTicket {
+  charged: boolean;
 }
 
 /** The authenticated client a service view acts for (HTTP), and the gate that limits it. */
@@ -95,7 +101,7 @@ const rateLimited = (rir: Rir, retryAfterS: number): FetchOutcome<never> => ({
 /** In-flight result for a request its originator's client gate refused: per-client, never shared. */
 const DENIED = Symbol('denied');
 
-/** cache -> coalesce -> client gate -> limiter -> fetch -> reduce -> cache, with stale-on-error (spec §5). */
+/** cache -> coalesce -> client gate -> limiter (refund on refusal) -> fetch -> reduce -> cache, with stale-on-error (spec §5). */
 export class CachedFetcher {
   private readonly deps: FetcherDeps;
   private readonly inflight = new Map<string, Promise<FetchOutcome<unknown> | typeof DENIED>>();
@@ -119,12 +125,25 @@ export class CachedFetcher {
     }
     let denial: Exclude<GateResult, { ok: true }> | undefined;
     const p = (async (): Promise<FetchOutcome<T> | typeof DENIED> => {
-      if (req.scope) {
+      // Charge the client first so an over-quota client cannot spend shared RIR tokens...
+      let charged = false;
+      if (req.scope && !req.ticket?.charged) {
         const g = await req.scope.gate.charge(req.scope.client, req.weight);
         if (!g.ok) {
           denial = g;
           return DENIED;
         }
+        charged = true;
+        if (req.ticket) req.ticket.charged = true;
+      }
+      const permit = await this.deps.limiter.acquire(req.rir, req.weight);
+      if (!permit.ok) {
+        // ...and give the charge back when the shared limiter refuses: no upstream call was made.
+        if (charged && req.scope) {
+          await req.scope.gate.refund(req.scope.client, req.weight);
+          if (req.ticket) req.ticket.charged = false;
+        }
+        return entry ? fromEntry(entry, 'stale', req.rir) : rateLimited(req.rir, permit.retryAfterS);
       }
       return this.refresh(req, entry);
     })().finally(() => this.inflight.delete(req.key));
@@ -136,8 +155,6 @@ export class CachedFetcher {
 
   private async refresh<T>(req: FetchRequest<T>, entry: CacheEntry<Stored<T>> | null): Promise<FetchOutcome<T>> {
     const fallback = entry ? fromEntry(entry, 'stale', req.rir) : null;
-    const permit = await this.deps.limiter.acquire(req.rir, req.weight);
-    if (!permit.ok) return fallback ?? rateLimited(req.rir, permit.retryAfterS);
     let actual: Rir = req.rir;
     try {
       const hosts = await this.deps.rdapHosts();
