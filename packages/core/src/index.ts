@@ -11,5 +11,5 @@ export type { Rir } from './rdap/rirs';
 export { buildUserAgent } from './rdap/user-agent';
 export { createServer } from './server';
 export { RirService, type ClientScope, type ServiceDeps } from './service/service';
-export { TOOL_NAMES, type ServerHooks } from './tools';
+export { TOOL_NAMES, type CallLog, type ServerHooks, type ToolName } from './tools';
 export { VERSION } from './version';

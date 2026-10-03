@@ -5,7 +5,7 @@ import { MemoryRateLimiter } from '../src/memory/rate-limiter';
 import { DEFAULT_LIMITS } from '../src/rdap/limits';
 import { createServer } from '../src/server';
 import { RirService } from '../src/service/service';
-import { TOOL_NAMES } from '../src/tools';
+import { TOOL_NAMES, type ServerHooks } from '../src/tools';
 import { FakeClock } from './support/fake-clock';
 import { fakeFetch } from './support/fake-fetch';
 import { ianaRoutes, loadFixture } from './support/fixtures';
@@ -13,7 +13,7 @@ import { ianaRoutes, loadFixture } from './support/fixtures';
 let client: Client | null = null;
 afterEach(async () => { await client?.close(); client = null; });
 
-async function connect(): Promise<Client> {
+async function connect(hooks: ServerHooks = {}): Promise<Client> {
   const clock = new FakeClock();
   const fetch = fakeFetch({
     ...ianaRoutes(),
@@ -22,7 +22,7 @@ async function connect(): Promise<Client> {
   });
   const service = new RirService({ fetch, clock, userAgent: 'test', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
   const [clientT, serverT] = InMemoryTransport.createLinkedPair();
-  await createServer(service).connect(serverT);
+  await createServer(service, hooks).connect(serverT);
   client = new Client({ name: 'test', version: '0.0.0' }, { versionNegotiation: { mode: 'auto' } });
   await client.connect(clientT);
   return client;
@@ -50,6 +50,51 @@ describe('MCP server', () => {
     const r = await c.callTool({ name: 'rdap_asn_lookup', arguments: { asn: 'AS-FOO' } });
     expect(r.isError).toBe(true);
     expect(text(r)).toContain('AS4608');
+  });
+
+  it('reports each call to onCall without the query value', async () => {
+    const logs: unknown[] = [];
+    const c = await connect({ onCall: (l) => logs.push(l) });
+    await c.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });
+    await c.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });
+    await c.callTool({ name: 'rdap_asn_lookup', arguments: { asn: 'AS-FOO' } });
+    await c.callTool({ name: 'rdap_ip_lookup', arguments: { address: '192.168.1.1' } });
+    expect(logs).toMatchObject([
+      { tool: 'rdap_ip_lookup', outcome: 'record', rir: 'apnic', cache: 'miss' },
+      { tool: 'rdap_ip_lookup', outcome: 'record', rir: 'apnic', cache: 'hit' },
+      { tool: 'rdap_asn_lookup', outcome: 'invalid_input' },
+      { tool: 'rdap_ip_lookup', outcome: 'special' },
+    ]);
+    expect(JSON.stringify(logs)).not.toMatch(/1\.1\.1|192\.168|AS-FOO/);
+    for (const l of logs) expect(typeof (l as { ms: number }).ms).toBe('number');
+  });
+
+  it('reports history calls through the same hook', async () => {
+    const logs: unknown[] = [];
+    const c = await connect({ onCall: (l) => logs.push(l) });
+    await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1' } });
+    expect(logs).toMatchObject([{ tool: 'rdap_history', outcome: 'record', rir: 'apnic', cache: 'miss' }]);
+    expect(JSON.stringify(logs)).not.toMatch(/1\.1\.1/);
+  });
+
+  it('keeps answering when the onCall hook throws', async () => {
+    const logs: unknown[] = [];
+    const c = await connect({ onCall: (l) => { logs.push(l); throw new Error('hook broke'); }, onError: () => {} });
+    const r = await c.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });
+    expect(r.isError).toBeFalsy();
+    expect(logs).toHaveLength(1);
+  });
+
+  it('logs an unexpected service failure as outcome "internal"', async () => {
+    const logs: unknown[] = [];
+    const broken = { ip: async () => { throw new TypeError('boom 1.1.1.1'); } } as unknown as RirService;
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await createServer(broken, { onCall: (l) => logs.push(l), onError: () => {} }).connect(serverT);
+    client = new Client({ name: 'test', version: '0.0.0' }, { versionNegotiation: { mode: 'auto' } });
+    await client.connect(clientT);
+    const r = await client.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });
+    expect(r.isError).toBe(true);
+    expect(logs).toMatchObject([{ tool: 'rdap_ip_lookup', outcome: 'internal' }]);
   });
 
   it('answers special-purpose space as a special answer', async () => {

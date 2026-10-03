@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
-import { RIRS } from './rdap/rirs';
+import { RIRS, type Rir } from './rdap/rirs';
 import { historyView, renderHistory } from './render/history';
 import { renderAutnum, renderDomain, renderEntity, renderNetwork, renderSpecial } from './render/text';
-import type { Answer, Meta } from './service/answer';
+import type { Answer, ErrorCode, Meta } from './service/answer';
 import type { RirService } from './service/service';
 
 export const TOOL_NAMES = ['rdap_ip_lookup', 'rdap_asn_lookup', 'rdap_entity_lookup', 'rdap_reverse_dns', 'rdap_history'] as const;
@@ -17,8 +17,20 @@ const OUTPUT = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
+export type ToolName = (typeof TOOL_NAMES)[number];
+
+/** One line per tool call (spec §7 Logging). Never carries the query value. */
+export interface CallLog {
+  readonly tool: ToolName;
+  readonly outcome: 'record' | 'special' | ErrorCode | 'internal';
+  readonly rir?: Rir;
+  readonly cache?: Meta['cache'];
+  readonly ms: number;
+}
+
 export interface ServerHooks {
   onError?: (err: unknown) => void;
+  onCall?: (log: CallLog) => void;
 }
 
 interface ToolResult {
@@ -52,6 +64,33 @@ async function safely(fn: () => Promise<ToolResult>, hooks: ServerHooks): Promis
   }
 }
 
+type Outcome = Omit<CallLog, 'tool' | 'ms'>;
+
+function outcomeOf(answer: Answer<unknown>): Outcome {
+  if (answer.kind === 'record') return { outcome: 'record', rir: answer.meta.rir, cache: answer.meta.cache };
+  if (answer.kind === 'special') return { outcome: 'special' };
+  return { outcome: answer.code };
+}
+
+/** Answer one call, then report it to `onCall`; anything that escapes `get`/`toResult` is logged as 'internal'. */
+async function answer<T extends object>(
+  tool: ToolName,
+  hooks: ServerHooks,
+  get: () => Promise<Answer<T>>,
+  toResult: (a: Answer<T>) => ToolResult,
+): Promise<ToolResult> {
+  const t0 = performance.now();
+  let log: Outcome = { outcome: 'internal' };
+  const out = await safely(async () => {
+    const a = await get();
+    const r = toResult(a);
+    log = outcomeOf(a);
+    return r;
+  }, hooks);
+  try { hooks.onCall?.({ tool, ...log, ms: Math.round(performance.now() - t0) }); } catch { /* logging must not break the answer */ }
+  return out;
+}
+
 const doc = (answers: string, input: string, examples: string, not: string): string =>
   `Answers: ${answers}\nInput forms: ${input}\nExample questions: ${examples}\nDoes not: ${not}`;
 
@@ -66,7 +105,7 @@ export function registerTools(server: McpServer, service: RirService, hooks: Ser
     ),
     inputSchema: z.object({ address: z.string().max(64).describe('One IPv4/IPv6 address or CIDR') }),
     outputSchema: OUTPUT,
-  }, async ({ address }) => safely(async () => result(await service.ip(address), renderNetwork), hooks));
+  }, async ({ address }) => answer('rdap_ip_lookup', hooks, () => service.ip(address), (a) => result(a, renderNetwork)));
 
   server.registerTool('rdap_asn_lookup', {
     title: 'AS number registration',
@@ -78,7 +117,7 @@ export function registerTools(server: McpServer, service: RirService, hooks: Ser
     ),
     inputSchema: z.object({ asn: z.string().max(20).describe('AS number, e.g. AS4608') }),
     outputSchema: OUTPUT,
-  }, async ({ asn }) => safely(async () => result(await service.asn(asn), renderAutnum), hooks));
+  }, async ({ asn }) => answer('rdap_asn_lookup', hooks, () => service.asn(asn), (a) => result(a, renderAutnum)));
 
   server.registerTool('rdap_entity_lookup', {
     title: 'Organisation / role handle',
@@ -90,7 +129,7 @@ export function registerTools(server: McpServer, service: RirService, hooks: Ser
     ),
     inputSchema: z.object({ handle: z.string().max(64).describe('Registry handle'), rir: RIR.optional() }),
     outputSchema: OUTPUT,
-  }, async ({ handle, rir }) => safely(async () => result(await service.entity(handle, rir), renderEntity), hooks));
+  }, async ({ handle, rir }) => answer('rdap_entity_lookup', hooks, () => service.entity(handle, rir), (a) => result(a, renderEntity)));
 
   server.registerTool('rdap_reverse_dns', {
     title: 'Reverse DNS delegation',
@@ -102,7 +141,7 @@ export function registerTools(server: McpServer, service: RirService, hooks: Ser
     ),
     inputSchema: z.object({ address: z.string().max(64).describe('One IPv4/IPv6 address or prefix') }),
     outputSchema: OUTPUT,
-  }, async ({ address }) => safely(async () => result(await service.reverseDns(address), renderDomain), hooks));
+  }, async ({ address }) => answer('rdap_reverse_dns', hooks, () => service.reverseDns(address), (a) => result(a, renderDomain)));
 
   server.registerTool('rdap_history', {
     title: 'Registration history (whowas) and provenance',
@@ -121,13 +160,14 @@ export function registerTools(server: McpServer, service: RirService, hooks: Ser
       detail: z.enum(['summary', 'full']).optional(),
     }),
     outputSchema: OUTPUT,
-  }, async ({ resource, type, rir, at, since, detail }) => safely(async () => {
-    const answer = await service.history({ resource, type, rir });
+  }, async ({ resource, type, rir, at, since, detail }) => {
     const opts = { detail: detail ?? 'summary', since, at } as const;
-    const out = result(answer, (rec, meta) => renderHistory(rec, meta, opts));
-    if (answer.kind === 'record') {
-      out.structuredContent = { answer: 'record', rir: answer.meta.rir, cache: answer.meta.cache, data: historyView(answer.record, opts, answer.meta) };
-    }
-    return out;
-  }, hooks));
+    return answer('rdap_history', hooks, () => service.history({ resource, type, rir }), (a) => {
+      const out = result(a, (rec, meta) => renderHistory(rec, meta, opts));
+      if (a.kind === 'record') {
+        out.structuredContent = { answer: 'record', rir: a.meta.rir, cache: a.meta.cache, data: historyView(a.record, opts, a.meta) };
+      }
+      return out;
+    });
+  });
 }
