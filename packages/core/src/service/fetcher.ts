@@ -92,10 +92,13 @@ const rateLimited = (rir: Rir, retryAfterS: number): FetchOutcome<never> => ({
   retryAfterS,
 });
 
-/** cache -> coalesce -> limiter -> fetch -> reduce -> cache, with stale-on-error (spec §5). */
+/** In-flight result for a request its originator's client gate refused: per-client, never shared. */
+const DENIED = Symbol('denied');
+
+/** cache -> coalesce -> client gate -> limiter -> fetch -> reduce -> cache, with stale-on-error (spec §5). */
 export class CachedFetcher {
   private readonly deps: FetcherDeps;
-  private readonly inflight = new Map<string, Promise<FetchOutcome<unknown>>>();
+  private readonly inflight = new Map<string, Promise<FetchOutcome<unknown> | typeof DENIED>>();
 
   constructor(deps: FetcherDeps) {
     this.deps = deps;
@@ -109,18 +112,30 @@ export class CachedFetcher {
     const entry = await this.deps.cache.get<Stored<T>>(req.key);
     if (entry && !req.force && this.deps.clock.now() < entry.freshUntil) return fromEntry(entry, 'hit', req.rir);
     const running = this.inflight.get(req.key);
-    if (running) return running as Promise<FetchOutcome<T>>;
-    const p = this.refresh(req, entry).finally(() => this.inflight.delete(req.key));
+    if (running) {
+      const out = await running;
+      // The originator was refused by its own client gate; that refusal is not ours, so try on our own account.
+      return out === DENIED ? this.get(req) : (out as FetchOutcome<T>);
+    }
+    let denial: Exclude<GateResult, { ok: true }> | undefined;
+    const p = (async (): Promise<FetchOutcome<T> | typeof DENIED> => {
+      if (req.scope) {
+        const g = await req.scope.gate.charge(req.scope.client, req.weight);
+        if (!g.ok) {
+          denial = g;
+          return DENIED;
+        }
+      }
+      return this.refresh(req, entry);
+    })().finally(() => this.inflight.delete(req.key));
     this.inflight.set(req.key, p);
-    return p;
+    const out = await p;
+    if (out !== DENIED) return out;
+    return entry ? fromEntry(entry, 'stale', req.rir) : gateDenied(denial as Exclude<GateResult, { ok: true }>);
   }
 
   private async refresh<T>(req: FetchRequest<T>, entry: CacheEntry<Stored<T>> | null): Promise<FetchOutcome<T>> {
     const fallback = entry ? fromEntry(entry, 'stale', req.rir) : null;
-    if (req.scope) {
-      const g = await req.scope.gate.charge(req.scope.client, req.weight);
-      if (!g.ok) return fallback ?? gateDenied(g);
-    }
     const permit = await this.deps.limiter.acquire(req.rir, req.weight);
     if (!permit.ok) return fallback ?? rateLimited(req.rir, permit.retryAfterS);
     let actual: Rir = req.rir;
