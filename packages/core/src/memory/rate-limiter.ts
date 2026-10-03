@@ -1,7 +1,8 @@
 import type { AcquireResult, Clock, RateLimiter } from '../ports';
 import { PENALTY_FACTOR, PENALTY_MS, type LimitProfile } from '../rdap/limits';
+import type { StateMap } from './state-map';
 
-interface BucketState {
+export interface BucketState {
   tokens: number;
   updatedAt: number;
   penaltyUntil: number;
@@ -14,19 +15,22 @@ const EPSILON = 1e-9; // absorbs float error, e.g. 6 s x (10/60) = 0.99999999999
 
 /** Token bucket per named bucket, with an optional fixed-window hourly cap. */
 export class MemoryRateLimiter implements RateLimiter {
-  private readonly state = new Map<string, BucketState>();
+  private readonly state: StateMap<BucketState>;
   private readonly profiles: Readonly<Record<string, LimitProfile>>;
   private readonly clock: Clock;
 
-  constructor(profiles: Readonly<Record<string, LimitProfile>>, clock: Clock) {
+  constructor(profiles: Readonly<Record<string, LimitProfile>>, clock: Clock, state: StateMap<BucketState> = new Map()) {
     this.profiles = profiles;
     this.clock = clock;
+    this.state = state;
   }
 
   async acquire(name: string, weight: number): Promise<AcquireResult> {
     const profile = this.profile(name);
     const now = this.clock.now();
     const s = this.refill(name, profile, now);
+    // Persist the refill whatever the outcome, so a persisted store sees the same state as memory would.
+    this.state.set(name, s);
     if (profile.hourlyCap !== undefined && s.windowCount + weight > profile.hourlyCap) {
       return { ok: false, retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
     }
@@ -37,6 +41,7 @@ export class MemoryRateLimiter implements RateLimiter {
     }
     s.tokens = Math.max(0, s.tokens - cost);
     s.windowCount += weight;
+    this.state.set(name, s);
     return { ok: true };
   }
 
@@ -47,6 +52,7 @@ export class MemoryRateLimiter implements RateLimiter {
     const s = this.refill(name, profile, now);
     s.tokens = 0;
     s.penaltyUntil = now + PENALTY_MS;
+    this.state.set(name, s);
   }
 
   private profile(name: string): LimitProfile {
@@ -60,11 +66,10 @@ export class MemoryRateLimiter implements RateLimiter {
   }
 
   private refill(name: string, profile: LimitProfile, now: number): BucketState {
-    let s = this.state.get(name);
-    if (!s) {
-      s = { tokens: profile.burst, updatedAt: now, penaltyUntil: 0, windowStart: now, windowCount: 0 };
-      this.state.set(name, s);
-    }
+    const stored = this.state.get(name);
+    const s: BucketState = stored
+      ? { ...stored }
+      : { tokens: profile.burst, updatedAt: now, penaltyUntil: 0, windowStart: now, windowCount: 0 };
     s.tokens = Math.min(profile.burst, s.tokens + ((now - s.updatedAt) / 1000) * this.rate(profile, s, now));
     s.updatedAt = now;
     if (now - s.windowStart >= HOUR_MS) {
