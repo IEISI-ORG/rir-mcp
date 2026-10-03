@@ -12,6 +12,7 @@ Rules from the user:
 |---|---|---|---|---|
 | 1 | 2026-10-03 | work | Fast-forwarded `main` to Plan 1 (`81f92a3`). Security follow-ups: sanitiser ranges, redirect port/userinfo, ASCII handles, reader lock. Wrote Plan 2 (Node HTTP + auth). Opened QUESTIONS.md (Q1–Q8). | `ec4bfd8`, `0ed7203` |
 | 1 (cont.) | 2026-10-03 | work | Plan 2 Tasks 1–3 inline: key stores, client gate, `RirService.forClient`. 345 tests pass. Ledger: `.superpowers/sdd/2026-10-03-rir-mcp-plan-2-node-http/progress.md` (git-ignored). | `8a22d28`, `bbec943`, `4d38215` |
+| 1 (fix) | 2026-10-03 | security | Background security review flagged cross-client state mixing: one client's quota/suspension denial was shared via in-flight coalescing. Reproduced, fixed with a per-client denial sentinel; coalescing clients are not charged. | `a62a194` |
 
 **Next iteration:** 2 — daily security audit of all code first, then Plan 2 Tasks 4–5.
 **Next code review:** iteration 5.
