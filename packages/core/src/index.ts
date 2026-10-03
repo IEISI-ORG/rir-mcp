@@ -1,6 +1,10 @@
+export {
+  CLIENT_ID_RE, constantTimeEqual, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, parseKeyRecords,
+  RecordKeyStore, sha256Hex, SingleKeyStore, type KeyRecord,
+} from './auth/keys';
 export { MemoryCache } from './memory/cache';
 export { MemoryRateLimiter } from './memory/rate-limiter';
-export { systemClock, type CacheStore, type Clock, type FetchLike, type RateLimiter } from './ports';
+export { systemClock, type CacheStore, type ClientInfo, type Clock, type FetchLike, type KeyStore, type RateLimiter } from './ports';
 export { clampProfile, DEFAULT_LIMITS, type LimitProfile } from './rdap/limits';
 export type { Rir } from './rdap/rirs';
 export { buildUserAgent } from './rdap/user-agent';

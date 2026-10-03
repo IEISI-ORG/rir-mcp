@@ -27,3 +27,13 @@ export interface RateLimiter {
   /** Called after upstream 429/5xx/timeout/bad response: back off this bucket. */
   penalise(bucket: string): Promise<void>;
 }
+
+export interface ClientInfo {
+  readonly clientId: string;
+  readonly quotaPerHour: number;
+}
+
+export interface KeyStore {
+  /** The client a presented API key belongs to, or null when unknown or revoked. */
+  verify(presentedKey: string): Promise<ClientInfo | null>;
+}
