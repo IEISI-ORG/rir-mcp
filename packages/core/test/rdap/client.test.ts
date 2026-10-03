@@ -84,6 +84,21 @@ describe('fetchJson', () => {
     expect(signal?.aborted).toBe(false);
   });
 
+  it.each([
+    ['404', 404, {}],
+    ['503', 503, {}],
+    ['a redirect it will not follow', 302, { location: 'https://evil.example/ip/1.1.1.1' }],
+    ['a declared length over the cap', 200, { 'content-length': '5000' }],
+  ])('cancels the unread body after %s, so the connection is not left open', async (_name, status, headers) => {
+    let cancelled = false;
+    const f: FetchLike = async () => new Response(new ReadableStream({
+      start(c) { c.enqueue(new Uint8Array(10)); },
+      cancel() { cancelled = true; },
+    }), { status, headers });
+    await fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: () => false }, deps(f)).catch(() => undefined);
+    expect(cancelled).toBe(true);
+  });
+
   it('times out a stalled response and a stalled body', async () => {
     const onAbort = (signal: AbortSignal | null | undefined, fn: () => void) => signal?.addEventListener('abort', fn);
     const stalled: FetchLike = (_url, init) => new Promise((_, reject) => onAbort(init?.signal, () => reject(init?.signal?.reason)));

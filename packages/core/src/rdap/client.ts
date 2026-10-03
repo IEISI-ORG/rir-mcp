@@ -29,8 +29,10 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
   let target = url;
   for (let hop = 0; hop < 2; hop++) {
     const timer = deadline(deps.timeoutMs ?? 10_000);
+    let res: Response | undefined;
+    let consumed = false;
     try {
-      const res = await send(target, deps, timer.signal);
+      res = await send(target, deps, timer.signal);
       if (res.status >= 300 && res.status < 400) {
         target = redirectTarget(res, target, hop, opts);
         await opts.onRedirect?.(new URL(target).hostname);
@@ -46,6 +48,7 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
       if (res.status >= 500) throw new RdapError('upstream', `Upstream error (HTTP ${res.status})`, { status: res.status });
       if (res.status !== 200) throw new RdapError('bad_response', `Unexpected HTTP ${res.status}`, { status: res.status });
       const text = await readCapped(res, opts.maxBytes);
+      consumed = true;
       try {
         return { body: JSON.parse(text) as unknown, finalUrl: target };
       } catch {
@@ -54,6 +57,8 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
     } finally {
       // Cleared once the body is read: a pending timer would keep a Durable Object's request in flight.
       timer.clear();
+      // Redirects, errors and oversized responses leave the body unread: cancel it so the connection is released.
+      if (!consumed) res?.body?.cancel().catch(() => undefined);
     }
   }
   throw new RdapError('redirect_blocked', 'Too many redirects');
