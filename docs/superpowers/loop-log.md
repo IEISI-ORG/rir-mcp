@@ -24,6 +24,8 @@ Rules from the user:
 
 | 8 | 2026-10-04 | work | Repo transferred by the user to `IEISI-ORG/rir-mcp`; description set; local remote repointed, but git access to the new repo is refused ("disabled") although the API shows it enabled — recorded in the migration TODO. Q8–Q10, Q12 answers committed. Plan 3 Task 2 (`edgeGate` + `mcpHandler` in core; node composes them) and Task 3 (worker package, workerd smoke test under Vitest 4). README rewritten for the public repo (Q8). 442 root tests + 2 worker tests pass. Nothing pushed. | `8ef9862`, `50db450`, `347d3b8` |
 
-**Next iteration:** 9 — Plan 3 Task 4 (`SqlStateMap`, `SqlCache` with count and byte LRU) and Task 5 (`StateDO.serve`).
+| 9 | 2026-10-04 | work | No new answers. Plan 3 Task 4 (`SqlStateMap`; `SqlCache` LRU bounded by 10k entries and 50 MB, oversize values skipped — closes audit Low #4 for the Worker) and Task 5 (`StateDO.serve` runs the MCP handler over SQLite state; quota survives eviction). Found and fixed in core: `AbortSignal.timeout` left a 10 s timer pending after every upstream lookup, keeping a DO request in flight (eviction hung; billed active time). 444 root + 15 worker tests pass. | `2b61922`, `c1c81ba`, `5758939` |
+
+**Next iteration:** 10 — code review (fresh reviewer) of `c83bfe4..HEAD` (Plan 3 Tasks 1–5, README, timer fix). Then Plan 3 Task 6 (`KvKeyStore`).
 **Next code review:** iteration 10.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
