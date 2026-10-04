@@ -51,6 +51,8 @@ Rules from the user:
 
 | 21 | 2026-10-05 | follow-ups | No new answers. History header starts with fixed text (a `# X` handle cannot become a heading); a call heavier than a small quota costs the whole quota instead of being refused forever; call-rate docs made exact; Worker buffers request bodies at the edge (10 s / 64 KiB → 408/413) so a slow client cannot hold the DO. 597 root + 62 worker tests pass; dry-run bundle OK. | `9441938`, `e571479`, `4aff0c1` |
 
+| — | 2026-10-05 | instruction | User pushed once (`c83bfe4..771a1b4`, after checks: `fcc65eb` unreachable, no keys/tokens/sensitive files) and then answered Q8: **push `main` to `origin` after each iteration from now on.** Each iteration ends with the same pre-push checks, then `git push origin main`. | — |
+
 **Next iteration:** 22 — daily security audit if the date has turned to 2026-10-06; otherwise dependency hygiene (pnpm minimumReleaseAge, pin dev tooling) and remaining older Plan 1 task minors.
 **Next code review:** iteration 25.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.

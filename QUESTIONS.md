@@ -102,7 +102,7 @@ There is still no git remote, so all work is local on `main`.
 
 **Reply (2026-10-04, iteration 8):** Done on your side: the repo is now `IEISI-ORG/rir-mcp` (public), with a description. I rewrote the README (`347d3b8`) and pointed the local `origin` at the new URL. Two open points: (1) git briefly refused the repo as "disabled" right after the transfer; a later fetch worked, so nothing to do; (2) I still do not push: `main` is 6 commits ahead of `origin/main`. Say so here if loop iterations should push `main` after each iteration.
 
-**Answer:**
+**Answer:** (2026-10-05) Yes: push `main` to `origin` after each iteration from now on.
 
 ---
 
