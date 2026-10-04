@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant answer Internet registry questions — who holds an IP address or AS number, where to report abuse, which nameservers serve a reverse-DNS zone, and how a registration changed over time — using RDAP data from all five Regional Internet Registries: APNIC, ARIN, RIPE NCC, LACNIC and AFRINIC.
 
-Ask "Who holds 1.1.1.1?" and the assistant gets this, instead of 4–250 KB of raw RDAP JSON:
+Ask "Who holds 1.1.1.1?" and the assistant gets this, instead of the 4–370 KB of raw RDAP JSON the registries return:
 
 ```text
 network   1.1.1.0/24  APNIC-LABS  (AU, ASSIGNED PORTABLE, active)

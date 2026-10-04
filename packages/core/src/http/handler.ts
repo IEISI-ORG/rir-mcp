@@ -1,4 +1,4 @@
-import { createMcpHandler } from '@modelcontextprotocol/server';
+import { createMcpHandler, type AuthInfo } from '@modelcontextprotocol/server';
 import type { ClientGate, ClientInfo } from '../ports';
 import { createServer } from '../server';
 import type { RirService } from '../service/service';
@@ -19,6 +19,15 @@ export interface McpHandler {
 
 const MAX_BODY_BYTES = 65_536;
 
+/** The SDK's auth record for an admitted client. The token is blanked so nothing downstream can log it; the SDK
+ * requires an expiry, so give one. */
+export function authInfoFor(client: ClientInfo): AuthInfo {
+  return {
+    token: '', clientId: client.clientId, scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    extra: { quotaPerHour: client.quotaPerHour },
+  };
+}
+
 /** The MCP endpoint for an already-authenticated client. Runtime-neutral: a web `fetch` handler. */
 export function mcpHandler(o: McpHandlerOptions): McpHandler {
   const handler = createMcpHandler((ctx) => {
@@ -34,13 +43,7 @@ export function mcpHandler(o: McpHandlerOptions): McpHandler {
   }, { maxRequestBodySize: MAX_BODY_BYTES, maxSubscriptions: 0, responseMode: 'json', onerror: (err) => o.onError?.(err) });
 
   return {
-    fetch: (req, client) => handler.fetch(req, {
-      // The token is blanked so nothing downstream can log it; the SDK requires an expiry, so give one.
-      authInfo: {
-        token: '', clientId: client.clientId, scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 3600,
-        extra: { quotaPerHour: client.quotaPerHour },
-      },
-    }),
+    fetch: (req, client) => handler.fetch(req, { authInfo: authInfoFor(client) }),
     close: () => handler.close(),
   };
 }

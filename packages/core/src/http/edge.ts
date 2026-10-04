@@ -3,6 +3,7 @@ import {
   type OAuthTokenVerifier,
 } from '@modelcontextprotocol/server';
 import type { ClientInfo, KeyStore } from '../ports';
+import { authInfoFor } from './handler';
 
 export interface EdgeGateOptions {
   readonly keyStore: KeyStore;
@@ -23,11 +24,7 @@ export function edgeGate(o: EdgeGateOptions): (req: Request) => Promise<{ client
     async verifyAccessToken(token) {
       const client = await o.keyStore.verify(token);
       if (!client) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid API key');
-      // The token is blanked so nothing downstream can log it; the SDK requires an expiry, so give one.
-      return {
-        token: '', clientId: client.clientId, scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 3600,
-        extra: { quotaPerHour: client.quotaPerHour },
-      };
+      return authInfoFor(client);
     },
   };
   const authenticate = requireBearerAuth({ verifier });
