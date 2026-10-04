@@ -53,6 +53,7 @@ export interface SqlCacheLimits {
 
 interface CacheRow extends Record<string, SqlStorageValue> {
   value: string;
+  used_at: number;
   fetched_at: number;
   fresh_until: number;
   stale_until: number;
@@ -94,14 +95,16 @@ export class SqlCache implements CacheStore {
 
   async get<T>(key: string): Promise<CacheEntry<T> | null> {
     const row = this.sql.exec<CacheRow>(
-      'SELECT value, fetched_at, fresh_until, stale_until FROM cache WHERE key = ?', key,
+      'SELECT value, used_at, fetched_at, fresh_until, stale_until FROM cache WHERE key = ?', key,
     ).toArray()[0];
     if (!row) return null;
     if (this.clock.now() >= row.stale_until) {
       this.remove(key);
       return null;
     }
-    this.sql.exec('UPDATE cache SET used_at = ? WHERE key = ?', ++this.seq, key);
+    // A hit is a billed row write in a Durable Object; skip it while the entry is still among the most recent tenth,
+    // where LRU order does not matter.
+    if (row.used_at < this.seq - this.maxEntries / 10) this.sql.exec('UPDATE cache SET used_at = ? WHERE key = ?', ++this.seq, key);
     return { value: JSON.parse(row.value) as T, fetchedAt: row.fetched_at, freshUntil: row.fresh_until, staleUntil: row.stale_until };
   }
 

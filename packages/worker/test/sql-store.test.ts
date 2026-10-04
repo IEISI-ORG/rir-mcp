@@ -155,6 +155,24 @@ describe('purgeExpiredScanUnits', () => {
   });
 });
 
+describe('SqlCache recency writes', () => {
+  const usedAt = (sql: SqlStorage, k: string) => sql.exec<{ u: number }>('SELECT used_at AS u FROM cache WHERE key = ?', k).one().u;
+
+  it('skips the recency write for an entry that is already among the most recent tenth', async () => {
+    await inDo('recency-skip', async (sql) => {
+      const clock = new FakeClock();
+      const cache = new SqlCache(sql, clock, { maxEntries: 100 });
+      await cache.put('k', entry('v', clock.now()));
+      const before = usedAt(sql, 'k');
+      await cache.get('k');
+      expect(usedAt(sql, 'k')).toBe(before); // no write: still recent
+      for (let i = 0; i < 20; i++) await cache.put(`o${i}`, entry('v', clock.now()));
+      await cache.get('k');
+      expect(usedAt(sql, 'k')).toBeGreaterThan(before); // fell out of the recent tenth: bumped
+    });
+  });
+});
+
 describe('SqlCache totals', () => {
   const actual = (sql: SqlStorage) => sql.exec<{ n: number; b: number }>('SELECT count(*) AS n, coalesce(sum(bytes), 0) AS b FROM cache').one();
 
