@@ -139,7 +139,10 @@ export class Bootstrap {
         if (typeof url !== 'string') continue;
         if (!url.startsWith('https://')) continue;
         try {
-          const host = new URL(url).hostname;
+          const u = new URL(url);
+          // Same shape rule as redirects: default port, no userinfo, query or fragment.
+          if (u.port !== '' || u.username !== '' || u.password !== '' || u.search !== '' || u.hash !== '') continue;
+          const host = u.hostname;
           const rir = rirForHost(host);
           if (!rir) continue;
           const baseUrl = url.endsWith('/') ? url : `${url}/`;

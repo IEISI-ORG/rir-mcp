@@ -210,6 +210,23 @@ describe('Bootstrap', () => {
     expect(fetch.calls.length).toBe(after + 3);
   });
 
+  it('ignores base URLs with a port, userinfo, query or fragment, as redirects do', async () => {
+    const odd = { services: [
+      [['1.0.0.0/8'], ['https://rdap.apnic.net:8443/']],
+      [['8.0.0.0/8'], ['https://user@rdap.arin.net/registry/']],
+      [['9.0.0.0/8'], ['https://rdap.apnic.net/?x=1']],
+      [['10.0.0.0/8'], ['https://rdap.apnic.net/#f']],
+    ] };
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: { body: odd },
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: { body: IANA.ipv6 },
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: { body: IANA.asn },
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    for (const ip of ['1.1.1.1', '8.8.8.8', '9.9.9.9', '10.0.0.1']) expect(await boot.routeIp(parseIpOrCidr(ip))).toBeNull();
+  });
+
   it('throws when IANA is down and nothing is cached', async () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
