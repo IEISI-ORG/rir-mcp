@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createServer, type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { KEY_RE, parseKeyRecords, sha256Hex } from '@ieisi/rir-mcp-core';
@@ -15,6 +16,22 @@ describe('rir-mcp CLI', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('usage:');
     expect(r.stdout).toBe('');
+  });
+
+  it('reports a port already in use with one clean line and exit 1, not a stack trace', async () => {
+    const blocker = createServer();
+    await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve));
+    const port = (blocker.address() as AddressInfo).port;
+    try {
+      const r = run('packages/node/src/http.ts', [], {
+        RIR_MCP_OPERATOR: 'noc@example.net', RIR_MCP_API_KEY: `rirmcp_${'A'.repeat(43)}`, RIR_MCP_HTTP_PORT: String(port),
+      });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain(`rir-mcp: 127.0.0.1:${port} is already in use`);
+      expect(r.stderr).not.toMatch(/\n\s+at /); // no stack trace
+    } finally {
+      await new Promise<void>((resolve) => blocker.close(() => resolve()));
+    }
   });
 
   it('dispatches --http to the HTTP entry (which refuses to start without a key)', () => {

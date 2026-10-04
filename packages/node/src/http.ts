@@ -47,7 +47,17 @@ const app = createHttpApp({
   onError,
 });
 
-const server = await startHttp(config, app, onError);
+let server: Awaited<ReturnType<typeof startHttp>>;
+try {
+  server = await startHttp(config, app, onError);
+} catch (err) {
+  const code = (err as { code?: unknown }).code;
+  const where = `${config.host.includes(':') ? `[${config.host}]` : config.host}:${config.port}`;
+  console.error(code === 'EADDRINUSE'
+    ? `rir-mcp: ${where} is already in use; set RIR_MCP_HTTP_PORT to a free port`
+    : `rir-mcp: cannot listen on ${where} (${typeof code === 'string' ? code : 'error'})`);
+  process.exit(1);
+}
 const shown = config.host.includes(':') ? `[${config.host}]` : config.host;
 console.error(`rir-mcp: listening on http://${shown}:${server.port}/mcp (auth: ${config.authMode})`);
 
