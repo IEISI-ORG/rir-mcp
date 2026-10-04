@@ -45,7 +45,12 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
           retryAfterS: parseRetryAfter(res.headers.get('retry-after')),
         });
       }
-      if (res.status >= 500) throw new RdapError('upstream', `Upstream error (HTTP ${res.status})`, { status: res.status });
+      if (res.status >= 500) {
+        throw new RdapError('upstream', `Upstream error (HTTP ${res.status})`, {
+          status: res.status,
+          retryAfterS: parseRetryAfter(res.headers.get('retry-after')),
+        });
+      }
       if (res.status !== 200) throw new RdapError('bad_response', `Unexpected HTTP ${res.status}`, { status: res.status });
       const text = await readCapped(res, opts.maxBytes);
       consumed = true;
@@ -141,8 +146,11 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
   return new TextDecoder().decode(buf);
 }
 
+/** Retry-After is delay-seconds or an HTTP date (RFC 9110 §10.2.3). */
 function parseRetryAfter(value: string | null): number | undefined {
   if (!value) return undefined;
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? Math.ceil(n) : undefined;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  const at = Date.parse(trimmed);
+  return Number.isFinite(at) ? Math.max(0, Math.ceil((at - Date.now()) / 1000)) : undefined;
 }

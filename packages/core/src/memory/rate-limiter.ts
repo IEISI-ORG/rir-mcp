@@ -8,9 +8,13 @@ export interface BucketState {
   penaltyUntil: number;
   windowStart: number;
   windowCount: number;
+  /** An upstream asked us to stop (Retry-After) until this time. Absent in state stored before it existed. */
+  blockedUntil?: number;
 }
 
 const HOUR_MS = 3_600_000;
+/** An upstream Retry-After is honoured up to this long; a misconfigured huge value must not stop a RIR for days. */
+const MAX_BLOCK_MS = HOUR_MS;
 const EPSILON = 1e-9; // absorbs float error, e.g. 6 s x (10/60) = 0.9999999999999999
 
 /** Token bucket per named bucket, with an optional fixed-window hourly cap. */
@@ -31,6 +35,9 @@ export class MemoryRateLimiter implements RateLimiter {
     const s = this.refill(name, profile, now);
     // Persist the refill whatever the outcome, so a persisted store sees the same state as memory would.
     this.state.set(name, s);
+    if (s.blockedUntil !== undefined && now < s.blockedUntil) {
+      return { ok: false, retryAfterS: Math.max(1, Math.ceil((s.blockedUntil - now) / 1000)) };
+    }
     if (profile.hourlyCap !== undefined && s.windowCount + weight > profile.hourlyCap) {
       return { ok: false, retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
     }
@@ -45,13 +52,17 @@ export class MemoryRateLimiter implements RateLimiter {
     return { ok: true };
   }
 
-  async penalise(name: string): Promise<void> {
+  async penalise(name: string, retryAfterS?: number): Promise<void> {
     const profile = this.profiles[name];
     if (!profile) return;
     const now = this.clock.now();
     const s = this.refill(name, profile, now);
     s.tokens = 0;
     s.penaltyUntil = now + PENALTY_MS;
+    if (retryAfterS !== undefined && Number.isFinite(retryAfterS) && retryAfterS > 0) {
+      // The registry asked us to stop: do so until then (keeping any later deadline), not just slow down.
+      s.blockedUntil = Math.max(s.blockedUntil ?? 0, now + Math.min(retryAfterS * 1000, MAX_BLOCK_MS));
+    }
     this.state.set(name, s);
   }
 

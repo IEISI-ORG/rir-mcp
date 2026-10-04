@@ -191,6 +191,25 @@ describe('Bootstrap', () => {
     expect(fetch.calls.length).toBe(after + 3); // retried after the back-off
   });
 
+  it('waits as long as IANA asks (Retry-After) before trying again', async () => {
+    const limited = (): FakeRoute => ({ status: 429, text: '', headers: { 'retry-after': '600' } });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: limited,
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: limited,
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: limited,
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    const after = fetch.calls.length;
+    clock.advance(599_000);
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    expect(fetch.calls.length).toBe(after);
+    clock.advance(1_000);
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    expect(fetch.calls.length).toBe(after + 3);
+  });
+
   it('throws when IANA is down and nothing is cached', async () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);

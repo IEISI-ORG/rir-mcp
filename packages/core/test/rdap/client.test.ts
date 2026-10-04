@@ -65,6 +65,16 @@ describe('fetchJson', () => {
     expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(plain)))).toBe('redirect_blocked');
   });
 
+  it('reads Retry-After as seconds or as an HTTP date, on 429 and 503', async () => {
+    const inAnHour = new Date(Date.now() + 3_600_000).toUTCString();
+    for (const [status, value] of [[429, inAnHour], [503, '120']] as const) {
+      const f = fakeFetch({ [URL_A]: { status, text: '', headers: { 'retry-after': value } } });
+      const err = (await fetchJson(URL_A, { maxBytes: 1000 }, deps(f)).catch((e: unknown) => e)) as RdapError;
+      expect(err.retryAfterS).toBeGreaterThan(status === 429 ? 3500 : 119);
+      expect(err.retryAfterS).toBeLessThanOrEqual(status === 429 ? 3601 : 120);
+    }
+  });
+
   it('maps timeouts and network errors', async () => {
     const timeout: FetchLike = async () => { throw Object.assign(new Error('t'), { name: 'TimeoutError' }); };
     expect(await code(fetchJson(URL_A, { maxBytes: 1000 }, deps(timeout)))).toBe('timeout');

@@ -32,6 +32,26 @@ function setup(routes: Record<string, FakeRoute | (() => FakeRoute)> = {}, limit
   return { fetch, clock, service, rdapCalls };
 }
 
+describe('upstream Retry-After (audit 2026-10-05 F2)', () => {
+  it('stops calling an RIR that answered 429 with Retry-After until the time it asked for', async () => {
+    const { service, clock, rdapCalls } = setup({ [IP_URL]: { status: 429, text: '', headers: { 'retry-after': '3600' } } });
+    for (let i = 0; i < 600; i++) {
+      await service.ip('1.1.1.1');
+      clock.advance(1_000);
+    }
+    expect(rdapCalls()).toHaveLength(1); // was 300 at half rate
+  });
+
+  it('honours Retry-After on a 503 as well', async () => {
+    const { service, clock, rdapCalls } = setup({ [IP_URL]: { status: 503, text: '', headers: { 'retry-after': '600' } } });
+    for (let i = 0; i < 300; i++) {
+      await service.ip('1.1.1.1');
+      clock.advance(1_000);
+    }
+    expect(rdapCalls()).toHaveLength(1);
+  });
+});
+
 describe('RirService.ip', () => {
   it('fetches once, then serves from cache', async () => {
     const { service, rdapCalls } = setup();

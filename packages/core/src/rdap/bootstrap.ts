@@ -97,14 +97,17 @@ export class Bootstrap {
       // Serve stale data and back off, rather than refetching all three files on every lookup during an outage;
       // never past the data's stale lifetime. If the cache lost the row, the parsed copy in memory still counts.
       const t = this.clock.now();
-      if (entry) return this.parse(entry.value, entry.fetchedAt, Math.min(t + RETRY_MS, entry.staleUntil), entry.staleUntil);
+      // If IANA said how long to wait (Retry-After on 429/503), wait at least that long, up to an hour.
+      const asked = err instanceof RdapError && err.retryAfterS ? Math.min(err.retryAfterS * 1000, MEMO_MS) : 0;
+      const retryAt = t + Math.max(RETRY_MS, asked);
+      if (entry) return this.parse(entry.value, entry.fetchedAt, Math.min(retryAt, entry.staleUntil), entry.staleUntil);
       if (this.parsed && t < this.parsed.staleUntil) {
-        this.parsed.validUntil = Math.min(t + RETRY_MS, this.parsed.staleUntil);
+        this.parsed.validUntil = Math.min(retryAt, this.parsed.staleUntil);
         return this.parsed.index;
       }
       if (err instanceof RdapError) {
         const error = new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
-        this.coldFailure = { until: t + COLD_RETRY_MS, error };
+        this.coldFailure = { until: t + Math.max(COLD_RETRY_MS, asked), error };
         throw error;
       }
       throw err;

@@ -25,7 +25,8 @@ export type AcquireResult = { readonly ok: true } | { readonly ok: false; readon
 export interface RateLimiter {
   acquire(bucket: string, weight: number): Promise<AcquireResult>;
   /** Called after upstream 429/5xx/timeout/bad response: back off this bucket. */
-  penalise(bucket: string): Promise<void>;
+  /** retryAfterS: the upstream's Retry-After, if any; the bucket is then refused until it has passed (capped). */
+  penalise(bucket: string, retryAfterS?: number): Promise<void>;
 }
 
 export interface ClientInfo {

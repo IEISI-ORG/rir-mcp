@@ -53,6 +53,28 @@ describe('MemoryRateLimiter', () => {
     expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
   });
 
+  it('honours an upstream Retry-After: refuses the bucket until then, capped at one hour', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    await lim.penalise('apnic', 600);
+    clock.advance(599_000);
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: false, retryAfterS: 1 });
+    clock.advance(1_000);
+    expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
+    await lim.penalise('arin', 86_400); // a day: capped at an hour
+    clock.advance(3_600_000);
+    expect(await lim.acquire('arin', 1)).toEqual({ ok: true });
+  });
+
+  it('keeps the later of two Retry-After deadlines', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    await lim.penalise('apnic', 600);
+    await lim.penalise('apnic', 60);
+    clock.advance(120_000);
+    expect((await lim.acquire('apnic', 1)).ok).toBe(false);
+  });
+
   it('throws for an unknown bucket', async () => {
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
     await expect(lim.acquire('nope', 1)).rejects.toThrow('No rate-limit profile');

@@ -185,7 +185,7 @@ export class CachedFetcher {
         return notFound(req.rir);
       }
       if (err.code === 'too_large') return { ok: false, code: 'too_large', message: 'The registry response was too large to use.' };
-      await this.deps.limiter.penalise(actual);
+      await this.deps.limiter.penalise(actual, err.retryAfterS);
       return fallback ?? {
         ok: false,
         code: 'upstream',
