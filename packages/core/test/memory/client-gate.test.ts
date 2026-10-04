@@ -70,6 +70,19 @@ describe('MemoryClientGate sliding quota window (audit 2026-10-03 #5)', () => {
   });
 });
 
+describe('MemoryClientGate heavy calls on small quotas', () => {
+  it('lets a call heavier than the whole quota through once it has the full hour, instead of refusing forever', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock);
+    const small = { clientId: 'small', quotaPerHour: 3 };
+    expect((await g.charge(small, 5)).ok).toBe(true); // costs the whole quota
+    const denied = await g.charge(small, 5);
+    expect(denied).toMatchObject({ ok: false, reason: 'quota' });
+    clock.advance((denied as { retryAfterS: number }).retryAfterS * 1000);
+    expect((await g.charge(small, 5)).ok).toBe(true); // the retry time it was given is real
+  });
+});
+
 describe('MemoryClientGate quota hardening', () => {
   it.each([NaN, Infinity * 0, undefined as unknown as number])('fails closed on a non-numeric quota (%s)', async (q) => {
     const g = new MemoryClientGate(new FakeClock());
