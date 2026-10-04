@@ -104,3 +104,13 @@ export class MemoryClientGate implements ClientGate {
     return Array.from(new Uint8Array(d).slice(0, 8), (b) => b.toString(16).padStart(2, '0')).join('');
   }
 }
+
+/**
+ * Clears the scan digests of every client whose hourly window has ended, keeping counts and suspensions: the
+ * in-memory counterpart of the Worker's alarm purge, for clients that stop querying. Run it periodically.
+ */
+export function clearExpiredUnits(state: Map<string, ClientState>, now: number): void {
+  for (const [id, s] of state) {
+    if (s.units.length > 0 && now - s.windowStart >= HOUR_MS) state.set(id, { ...s, units: [] });
+  }
+}

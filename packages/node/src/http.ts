@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
-import { DEFAULT_LIMITS, MemoryCache, MemoryClientGate, MemoryRateLimiter, RirService, systemClock } from '@ieisi/rir-mcp-core';
+import {
+  clearExpiredUnits, DEFAULT_LIMITS, MemoryCache, MemoryClientGate, MemoryRateLimiter, RirService, systemClock, type ClientState,
+} from '@ieisi/rir-mcp-core';
 import { ConfigError, loadHttpConfig, type HttpConfig } from './config';
 import { createHttpApp } from './http-app';
 import { startHttp } from './http-bridge';
@@ -31,9 +33,13 @@ const service = new RirService({
   userAgent: config.userAgent,
 });
 
+// Scan digests of a client that stops querying are cleared hourly, not kept until its next request or a restart.
+const gateState = new Map<string, ClientState>();
+setInterval(() => clearExpiredUnits(gateState, systemClock.now()), 3_600_000).unref();
+
 const app = createHttpApp({
   service,
-  gate: new MemoryClientGate(systemClock, { onSuspend: (id) => log({ t: now(), alert: 'client_suspended', client: id }) }),
+  gate: new MemoryClientGate(systemClock, { state: gateState, onSuspend: (id) => log({ t: now(), alert: 'client_suspended', client: id }) }),
   keyStore: config.keyStore,
   allowedHosts: config.allowedHosts,
   allowedOrigins: config.allowedOrigins,

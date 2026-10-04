@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MemoryClientGate, type ClientState } from '../../src/memory/client-gate';
+import { clearExpiredUnits, MemoryClientGate, type ClientState } from '../../src/memory/client-gate';
 import { FakeClock } from '../support/fake-clock';
 
 const alpha = { clientId: 'alpha', quotaPerHour: 10 };
@@ -90,5 +90,19 @@ describe('MemoryClientGate scan detector', () => {
     const g = new MemoryClientGate(new FakeClock());
     await g.observe(alpha, 'v4:203.0.113.0/24');
     expect(JSON.stringify([...(g as unknown as { state: Map<string, { units: Set<string> }> }).state.values()].map((s) => [...s.units]))).not.toContain('203.0.113');
+  });
+});
+
+describe('clearExpiredUnits', () => {
+  it('clears digests of ended windows only, keeping counts and suspensions', () => {
+    const HOUR = 3_600_000;
+    const now = 10 * HOUR;
+    const state = new Map<string, ClientState>([
+      ['old', { windowStart: now - HOUR, used: 3, units: ['aa'], suspendedUntil: 0 }],
+      ['live', { windowStart: now - 1, used: 1, units: ['bb'], suspendedUntil: 0 }],
+    ]);
+    clearExpiredUnits(state, now);
+    expect(state.get('old')).toEqual({ windowStart: now - HOUR, used: 3, units: [], suspendedUntil: 0 });
+    expect(state.get('live')?.units).toEqual(['bb']);
   });
 });
