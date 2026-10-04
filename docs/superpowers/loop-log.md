@@ -49,6 +49,8 @@ Rules from the user:
 
 | 20 | 2026-10-05 | code review | Fresh reviewer (Opus) on `df94156..6849036`: 1 Critical, 1 Important, 8 Minor. Critical: registry text could still become a link in remark-gfm (react-markdown stack) via character references and backslash escapes decoded before autolinking, `www.` after `_`/`-`/`.`, and whole-value `www.evil.com` exempted as a hostname. Fixed, and the sanitiser is now tested against real renderers (GFM/micromark, remark-gfm tree, markdown-it with HTML+linkify; dev-only exact-pinned deps). Important: after the bootstrap's 7-day stale lifetime an IANA outage meant 3 fetches per lookup — fixed. Also: entity-cap test could not fail (fixed), strikethrough/bold neutralised, marker leaves no `//`. 3 Minors to follow-ups. 594 root + 57 worker tests pass. | `8e1fbda` and following |
 
-**Next iteration:** 21 — follow-ups (iteration-20 minors M3/M5/M6, Worker request deadline, dependency hygiene); docs note on sanitiser residual.
+| 21 | 2026-10-05 | follow-ups | No new answers. History header starts with fixed text (a `# X` handle cannot become a heading); a call heavier than a small quota costs the whole quota instead of being refused forever; call-rate docs made exact; Worker buffers request bodies at the edge (10 s / 64 KiB → 408/413) so a slow client cannot hold the DO. 597 root + 62 worker tests pass; dry-run bundle OK. | `9441938`, `e571479`, `4aff0c1` |
+
+**Next iteration:** 22 — daily security audit if the date has turned to 2026-10-06; otherwise dependency hygiene (pnpm minimumReleaseAge, pin dev tooling) and remaining older Plan 1 task minors.
 **Next code review:** iteration 25.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.

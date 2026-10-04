@@ -15,9 +15,9 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 
 Fixed in the iteration: sanitiser bypasses via character references, backslash escapes and `www.` after `_`/`-`/`.` (C1), with renderer-based tests; post-staleUntil IANA refetch storm (I1); entity-cap test (M1); strikethrough/bold (M2); marker without `//` (M4); docs wording (M7); comment (M8).
 
-- History timeline lines start with a registry-controlled key (`render/history.ts:90`): a handle like `# X` or `1. X` would render as a heading or list item. Prefix the line or strip a leading `#`/list marker.
-- A weight above the client's quota (history = 5 for a quota of 1–4) is refused forever but told to retry: return a distinct message or cap the weight at the quota.
-- `docs/deployment.md` says every tool call counts against the call rate; special-use and invalid inputs never reach it, and an IP/ASN history can take two tokens (and fall through to `history_unavailable` at the burst edge).
+- ~~History header~~ Done 2026-10-05 (`9441938`, header starts "history of"). Was: History timeline lines start with a registry-controlled key (`render/history.ts:90`): a handle like `# X` or `1. X` would render as a heading or list item. Prefix the line or strip a leading `#`/list marker.
+- ~~Heavy call on a small quota~~ Done 2026-10-05 (`e571479`, charge capped at the quota). Was: A weight above the client's quota (history = 5 for a quota of 1–4) is refused forever but told to retry: return a distinct message or cap the weight at the quota.
+- ~~Call-rate docs~~ Done 2026-10-05. Was: `docs/deployment.md` says every tool call counts against the call rate; special-use and invalid inputs never reach it, and an IP/ASN history can take two tokens (and fall through to `history_unavailable` at the burst edge).
 
 ## Daily security audit 2026-10-05 (snapshot 731beb3) — results
 
@@ -30,7 +30,7 @@ Fresh-context auditor (Opus). No Critical or High. Fixed the same day:
 Deferred (Low/Info):
 - ~~Bootstrap base URL shape~~ Done 2026-10-05. Was: Bootstrap base URLs are not checked for port, userinfo or path the way redirects are (IANA is trusted, over TLS).
 - ~~A redirect from an RIR to itself makes a second request without charging a second token.~~ Done 2026-10-05.
-- The Worker has no slow-body or request deadline (only authenticated clients can hold DO requests).
+- ~~Worker body deadline~~ Done 2026-10-05 (`4aff0c1`: buffered at the edge, 10 s / 64 KiB). Was: The Worker has no slow-body or request deadline (only authenticated clients can hold DO requests).
 - Dependency hygiene: caret ranges and an `-alpha` miniflare in dev tooling; consider pnpm `minimumReleaseAge`.
 - ~~Residual of audit 2026-10-03 #4: array caps in reducers~~ Done 2026-10-05 (`259b37d`; histories over 5,000 records refused as too_large). Was (status, nameservers, history `at` state, network `structuredContent`). The cache byte bound is done on both runtimes.
 
