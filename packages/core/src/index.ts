@@ -1,5 +1,5 @@
 export {
-  CLIENT_ID_RE, constantTimeEqual, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, parseKeyRecords,
+  CLIENT_ID_RE, constantTimeEqual, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, MAX_QUOTA_PER_HOUR, parseKeyRecords,
   RecordKeyStore, sha256Hex, SingleKeyStore, type KeyRecord,
 } from './auth/keys';
 export { MemoryCache } from './memory/cache';

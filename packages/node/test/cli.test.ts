@@ -66,7 +66,7 @@ describe('scripts/keys.ts', () => {
     const key = `rirmcp_${'A'.repeat(43)}`;
     const hash = await sha256Hex(key);
     const expected = `npx wrangler kv key delete ${hash} --binding API_KEYS --remote`;
-    for (const arg of [key, hash]) {
+    for (const arg of [key, hash, hash.toUpperCase()]) {
       const r = run('scripts/keys.ts', ['revoke', arg, '--target', 'kv']);
       expect(r.status).toBe(0);
       expect(r.stdout.trim()).toBe(expected);
@@ -76,6 +76,7 @@ describe('scripts/keys.ts', () => {
   it.each([
     ['a clientId that is not opaque', ['new', 'Jane Smith']],
     ['a bad quota', ['new', 'acme', '0']],
+    ['a quota over 1,000,000', ['new', 'acme', '99999999999999999999999', '--target', 'kv']],
     ['hash of a malformed key', ['hash', 'nope']],
     ['no command', []],
     ['an unknown target', ['new', 'acme', '--target', 'd1']],

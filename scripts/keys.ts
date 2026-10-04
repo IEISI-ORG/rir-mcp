@@ -9,7 +9,7 @@
  *   tsx scripts/keys.ts hash <key>                     → the key's SHA-256, to find or revoke its record
  *   tsx scripts/keys.ts revoke <key|sha256> --target kv → the `wrangler kv key delete` command
  */
-import { CLIENT_ID_RE, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, sha256Hex } from '../packages/core/src/auth/keys';
+import { CLIENT_ID_RE, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, MAX_QUOTA_PER_HOUR, sha256Hex, validQuota } from '../packages/core/src/auth/keys';
 
 const USAGE = 'usage: keys.ts new <clientId> [quotaPerHour] [--target kv] | new --raw | hash <key> | revoke <key|sha256> --target kv';
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -39,7 +39,7 @@ if (command === 'new' && rest.length === 1 && rest[0] === '--raw') {
   // clientId appears in logs: opaque IDs only, never a person's name or email (QUESTIONS.md Q3).
   if (!CLIENT_ID_RE.test(clientId)) fail('clientId must match ^[a-z0-9][a-z0-9-]{0,31}$ (an opaque id, not a name or email)');
   const quotaPerHour = quotaText === undefined ? DEFAULT_QUOTA_PER_HOUR : Number(quotaText);
-  if (!/^\d+$/.test(quotaText ?? '1') || !Number.isInteger(quotaPerHour) || quotaPerHour < 1) fail('quotaPerHour must be a positive integer');
+  if (!/^\d+$/.test(quotaText ?? '1') || !validQuota(quotaPerHour)) fail(`quotaPerHour must be an integer from 1 to ${MAX_QUOTA_PER_HOUR}`);
   const key = generateKey();
   const sha256 = await sha256Hex(key);
   console.log(key);
@@ -55,7 +55,9 @@ if (command === 'new' && rest.length === 1 && rest[0] === '--raw') {
   console.log(await sha256Hex(key));
 } else if (command === 'revoke' && rest.length === 1) {
   if (target !== 'kv') fail('revoke prints a KV command: add --target kv (for a keys file, set "revoked": true on the record)');
-  const arg = rest[0] ?? '';
+  const raw = rest[0] ?? '';
+  // A hash pasted in uppercase is the same hash; keys stay case-sensitive.
+  const arg = /^[0-9A-Fa-f]{64}$/.test(raw) ? raw.toLowerCase() : raw;
   // Operators rarely still have the key (it is shown once), so its hash works too.
   const hash = HASH_RE.test(arg) ? arg : KEY_RE.test(arg) ? await sha256Hex(arg) : fail('revoke needs a key or its 64-hex SHA-256');
   console.log(`${KV} delete ${hash} --binding API_KEYS --remote`);

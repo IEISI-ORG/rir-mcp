@@ -40,6 +40,10 @@ describe('SingleKeyStore', () => {
   it('rejects a configured key that is not in the documented format', () => {
     expect(() => new SingleKeyStore('short')).toThrow(/rirmcp_/);
   });
+
+  it('rejects a quota over 1,000,000', () => {
+    expect(() => new SingleKeyStore(`rirmcp_${'A'.repeat(43)}`, 1_000_001)).toThrow(/quotaPerHour/);
+  });
 });
 
 describe('RecordKeyStore', () => {
@@ -68,6 +72,8 @@ describe('parseKeyRecords', () => {
     ['bad clientId', [{ ...ok, clientId: 'Alice Smith' }]],
     ['zero quota', [{ ...ok, quotaPerHour: 0 }]],
     ['fractional quota', [{ ...ok, quotaPerHour: 1.5 }]],
+    ['quota over 1,000,000', [{ ...ok, quotaPerHour: 1_000_001 }]],
+    ['an effectively unlimited quota', [{ ...ok, quotaPerHour: 1e23 }]],
     ['duplicate hash', [ok, { ...ok, clientId: 'beta' }]],
     ['duplicate clientId', [ok, { ...ok, sha256: 'b'.repeat(64) }]],
   ])('rejects %s', (_name, input) => {

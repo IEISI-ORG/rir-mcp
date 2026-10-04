@@ -1,4 +1,4 @@
-import { BARE_HOST, buildUserAgent, DEFAULT_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
+import { BARE_HOST, buildUserAgent, DEFAULT_QUOTA_PER_HOUR, MAX_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
 import { localhostAllowedHostnames, localhostAllowedOrigins } from '@modelcontextprotocol/server';
 import { ConfigError } from './errors';
 import { FileKeyStore, type KeysFileIo } from './keys-file';
@@ -62,7 +62,7 @@ export function loadHttpConfig(env: Env, io: KeysFileIo, clock: Clock = systemCl
   const host = env.RIR_MCP_HTTP_HOST?.trim() || '127.0.0.1';
   // 4608: IANA-unassigned (4607-4620), clear of common dev ports (wrangler dev uses 8787), and APNIC's ASN.
   const port = integer(env, 'RIR_MCP_HTTP_PORT', 4608, 0, 65_535);
-  const quota = integer(env, 'RIR_MCP_QUOTA_PER_HOUR', DEFAULT_QUOTA_PER_HOUR, 1, 1_000_000);
+  const quota = integer(env, 'RIR_MCP_QUOTA_PER_HOUR', DEFAULT_QUOTA_PER_HOUR, 1, MAX_QUOTA_PER_HOUR);
   const allowedHosts = list(env, 'RIR_MCP_ALLOWED_HOSTS') ?? (LOOPBACK.has(host) ? localhostAllowedHostnames() : undefined);
   if (!allowedHosts) {
     throw new ConfigError(`RIR_MCP_ALLOWED_HOSTS is required when binding ${host}: list the hostnames clients use to reach this server (DNS-rebinding protection).`);

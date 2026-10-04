@@ -5,6 +5,12 @@ export const KEY_RE = /^rirmcp_[A-Za-z0-9_-]{43}$/;
 /** Opaque, log-safe client identifiers: never a person's name or email. */
 export const CLIENT_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 export const DEFAULT_QUOTA_PER_HOUR = 60;
+/** Upper bound for any key's quota: a typo such as 1e23 must not issue an effectively unlimited key. */
+export const MAX_QUOTA_PER_HOUR = 1_000_000;
+
+export function validQuota(n: unknown): n is number {
+  return Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_QUOTA_PER_HOUR;
+}
 const HASH_RE = /^[0-9a-f]{64}$/;
 
 export interface KeyRecord {
@@ -44,7 +50,7 @@ export function parseKeyRecords(json: unknown): KeyRecord[] {
     const bad = (what: string) => new Error(`key record ${i}: ${what}`);
     if (typeof o.sha256 !== 'string' || !HASH_RE.test(o.sha256)) throw bad('sha256 must be 64 lowercase hex digits');
     if (typeof o.clientId !== 'string' || !CLIENT_ID_RE.test(o.clientId)) throw bad('clientId must match ^[a-z0-9][a-z0-9-]{0,31}$');
-    if (!Number.isInteger(o.quotaPerHour) || (o.quotaPerHour as number) < 1) throw bad('quotaPerHour must be a positive integer');
+    if (!validQuota(o.quotaPerHour)) throw bad(`quotaPerHour must be an integer from 1 to ${MAX_QUOTA_PER_HOUR}`);
     if (o.touVersion !== undefined && typeof o.touVersion !== 'string') throw bad('touVersion must be a string');
     if (o.revoked !== undefined && typeof o.revoked !== 'boolean') throw bad('revoked must be a boolean');
     if (hashes.has(o.sha256)) throw bad('duplicate sha256');
@@ -66,7 +72,7 @@ export class SingleKeyStore implements KeyStore {
   constructor(key: string, quotaPerHour = DEFAULT_QUOTA_PER_HOUR) {
     if (!KEY_RE.test(key)) throw new Error('API key must be rirmcp_ followed by 43 base64url characters (generate one with scripts/keys.ts)');
     // NaN would make every quota comparison false, i.e. unlimited: fail closed instead.
-    if (!Number.isInteger(quotaPerHour) || quotaPerHour < 1) throw new Error('quotaPerHour must be a positive integer');
+    if (!validQuota(quotaPerHour)) throw new Error(`quotaPerHour must be an integer from 1 to ${MAX_QUOTA_PER_HOUR}`);
     this.hash = sha256Hex(key);
     this.quotaPerHour = quotaPerHour;
   }
