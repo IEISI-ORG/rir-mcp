@@ -10,7 +10,7 @@ export { systemClock, type CacheEntry, type CacheStore, type ClientGate, type Cl
 export { clampProfile, DEFAULT_LIMITS, type LimitProfile } from './rdap/limits';
 export type { Rir } from './rdap/rirs';
 export { buildUserAgent } from './rdap/user-agent';
-export { BARE_HOST, edgeGate, type EdgeGateOptions } from './http/edge';
+export { BARE_HOST, canonicalHost, edgeGate, type EdgeGateOptions } from './http/edge';
 export { mcpHandler, type McpHandler, type McpHandlerOptions } from './http/handler';
 export { createServer } from './server';
 export { RirService, type ClientScope, type ServiceDeps } from './service/service';

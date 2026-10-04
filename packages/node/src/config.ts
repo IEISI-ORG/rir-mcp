@@ -1,4 +1,4 @@
-import { BARE_HOST, buildUserAgent, DEFAULT_QUOTA_PER_HOUR, MAX_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
+import { buildUserAgent, canonicalHost, DEFAULT_QUOTA_PER_HOUR, MAX_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
 import { localhostAllowedHostnames, localhostAllowedOrigins } from '@modelcontextprotocol/server';
 import { ConfigError } from './errors';
 import { FileKeyStore, type KeysFileIo } from './keys-file';
@@ -40,14 +40,16 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
 
 
 function list(env: Env, name: string): string[] | undefined {
-  // Lower-cased: the SDK compares against the URL's lower-cased hostname.
-  const items = env[name]?.split(',').map((s) => s.trim().toLowerCase()).filter((s) => s !== '');
+  const items = env[name]?.split(',').map((s) => s.trim()).filter((s) => s !== '');
   if (!items || items.length === 0) return undefined;
-  const bad = items.find((h) => !BARE_HOST.test(h));
-  if (bad !== undefined) {
-    throw new ConfigError(`${name}: "${bad}" is not a bare hostname. Use e.g. rdap.example.net or [::1] (no scheme, port or path).`);
-  }
-  return items;
+  // Canonical form (lower-cased, IPv6 compressed): what the SDK compares against.
+  return items.map((h) => {
+    const host = canonicalHost(h);
+    if (host === undefined) {
+      throw new ConfigError(`${name}: "${h}" is not a bare hostname. Use e.g. rdap.example.net or [::1] (no scheme, port or path).`);
+    }
+    return host;
+  });
 }
 
 function integer(env: Env, name: string, fallback: number, min: number, max: number): number {

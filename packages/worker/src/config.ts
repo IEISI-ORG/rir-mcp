@@ -1,4 +1,4 @@
-import { BARE_HOST, buildUserAgent, SingleKeyStore, type KeyStore } from '@ieisi/rir-mcp-core';
+import { buildUserAgent, canonicalHost, SingleKeyStore, type KeyStore } from '@ieisi/rir-mcp-core';
 import { KvKeyStore } from './kv-keys';
 
 /** `API_KEY` is a secret (`wrangler secret put API_KEY`), so `wrangler types` does not list it. */
@@ -14,9 +14,9 @@ export interface WorkerConfig {
 export type ConfigResult = WorkerConfig | { readonly error: string };
 
 function list(value: string | undefined): string[] | undefined {
-  // Lower-cased: the SDK compares against the URL's lower-cased hostname.
-  const items = (value ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => s !== '');
-  return items.every((h) => BARE_HOST.test(h)) ? items : undefined;
+  // Canonical form (lower-cased, IPv6 compressed): what the SDK compares against.
+  const items = (value ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '').map(canonicalHost);
+  return items.every((h): h is string => h !== undefined) ? items : undefined;
 }
 
 /** Fails closed: any missing or invalid setting is an error, and the Worker then answers 503 to everything. */

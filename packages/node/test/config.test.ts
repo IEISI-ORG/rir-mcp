@@ -57,6 +57,11 @@ describe('loadHttpConfig', () => {
     expect(c.allowedOrigins).toEqual(['app.example.net']);
   });
 
+  it('stores allow-list entries in canonical form, as the SDK compares them', () => {
+    const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_ALLOWED_HOSTS: '[2001:DB8:0:0::1]' }, io());
+    expect(c.allowedHosts).toEqual(['[2001:db8::1]']);
+  });
+
   it('lower-cases allow-list entries (the SDK compares lower-cased hostnames)', () => {
     const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_ALLOWED_HOSTS: 'RDAP.Example.net', RIR_MCP_ALLOWED_ORIGINS: 'App.Example.NET' }, io());
     expect(c.allowedHosts).toEqual(['rdap.example.net']);

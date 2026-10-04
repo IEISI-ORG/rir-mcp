@@ -18,6 +18,19 @@ type Reason = 'not_found' | 'bad_host' | 'bad_origin' | 'unauthorized' | 'auth_e
 /** Allow-list entries: the SDK matches Host/Origin by bare hostname (no scheme, no port; IPv6 in brackets). */
 export const BARE_HOST = /^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)$/;
 
+/**
+ * An allow-list entry in the form the SDK compares against (the request URL's hostname: lower-cased, IPv6
+ * compressed), or undefined if it is not a usable bare hostname.
+ */
+export function canonicalHost(entry: string): string | undefined {
+  if (!BARE_HOST.test(entry)) return undefined;
+  try {
+    return new URL(`http://${entry}`).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Path → Host → Origin → Bearer (spec §7). Returns the client, or the rejection to send. Runtime-neutral. */
 export function edgeGate(o: EdgeGateOptions): (req: Request) => Promise<{ client: ClientInfo } | Response> {
   const verifier: OAuthTokenVerifier = {

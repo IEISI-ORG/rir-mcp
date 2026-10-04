@@ -88,6 +88,11 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect(await doCount()).toBe(before);
   });
 
+  it('matches a non-canonical IPv6 allow-list entry', async () => {
+    const v6 = { ...(env as TestEnv), ALLOWED_HOSTS: '[2001:DB8:0:0::1]' } as TestEnv;
+    expect((await call(req({ ...bearer(TEST_KEY), host: '[2001:db8::1]' }), v6)).status).toBe(200);
+  });
+
   it('matches allow-list entries case-insensitively', async () => {
     const upper = { ...(env as TestEnv), ALLOWED_HOSTS: 'MCP.Example.NET' } as TestEnv;
     expect((await call(req(bearer(TEST_KEY)), upper)).status).toBe(200);
