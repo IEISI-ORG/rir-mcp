@@ -41,7 +41,7 @@ export interface KeyStore {
 
 export type GateResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'quota' | 'suspended'; readonly retryAfterS: number };
+  | { readonly ok: false; readonly reason: 'quota' | 'suspended' | 'rate'; readonly retryAfterS: number };
 
 /** Per-client anti-harvesting controls (spec §7): hourly upstream quota and scan detection. */
 export interface ClientGate {

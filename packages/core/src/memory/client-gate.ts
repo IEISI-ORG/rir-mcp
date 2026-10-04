@@ -3,6 +3,9 @@ import type { StateMap } from './state-map';
 
 export const SCAN_THRESHOLD = 200;
 export const SUSPEND_MS = 86_400_000;
+/** Every scoped call, cached ones included: cache hits are free of quota, not of cost (audit 2026-10-05 F1). */
+export const CALLS_PER_MINUTE = 120;
+export const CALL_BURST = 60;
 const HOUR_MS = 3_600_000;
 const OK: GateResult = { ok: true };
 
@@ -24,24 +27,28 @@ export interface ClientGateOptions {
   readonly state?: StateMap<ClientState>;
   /** Digest salt; must be stable for as long as `state` persists (the Durable Object stores one). */
   readonly salt?: string;
+  readonly callsPerMinute?: number;
+  readonly callBurst?: number;
 }
 
 export class MemoryClientGate implements ClientGate {
   private readonly state: StateMap<ClientState>;
   private readonly clock: Clock;
-  private readonly opts: Required<Pick<ClientGateOptions, 'scanThreshold' | 'suspendMs'>> & ClientGateOptions;
+  private readonly opts: Required<Pick<ClientGateOptions, 'scanThreshold' | 'suspendMs' | 'callsPerMinute' | 'callBurst'>> & ClientGateOptions;
   private readonly salt: string;
+  /** Per-client call buckets, kept in memory on purpose: the check must cost no storage write. */
+  private readonly calls = new Map<string, { tokens: number; updatedAt: number }>();
 
   constructor(clock: Clock, opts: ClientGateOptions = {}) {
     this.clock = clock;
-    this.opts = { scanThreshold: SCAN_THRESHOLD, suspendMs: SUSPEND_MS, ...opts };
+    this.opts = { scanThreshold: SCAN_THRESHOLD, suspendMs: SUSPEND_MS, callsPerMinute: CALLS_PER_MINUTE, callBurst: CALL_BURST, ...opts };
     this.state = opts.state ?? new Map();
     this.salt = opts.salt ?? crypto.getRandomValues(new Uint8Array(16)).join('.');
   }
 
   async charge(client: ClientInfo, weight: number): Promise<GateResult> {
     const now = this.clock.now();
-    const s = this.current(client.clientId, now);
+    const { s } = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
     // Sliding window (audit 2026-10-03 #5): the previous hour's charges decay linearly, so a full quota spent at
     // 00:59 cannot be spent again at 01:00. Written as !(<=) so a NaN or missing quota denies instead of allowing all.
@@ -56,7 +63,7 @@ export class MemoryClientGate implements ClientGate {
   }
 
   async refund(client: ClientInfo, weight: number): Promise<void> {
-    const s = this.current(client.clientId, this.clock.now());
+    const { s } = this.current(client.clientId, this.clock.now());
     s.used = Math.max(0, s.used - weight);
     this.state.set(client.clientId, s);
   }
@@ -65,8 +72,12 @@ export class MemoryClientGate implements ClientGate {
     // Digest first: no await between reading and writing state keeps the update atomic in a Durable Object.
     const digest = await this.digest(unit);
     const now = this.clock.now();
-    const s = this.current(client.clientId, now);
+    const rate = this.takeCall(client.clientId, now);
+    if (rate) return rate;
+    const { s, changed } = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
+    // A repeated unit in an unchanged window changes nothing: skip the write (a billed row in a Durable Object).
+    if (!changed && s.units.includes(digest)) return OK;
     if (!s.units.includes(digest)) s.units.push(digest);
     if (s.units.length <= this.opts.scanThreshold) {
       this.state.set(client.clientId, s);
@@ -80,12 +91,26 @@ export class MemoryClientGate implements ClientGate {
     return this.suspended(s, now);
   }
 
-  private current(clientId: string, now: number): ClientState {
+  private takeCall(clientId: string, now: number): GateResult | null {
+    const perMs = this.opts.callsPerMinute / 60_000;
+    const b = this.calls.get(clientId) ?? { tokens: this.opts.callBurst, updatedAt: now };
+    b.tokens = Math.min(this.opts.callBurst, b.tokens + (now - b.updatedAt) * perMs);
+    b.updatedAt = now;
+    this.calls.set(clientId, b);
+    if (b.tokens < 1) return { ok: false, reason: 'rate', retryAfterS: Math.max(1, Math.ceil((1 - b.tokens) / perMs / 1000)) };
+    b.tokens -= 1;
+    return null;
+  }
+
+  /** The client's state at `now`; `changed` is true when it was created or a window or suspension rolled over. */
+  private current(clientId: string, now: number): { s: ClientState; changed: boolean } {
     const stored = this.state.get(clientId);
     const s: ClientState = stored
       ? { ...stored, prevUsed: stored.prevUsed ?? 0, units: [...stored.units] }
       : { windowStart: now, used: 0, prevUsed: 0, units: [], suspendedUntil: 0 };
+    let changed = stored === undefined;
     if (now >= s.suspendedUntil && s.suspendedUntil !== 0) {
+      changed = true;
       s.suspendedUntil = 0;
       s.windowStart = now;
       s.used = 0;
@@ -94,18 +119,20 @@ export class MemoryClientGate implements ClientGate {
     }
     const elapsed = now - s.windowStart;
     if (elapsed >= 2 * HOUR_MS) {
+      changed = true;
       s.windowStart = now;
       s.used = 0;
       s.prevUsed = 0;
       s.units = [];
     } else if (elapsed >= HOUR_MS) {
+      changed = true;
       // Windows stay aligned so the carry-over weight is exact.
       s.windowStart += HOUR_MS;
       s.prevUsed = s.used;
       s.used = 0;
       s.units = [];
     }
-    return s;
+    return { s, changed };
   }
 
   private suspended(s: ClientState, now: number): GateResult {

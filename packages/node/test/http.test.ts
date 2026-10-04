@@ -113,6 +113,17 @@ describe('Streamable HTTP server', () => {
     }
   });
 
+  it('counts every call in a JSON-RPC batch against the per-client call rate', async () => {
+    const batch = Array.from({ length: 100 }, (_, i) => ({
+      jsonrpc: '2.0', id: 100 + i, method: 'tools/call', params: { name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } },
+    }));
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}`, 'mcp-protocol-version': '2025-11-25' }, body: JSON.stringify(batch),
+    });
+    const text = await res.text();
+    expect((text.match(/Too many calls for this API key/g) ?? []).length).toBeGreaterThan(30);
+  });
+
   it('logs calls with clientId and rejections with a reason, never query values or keys', async () => {
     const c = await connect();
     await c.callTool({ name: 'rdap_ip_lookup', arguments: { address: '1.1.1.1' } });

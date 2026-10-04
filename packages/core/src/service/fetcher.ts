@@ -56,9 +56,14 @@ export interface ClientScope {
 }
 
 export function gateDenied(g: Exclude<GateResult, { ok: true }>): Extract<FetchOutcome<never>, { ok: false }> {
-  return g.reason === 'quota'
-    ? { ok: false, code: 'quota_exceeded', message: `Hourly lookup quota for this API key is used up; cached answers still work. Retry in ${g.retryAfterS}s.`, retryAfterS: g.retryAfterS }
-    : { ok: false, code: 'suspended', message: 'This API key is suspended for unusual query volume; contact the operator.', retryAfterS: g.retryAfterS };
+  switch (g.reason) {
+    case 'quota':
+      return { ok: false, code: 'quota_exceeded', message: `Hourly lookup quota for this API key is used up; cached answers still work. Retry in ${g.retryAfterS}s.`, retryAfterS: g.retryAfterS };
+    case 'rate':
+      return { ok: false, code: 'rate_limited', message: `Too many calls for this API key; retry in ${g.retryAfterS}s.`, retryAfterS: g.retryAfterS };
+    case 'suspended':
+      return { ok: false, code: 'suspended', message: 'This API key is suspended for unusual query volume; contact the operator.', retryAfterS: g.retryAfterS };
+  }
 }
 
 export interface FetcherDeps {

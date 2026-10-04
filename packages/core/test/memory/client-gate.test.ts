@@ -149,3 +149,29 @@ describe('clearExpiredUnits', () => {
     expect(state.get('live')?.units).toEqual(['bb']);
   });
 });
+
+describe('MemoryClientGate call rate (audit 2026-10-05 F1)', () => {
+  it('limits every call, cached ones included, to a per-client burst refilled per minute', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock, { callsPerMinute: 60, callBurst: 3 });
+    for (let i = 0; i < 3; i++) expect((await g.observe(alpha, 'as:1')).ok).toBe(true);
+    expect(await g.observe(alpha, 'as:1')).toEqual({ ok: false, reason: 'rate', retryAfterS: 1 });
+    expect((await g.observe(beta, 'as:1')).ok).toBe(true); // per client
+    clock.advance(1_000);
+    expect((await g.observe(alpha, 'as:1')).ok).toBe(true);
+  });
+
+  it('does not write state for a repeated unit that changes nothing', async () => {
+    const clock = new FakeClock();
+    let writes = 0;
+    const inner = new Map<string, ClientState>();
+    const state = { get: (k: string) => inner.get(k), set: (k: string, v: ClientState) => { writes += 1; inner.set(k, v); } };
+    const g = new MemoryClientGate(clock, { state });
+    await g.observe(alpha, 'as:1');
+    const afterFirst = writes;
+    for (let i = 0; i < 10; i++) await g.observe(alpha, 'as:1');
+    expect(writes).toBe(afterFirst);
+    await g.observe(alpha, 'as:2');
+    expect(writes).toBe(afterFirst + 1);
+  });
+});

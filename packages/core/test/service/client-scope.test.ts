@@ -81,3 +81,15 @@ describe('client-scoped service', () => {
     expect((await scoped.ip('1.1.1.1')).kind).toBe('record');
   });
 });
+
+describe('per-client call rate through the service (audit 2026-10-05 F1)', () => {
+  it('refuses a flood of cached calls from one key with rate_limited, without upstream calls', async () => {
+    const { scoped, fetch } = setup(1);
+    const results = [];
+    for (let i = 0; i < 100; i++) results.push(await scoped.ip('1.1.1.1'));
+    expect(fetch.calls.filter((u) => u.startsWith('https://rdap.'))).toHaveLength(1);
+    const refused = results.filter((r) => r.kind === 'error' && r.code === 'rate_limited');
+    expect(refused.length).toBeGreaterThan(30);
+    expect(results.filter((r) => r.kind === 'record').length).toBeLessThanOrEqual(60);
+  });
+});
