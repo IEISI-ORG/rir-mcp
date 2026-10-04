@@ -36,6 +36,8 @@ Rules from the user:
 
 | 14 | 2026-10-04 | follow-ups | No new answers; audit not yet due. IANA bootstrap: parsed index reused while fresh (was re-read and re-parsed 2–3× per lookup) and a 5-minute back-off after a failed refresh (was 3 IANA fetches per lookup during an outage); an empty IANA response is never memoised. Node `MemoryCache` bounded by bytes (50 MB) as well as entries — closes audit Low #4 on both runtimes. `authInfoFor` helper, README size range, hourly-window and suspension eviction tests (mutation-checked). 468 root + 53 worker tests pass. | `1ad0f45`, `5d3ba1e`, `0b2270c` |
 
-**Next iteration:** 15 — code review (fresh reviewer) of `641fd1a..HEAD` (iterations 13–14 follow-ups); daily security audit too if the date has turned to 2026-10-05.
-**Next code review:** iteration 15.
+| 15 | 2026-10-04 | code review | Fresh reviewer (Opus) on `641fd1a..df94156`: 0 Critical, 1 Important, 7 Minor. Important was a regression from iteration 14: the bootstrap memo stopped refreshing the cache row's LRU position, so a busy server could evict it and lose the 7-day stale fallback during an IANA outage (reproduced). Fixed: memo capped at 1 h, in-memory stale fallback, never past `staleUntil`. Also fixed: unversioned cache table rebuilt rather than stamped; IPv6 allow-list entries canonicalised; quota range documented. 4 Minors to follow-ups. 472 root + 56 worker tests pass. | `3fdba21`, `de38145`, `ef3dc5e` |
+
+**Next iteration:** 16 — daily security audit (due 2026-10-05) if the date has turned; otherwise remaining follow-ups (record cache-hit row writes, audit #5 sliding windows, older Plan 1/2 minors, iteration-15 minors).
+**Next code review:** iteration 20.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.

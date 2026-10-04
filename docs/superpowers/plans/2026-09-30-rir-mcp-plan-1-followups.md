@@ -63,6 +63,15 @@ Fixed at the review: kv mode without the KV binding now answers 503, and key-sto
 - ~~Tests: KV `get` throwing through the Worker entry; 403 Host/Origin create no DO.~~ Done 2026-10-04.
 - ~~Node idle scan hashes~~ Done 2026-10-04 (`1d428b2`, hourly `clearExpiredUnits`). Was: Node keeps an idle client's scan hashes in memory until its next request or a restart. Add a periodic sweep, for parity with the Worker's alarm.
 
+## Code review, iteration 15 (2026-10-04, follow-ups 641fd1a..df94156) — deferred Minors
+
+Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fallback and a `staleUntil` bound (`3fdba21`; regression from `1ad0f45`, reproduced by the reviewer); unversioned cache table rebuilt, unknown version tested (`e2b87d0`); allow-list entries stored in canonical form, incl. IPv6 (`de38145`); quota range documented (`ef3dc5e`). Note: the busy-server test passes through either the 1 h cap or the memory fallback, so no single test pins the cap alone.
+
+- Worker "creates no DO" assertions depend on test order (the singleton `'state'` DO persists within the file): use an `env.STATE` whose `getByName` is a spy, as the DO-failure test does.
+- Alarm-failure test does not assert the log line (`error: 'Error'`, no message).
+- `authInfoFor` lives in `http/handler.ts`, so `edge.ts` imports the server graph: move it to `http/auth-info.ts`.
+- Cold start during an IANA outage (nothing cached) still makes 3 fetches per lookup: no back-off without data.
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
