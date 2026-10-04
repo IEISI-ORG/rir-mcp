@@ -31,7 +31,7 @@ Deferred (Low/Info):
 - ~~Bootstrap base URL shape~~ Done 2026-10-05. Was: Bootstrap base URLs are not checked for port, userinfo or path the way redirects are (IANA is trusted, over TLS).
 - ~~A redirect from an RIR to itself makes a second request without charging a second token.~~ Done 2026-10-05.
 - ~~Worker body deadline~~ Done 2026-10-05 (`4aff0c1`: buffered at the edge, 10 s / 64 KiB). Was: The Worker has no slow-body or request deadline (only authenticated clients can hold DO requests).
-- Dependency hygiene: caret ranges and an `-alpha` miniflare in dev tooling; consider pnpm `minimumReleaseAge`.
+- ~~Dependency hygiene~~ Done 2026-10-05: `minimumReleaseAge: 4320` (3 days) in pnpm-workspace.yaml; the lockfile passes. **TODO after 2026-10-07:** remove the four `minimumReleaseAgeExclude` entries (wrangler 4.147.0, @cloudflare/vitest-plugin 1.3.6, mdast-util-from-markdown 2.1.0, mdast-util-to-markdown 2.2.0), which were installed before the policy and are then old enough. Caret ranges stay: the lockfile pins exact versions. Was: caret ranges and an `-alpha` miniflare in dev tooling.
 - ~~Residual of audit 2026-10-03 #4: array caps in reducers~~ Done 2026-10-05 (`259b37d`; histories over 5,000 records refused as too_large). Was (status, nameservers, history `at` state, network `structuredContent`). The cache byte bound is done on both runtimes.
 
 ## Daily security audit 2026-10-03 (snapshot 998bb8a) — deferred Lows
