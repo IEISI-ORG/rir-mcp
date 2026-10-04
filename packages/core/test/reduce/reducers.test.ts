@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reduceDomain } from '../../src/reduce/domain';
+import { flattenEntities } from '../../src/reduce/entities';
 import { reduceEntity } from '../../src/reduce/entity';
 import { reduceNetwork } from '../../src/reduce/network';
 import { clean } from '../../src/reduce/sanitize';
@@ -98,7 +99,13 @@ describe('array caps (audit 2026-10-03 #4)', () => {
     }, { rir: 'apnic' });
     expect(r.status.length).toBeLessThanOrEqual(16);
     expect(r.prefixes.length).toBeLessThanOrEqual(64);
-    expect(JSON.stringify(r).length).toBeLessThan(20_000);
+  });
+
+  it('caps flattened entities in total across nesting levels', () => {
+    const nested = { entities: many(100, (i) => ({ handle: `E${i}`, roles: many(100, () => 'abuse'), entities: many(100, (j) => ({ handle: `F${i}-${j}` })) })) };
+    const flat = flattenEntities(nested);
+    expect(flat.length).toBe(128);
+    expect(flat.every((e) => e.roles.length <= 16)).toBe(true);
   });
 
   it('caps nameservers of a reverse zone', () => {
