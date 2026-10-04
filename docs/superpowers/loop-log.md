@@ -28,6 +28,8 @@ Rules from the user:
 
 | 10 | 2026-10-04 | code review | Fresh reviewer (Opus) on `c83bfe4..0367cd9`: 0 Critical, 2 Important, 7 Minor; Review Focus 3 (state survives eviction) and 4 (bounded cache) verified. Fixed: unread upstream bodies left open after the timer fix; scan digests (salted but brute-forceable) kept indefinitely in the DO — re-graded to Important — now dropped on suspension and purged hourly by an alarm. Bad-`OPERATOR` 503 and `serve` error handling carried into Task 7. 6 Minors to follow-ups. 449 root + 18 worker tests pass. | `10b5234`, `26f3922` |
 
-**Next iteration:** 11 — daily security audit (due 2026-10-05) if the date has turned; then Plan 3 Task 6 (`KvKeyStore`) and Task 7 (Worker entry, edge checks, 503 fail-closed, with the review's Task 7 requirements).
+| 11 | 2026-10-04 | work | No new answers. Plan 3 Task 6 (`KvKeyStore`: malformed/revoked records are no key; non-keys cost no KV read), Task 7 (Worker entry: fail-closed 503 on missing or invalid settings incl. `OPERATOR` checked via `buildUserAgent`; edge checks before any DO; DO errors → 500 logging type only), Task 8 (`keys.ts --target kv`, Cloudflare docs, spec §3/§6/§7 amended). Security ruling: Workers invocation logs turned off (they record request headers incl. `Authorization`). `wrangler deploy --dry-run` passes. **All Plan 3 tasks done**; final review pending. 455 root + 43 worker tests pass. | `6d08f34`, `3571f16`, `b0f91ef` |
+
+**Next iteration:** 12 — daily security audit (due 2026-10-05) if the date has turned; Plan 3 final review (fresh reviewer, focus on Tasks 6–8 and the iteration-10 fixes), then close Plan 3. After that: the deferred follow-ups ("before first Worker deploy" items first). Plan 4 stays blocked on APNIC Legal Counsel.
 **Next code review:** iteration 15.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
