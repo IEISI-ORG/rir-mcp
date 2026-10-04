@@ -1,6 +1,6 @@
 import { clean } from './sanitize';
 import type { Contact, Party } from './types';
-import { asObject, type Obj } from './util';
+import { asObject, LIMITS, type Obj } from './util';
 import { isPersonLike, vcardValue, vcardValues } from './vcard';
 
 export interface FlatEntity {
@@ -9,13 +9,17 @@ export interface FlatEntity {
 }
 
 /** All entities with their roles, including nested ones (ARIN/RIPE nest abuse under the org). */
-export function flattenEntities(o: Obj, depth = 0): FlatEntity[] {
-  if (depth > 3 || !Array.isArray(o.entities)) return [];
-  return o.entities.flatMap((raw) => {
+export function flattenEntities(o: Obj, depth = 0, out: FlatEntity[] = []): FlatEntity[] {
+  if (depth > 3 || !Array.isArray(o.entities)) return out;
+  for (const raw of o.entities) {
+    // Bounded in total, not per level: four levels of 100 would otherwise be 100^4 entries.
+    if (out.length >= LIMITS.entities) break;
     const entity = asObject(raw);
-    const roles = Array.isArray(entity.roles) ? entity.roles.filter((r): r is string => typeof r === 'string') : [];
-    return [{ entity, roles }, ...flattenEntities(entity, depth + 1)];
-  });
+    const roles = Array.isArray(entity.roles) ? entity.roles.filter((r): r is string => typeof r === 'string').slice(0, LIMITS.strings) : [];
+    out.push({ entity, roles });
+    flattenEntities(entity, depth + 1, out);
+  }
+  return out;
 }
 
 export function toContact(e: Obj): Contact {

@@ -25,6 +25,13 @@ const synthetic = {
   ],
 };
 
+describe('reduceHistory size bound (audit 2026-10-03 #4)', () => {
+  it('refuses a history with more than 5,000 records as too large instead of building it', () => {
+    const records = Array.from({ length: 5001 }, (_, i) => ({ applicableFrom: '2010-01-01T00:00:00Z', content: { objectClassName: 'ip network', handle: `N${i}`, startAddress: '192.0.2.0', endAddress: '192.0.2.255' } }));
+    expect(() => reduceHistory({ records }, { rir: 'apnic', query: '192.0.2.1' })).toThrow(expect.objectContaining({ code: 'too_large' }));
+  });
+});
+
 describe('reduceHistory (synthetic)', () => {
   const h = reduceHistory(synthetic, { rir: 'apnic', query: '192.0.2.1' });
 

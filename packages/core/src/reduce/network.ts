@@ -2,12 +2,13 @@ import { formatCidr, parseIpOrCidr, rangeToCidrs } from '../input/ip';
 import { flattenEntities, partyFor, type FlatEntity } from './entities';
 import { clean } from './sanitize';
 import { isPersonal, type NetworkRecord, type Party, type ReduceCtx } from './types';
-import { asObject, eventDate, strings, type Obj } from './util';
+import { asObject, eventDate, LIMITS, type Obj, strings } from './util';
 
 export function prefixesOf(o: Obj): string[] {
   const out: string[] = [];
   if (Array.isArray(o.cidr0_cidrs)) {
     for (const raw of o.cidr0_cidrs) {
+      if (out.length >= LIMITS.prefixes) break;
       const c = asObject(raw);
       const base = c.v4prefix ?? c.v6prefix;
       if (typeof base !== 'string' || typeof c.length !== 'number') continue;
@@ -23,7 +24,7 @@ export function prefixesOf(o: Obj): string[] {
     try {
       const a = parseIpOrCidr(o.startAddress);
       const b = parseIpOrCidr(o.endAddress);
-      if (a.family === b.family && a.value <= b.value) return rangeToCidrs(a.family, a.value, b.value).map((p) => formatCidr(p));
+      if (a.family === b.family && a.value <= b.value) return rangeToCidrs(a.family, a.value, b.value).slice(0, LIMITS.prefixes).map((p) => formatCidr(p));
     } catch {
       // Malformed range: no prefixes.
     }

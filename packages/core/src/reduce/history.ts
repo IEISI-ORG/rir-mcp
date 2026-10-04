@@ -5,9 +5,12 @@ import { flattenEntities, partyFor } from './entities';
 import { prefixesOf } from './network';
 import { clean } from './sanitize';
 import { isPersonal, type Party } from './types';
-import { asObject, strings, type Obj } from './util';
+import { asObject, LIMITS, strings, type Obj } from './util';
 import { dnsName } from './domain';
 import { isPersonLike, vcardValue } from './vcard';
+
+/** Real APNIC histories hold tens of records; this bounds work on a hostile or broken response. */
+const MAX_HISTORY_RECORDS = 5_000;
 
 export type Detail = 'summary' | 'full';
 
@@ -75,7 +78,7 @@ function summarise(c: Obj): StateSummary | null {
   const holder = partyFor(ents, 'registrant');
   const isEntity = c.objectClassName === 'entity';
   const ns = Array.isArray(c.nameservers)
-    ? c.nameservers.flatMap((n) => { const x = clean(asObject(n).ldhName, 253); return x ? [x.toLowerCase().replace(/\.$/, '')] : []; })
+    ? c.nameservers.slice(0, LIMITS.nameservers).flatMap((n) => { const x = clean(asObject(n).ldhName, 253); return x ? [x.toLowerCase().replace(/\.$/, '')] : []; })
     : [];
   const s: Partial<Record<Field, string>> = {
     name: isEntity ? (isPersonLike(c) ? undefined : clean(vcardValue(c, 'fn'))) : clean(c.name),
@@ -120,6 +123,8 @@ function same(a: StateSummary | null, b: StateSummary | null, fields: readonly F
 export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): HistoryRecord {
   const o = asObject(raw);
   if (!Array.isArray(o.records)) throw new RdapError('bad_response', 'History response has no records array');
+  // Truncating would silently drop the latest states (records are chronological): refuse instead.
+  if (o.records.length > MAX_HISTORY_RECORDS) throw new RdapError('too_large', `History has ${o.records.length} records (limit ${MAX_HISTORY_RECORDS})`);
   let latestFrom: string | undefined;
   const groups = new Map<string, { prefixLength: number; rows: Array<StateRow & { ts: string }> }>();
   for (const item of o.records) {

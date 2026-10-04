@@ -7,12 +7,21 @@ export function asObject(v: unknown): Obj {
   return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Obj) : {};
 }
 
-export function strings(v: unknown, max = 40): string[] {
+/**
+ * Upper bounds on registry arrays (audit 2026-10-03 #4), far above anything real records hold: a hostile or broken
+ * response must not turn into a huge answer or cache entry.
+ */
+export const LIMITS = { strings: 16, prefixes: 64, nameservers: 32, entities: 128 } as const;
+
+export function strings(v: unknown, max = 40, limit: number = LIMITS.strings): string[] {
   if (!Array.isArray(v)) return [];
-  return v.flatMap((x) => {
+  const out: string[] = [];
+  for (const x of v) {
+    if (out.length >= limit) break;
     const c = clean(x, max);
-    return c ? [c] : [];
-  });
+    if (c) out.push(c);
+  }
+  return out;
 }
 
 export function eventDate(o: Obj, action: string): string | undefined {

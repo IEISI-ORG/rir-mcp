@@ -82,6 +82,26 @@ describe('clean', () => {
   });
 });
 
+describe('array caps (audit 2026-10-03 #4)', () => {
+  const many = (n: number, f: (i: number) => unknown) => Array.from({ length: n }, (_, i) => f(i));
+
+  it('caps statuses, prefixes and flattened entities of a network', () => {
+    const r = reduceNetwork({
+      objectClassName: 'ip network', handle: 'NET-1', name: 'X', status: many(1000, (i) => `s${i}`),
+      cidr0_cidrs: many(1000, (i) => ({ v4prefix: `10.${Math.floor(i / 256)}.${i % 256}.0`, length: 24 })),
+      entities: many(100, (i) => ({ handle: `E${i}`, roles: ['technical'], entities: many(100, (j) => ({ handle: `F${i}-${j}`, roles: ['abuse'] })) })),
+    }, { rir: 'apnic' });
+    expect(r.status.length).toBeLessThanOrEqual(16);
+    expect(r.prefixes.length).toBeLessThanOrEqual(64);
+    expect(JSON.stringify(r).length).toBeLessThan(20_000);
+  });
+
+  it('caps nameservers of a reverse zone', () => {
+    const r = reduceDomain({ objectClassName: 'domain', ldhName: '1.1.1.in-addr.arpa', nameservers: many(1000, (i) => ({ ldhName: `ns${i}.example.net` })) }, { rir: 'apnic' });
+    expect(r.nameservers.length).toBeLessThanOrEqual(32);
+  });
+});
+
 describe('reduceNetwork', () => {
   const base = {
     objectClassName: 'ip network', handle: 'NET-1', name: 'EXAMPLE-NET', country: 'AU',
