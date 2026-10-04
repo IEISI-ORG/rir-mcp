@@ -44,6 +44,9 @@ Rules from the user:
 
 | 18 | 2026-10-05 | audit | Daily security audit (fresh Opus auditor, snapshot `731beb3`): 0 Critical/High, 2 Medium, Lows/Infos. Fixed: per-client call-rate limit on every tool call incl. cached and batched (one key could saturate the single DO — 1000 cached calls wrote 1407 SQLite rows); upstream `Retry-After` honoured (was 300 requests in 10 min to an RIR that asked for an hour's pause); markdown links/images/URLs defanged in registry text (re-graded Medium); docs for single Node process per egress IP, WAF rule, cache-age note; `.claude/` ignored. 5 Low/Info deferred. 492 root + 57 worker tests pass. | `6335b23`, `869be83`, `1e81e81` |
 
-**Next iteration:** 19 — remaining follow-ups: reducer array caps (audit #4 residual), self-redirect charging, Worker request deadline, Plan 1 task minors (sanitiser test escapes, STALE wording, renderer nits).
+| 18 (fix) | 2026-10-05 | security | Two background commit reviews flagged the new sanitiser: confirmed bypasses (raw HTML, `www.` autolinks, escaped schemes, lenient `[x] (url)`, reference links, defang markers forming links). Fixed by construction: registry text never contains square or angle brackets; schemes and `www.` defanged with parenthesis markers; emails and bare hostnames preserved. | `b07012d`, `821df51` |
+| 19 | 2026-10-05 | follow-ups | No new answers. Reducer array caps (statuses 16, prefixes 64, nameservers 32, entities 128 total) and histories over 5,000 records refused — closes audit #4; same-RIR redirects take a token; bootstrap base URLs checked like redirects; STALE guide wording. 507 root + 57 worker tests pass. | `259b37d` |
+
+**Next iteration:** 20 — code review (fresh reviewer) of `609228c..HEAD` plus the audit-day fixes (`731beb3..609228c`), with the sanitiser as a focus (changed three times on 2026-10-05).
 **Next code review:** iteration 20.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.

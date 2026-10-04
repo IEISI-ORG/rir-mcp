@@ -20,11 +20,11 @@ Fresh-context auditor (Opus). No Critical or High. Fixed the same day:
 - **F4/F5/F6** — docs: one Node process per egress IP; WAF rate-limit rule for floods; cache-age note (`1e81e81`). **F7** `.claude/` ignored (`0b71b58`).
 
 Deferred (Low/Info):
-- Bootstrap base URLs are not checked for port, userinfo or path the way redirects are (IANA is trusted, over TLS).
-- A redirect from an RIR to itself makes a second request without charging a second token.
+- ~~Bootstrap base URL shape~~ Done 2026-10-05. Was: Bootstrap base URLs are not checked for port, userinfo or path the way redirects are (IANA is trusted, over TLS).
+- ~~A redirect from an RIR to itself makes a second request without charging a second token.~~ Done 2026-10-05.
 - The Worker has no slow-body or request deadline (only authenticated clients can hold DO requests).
 - Dependency hygiene: caret ranges and an `-alpha` miniflare in dev tooling; consider pnpm `minimumReleaseAge`.
-- Residual of audit 2026-10-03 #4: array caps in reducers (status, nameservers, history `at` state, network `structuredContent`). The cache byte bound is done on both runtimes.
+- ~~Residual of audit 2026-10-03 #4: array caps in reducers~~ Done 2026-10-05 (`259b37d`; histories over 5,000 records refused as too_large). Was (status, nameservers, history `at` state, network `structuredContent`). The cache byte bound is done on both runtimes.
 
 ## Daily security audit 2026-10-03 (snapshot 998bb8a) — deferred Lows
 
