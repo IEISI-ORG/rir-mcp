@@ -53,6 +53,8 @@ Rules from the user:
 
 | — | 2026-10-05 | instruction | User pushed once (`c83bfe4..771a1b4`, after checks: `fcc65eb` unreachable, no keys/tokens/sensitive files) and then answered Q8: **push `main` to `origin` after each iteration from now on.** Each iteration ends with the same pre-push checks, then `git push origin main`. | — |
 
-**Next iteration:** 22 — daily security audit if the date has turned to 2026-10-06; otherwise dependency hygiene (pnpm minimumReleaseAge, pin dev tooling) and remaining older Plan 1 task minors.
+| 22 | 2026-10-05 | follow-ups | No new answers. Supply chain: pnpm `minimumReleaseAge` 3 days (it immediately flagged 4 recent dev-tool versions, excluded exactly until 2026-10-07). `clampProfile` ignored NaN/0/negative operator limits (a NaN profile let 100/100 LACNIC requests through — latent, no caller yet). History dates must be real calendar dates. 604 root + 62 worker tests pass. First automatic push. | `e84218c`, `a4f7bca` |
+
+**Next iteration:** 23 — daily security audit if the date has turned to 2026-10-06; otherwise remaining Plan 1 task minors (render '(none) ((none))', bounded input echo in errors, test gaps).
 **Next code review:** iteration 25.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
