@@ -44,8 +44,13 @@ describe('clean', () => {
     expect(clean(input) ?? '').not.toMatch(/[[\]]/);
   });
 
+  it('keeps a leading www. only for DNS-name fields (host option); in a name it is defanged', () => {
+    expect(clean('www.example.net', 253, { host: true })).toBe('www.example.net');
+    expect(clean('www.evil.com')).toBe('www(.)evil.com');
+  });
+
   it('leaves ordinary names, handles and emails unchanged', () => {
-    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net', 'abuse@www.example.net', 'www.example.net']) {
+    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net', 'abuse@www.example.net']) {
       expect(clean(v)).toBe(v);
     }
   });

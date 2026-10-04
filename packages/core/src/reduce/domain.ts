@@ -2,7 +2,7 @@ import { clean } from './sanitize';
 import type { DomainRecord, ReduceCtx } from './types';
 import { asObject, eventDate, LIMITS } from './util';
 
-export const dnsName = (v: unknown): string | undefined => clean(v, 253)?.toLowerCase().replace(/\.$/, '');
+export const dnsName = (v: unknown): string | undefined => clean(v, 253, { host: true })?.toLowerCase().replace(/\.$/, '');
 
 export function reduceDomain(raw: unknown, ctx: ReduceCtx): DomainRecord {
   const o = asObject(raw);

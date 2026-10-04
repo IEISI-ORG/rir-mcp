@@ -78,7 +78,7 @@ function summarise(c: Obj): StateSummary | null {
   const holder = partyFor(ents, 'registrant');
   const isEntity = c.objectClassName === 'entity';
   const ns = Array.isArray(c.nameservers)
-    ? c.nameservers.slice(0, LIMITS.nameservers).flatMap((n) => { const x = clean(asObject(n).ldhName, 253); return x ? [x.toLowerCase().replace(/\.$/, '')] : []; })
+    ? c.nameservers.slice(0, LIMITS.nameservers).flatMap((n) => { const x = dnsName(asObject(n).ldhName); return x ? [x] : []; })
     : [];
   const s: Partial<Record<Field, string>> = {
     name: isEntity ? (isPersonLike(c) ? undefined : clean(vcardValue(c, 'fn'))) : clean(c.name),
