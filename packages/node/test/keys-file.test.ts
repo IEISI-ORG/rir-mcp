@@ -88,6 +88,13 @@ describe('FileKeyStore', () => {
     io.text = JSON.stringify([await record(KEY_A, 'alpha')]);
     clock.t = 90_000;
     expect(await store.verify(KEY_A)).toEqual({ clientId: 'alpha', quotaPerHour: 60 });
+    // Operators see the recovery as well as the failure, once.
+    expect(errors).toHaveLength(2);
+    expect(errors[1]).toMatch(/valid again/);
+    io.text = JSON.stringify([await record(KEY_A, 'alpha'), await record(KEY_B, 'beta')]);
+    clock.t = 120_000;
+    await store.verify(KEY_A);
+    expect(errors).toHaveLength(2); // an ordinary change after recovery is not reported
   });
 
   it('fails closed when the file disappears', async () => {

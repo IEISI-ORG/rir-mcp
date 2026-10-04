@@ -7,7 +7,8 @@ export interface KeysFileIo {
 
 export interface FileKeyStoreOptions {
   readonly checkEveryMs?: number;
-  /** Called once per failed reload; the message names the file and the problem, never its contents. */
+  /** Called once per failed reload, and once when a failed file becomes valid again; the message names the file
+   * and the problem, never its contents. */
   readonly onReloadError?: (message: string) => void;
 }
 
@@ -75,7 +76,10 @@ export class FileKeyStore implements KeyStore {
       if (text === this.text) return;
       this.store = parse(this.path, text);
       this.text = text;
-      this.reported = null;
+      if (this.reported !== null) {
+        this.reported = null;
+        try { this.opts.onReloadError?.(`keys file ${this.path} is valid again; API keys accepted`); } catch { /* reporting must not break auth */ }
+      }
     } catch (err) {
       this.store = null;
       this.text = text;
