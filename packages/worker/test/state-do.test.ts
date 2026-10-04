@@ -119,4 +119,17 @@ describe('StateDO.serve', () => {
       (JSON.parse(state.storage.sql.exec<{ value: string }>("SELECT value FROM gate WHERE key = 'alpha'").one().value) as { units: string[] }).units);
     expect(units).toEqual([]);
   });
+
+  it('still returns the answer when arming the purge alarm fails', async () => {
+    const out = await inDo('do-alarm-fail', async (d) => {
+      const storage = (d as unknown as { ctx: DurableObjectState }).ctx.storage;
+      const spy = vi.spyOn(storage, 'getAlarm').mockRejectedValue(new Error('storage reset'));
+      try {
+        return await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha));
+      } finally {
+        spy.mockRestore();
+      }
+    });
+    expect(out).toContain('1.1.1.0/24');
+  });
 });

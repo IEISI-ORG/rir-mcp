@@ -56,8 +56,13 @@ export class StateDO extends DurableObject<Env> {
   /** RPC from the edge Worker, only after `edgeGate` admitted the request: `client` is trusted here. */
   async serve(request: Request, client: ClientInfo): Promise<Response> {
     const res = await this.handler.fetch(request, client);
-    // Make sure scan digests get purged even if no further request ever arrives.
-    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
+    // Make sure scan digests get purged even if no further request ever arrives. A storage error here must not
+    // lose an answer the client has already been charged for; the next request re-arms.
+    try {
+      if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
+    } catch (err) {
+      onError(err);
+    }
     return res;
   }
 
