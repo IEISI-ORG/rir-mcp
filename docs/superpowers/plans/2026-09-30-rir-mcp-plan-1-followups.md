@@ -16,7 +16,7 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 Fresh-context auditor (Opus). No Critical or High. Fixed the same day:
 - **F1 Medium** — per-client call-rate limit on every tool call, cached ones included (120/min, burst 60, in memory; each batch element counts); `observe` skips the state write for a repeated unit (`869be83`).
 - **F2 Medium** — upstream `Retry-After` honoured: the limiter refuses the bucket until then (capped 1 h, persisted), read on 5xx too and as an HTTP date; IANA back-offs too (`6335b23`).
-- **F3 Low → Medium** — links, images, code spans and URLs defanged in registry text; a background commit review then found bypasses (raw HTML, `www.` autolinks, escaped `\/\/`, angle autolinks), fixed the same day (`dc2ed36`).
+- **F3 Low → Medium** — links, images, code spans and URLs defanged in registry text; a background commit review then found bypasses (raw HTML, `www.` autolinks, escaped `\/\/`, angle autolinks), fixed the same day (`b07012d`); a second review (Markdown link injection: lenient `[x] (url)`, reference links, defang markers forming links) led to removing square brackets from registry text entirely (`821df51`). F3 itself: `dc2ed36`.
 - **F4/F5/F6** — docs: one Node process per egress IP; WAF rate-limit rule for floods; cache-age note (`1e81e81`). **F7** `.claude/` ignored (`0b71b58`).
 
 Deferred (Low/Info):
