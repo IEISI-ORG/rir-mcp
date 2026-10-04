@@ -6,12 +6,17 @@
  *   tsx scripts/keys.ts new <clientId> [quota] --target kv
  *                                                      → line 1: the key; line 2: the `wrangler kv key put` command
  *   tsx scripts/keys.ts new --raw                      → a key for RIR_MCP_API_KEY or the Worker's API_KEY secret
- *   tsx scripts/keys.ts hash <key>                     → the key's SHA-256, to find or revoke its record
- *   tsx scripts/keys.ts revoke <key|sha256> --target kv → the `wrangler kv key delete` command
+ *   tsx scripts/keys.ts hash [<key> | -]               → the key's SHA-256 (no argument or - reads the key from
+ *                                                        stdin, keeping it out of shell history and ps)
+ *   tsx scripts/keys.ts revoke <key|sha256|-> --target kv → the `wrangler kv key delete` command (- reads stdin)
  */
+import { readFileSync } from 'node:fs';
 import { CLIENT_ID_RE, DEFAULT_QUOTA_PER_HOUR, generateKey, KEY_RE, MAX_QUOTA_PER_HOUR, sha256Hex, validQuota } from '../packages/core/src/auth/keys';
 
-const USAGE = 'usage: keys.ts new <clientId> [quotaPerHour] [--target kv] | new --raw | hash <key> | revoke <key|sha256> --target kv';
+const USAGE = 'usage: keys.ts new <clientId> [quotaPerHour] [--target kv] | new --raw | hash [<key> | -] | revoke <key|sha256|-> --target kv';
+
+/** `-` (or a missing argument where allowed) reads the secret from stdin instead of the command line. */
+const fromStdin = (arg: string | undefined): string => (arg === undefined || arg === '-' ? readFileSync(0, 'utf8').trim() : arg);
 const HASH_RE = /^[0-9a-f]{64}$/;
 const KV = 'npx wrangler kv key';
 
@@ -49,13 +54,13 @@ if (command === 'new' && rest.length === 1 && rest[0] === '--raw') {
   } else {
     console.log(JSON.stringify({ sha256, clientId, quotaPerHour }));
   }
-} else if (command === 'hash' && rest.length === 1) {
-  const key = rest[0] ?? '';
+} else if (command === 'hash' && rest.length <= 1) {
+  const key = fromStdin(rest[0]);
   if (!KEY_RE.test(key)) fail('not an rir-mcp key (rirmcp_ followed by 43 base64url characters)');
   console.log(await sha256Hex(key));
 } else if (command === 'revoke' && rest.length === 1) {
   if (target !== 'kv') fail('revoke prints a KV command: add --target kv (for a keys file, set "revoked": true on the record)');
-  const raw = rest[0] ?? '';
+  const raw = fromStdin(rest[0]);
   // A hash pasted in uppercase is the same hash; keys stay case-sensitive.
   const arg = /^[0-9A-Fa-f]{64}$/.test(raw) ? raw.toLowerCase() : raw;
   // Operators rarely still have the key (it is shown once), so its hash works too.

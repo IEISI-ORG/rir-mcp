@@ -111,7 +111,7 @@ node_modules/.bin/tsx scripts/keys.ts new acme-noc 60
 # line 2: {"sha256":"...","clientId":"acme-noc","quotaPerHour":60}, add it to the keys file
 ```
 
-The keys file is a JSON array of those records. `clientId` must be an opaque id (`^[a-z0-9][a-z0-9-]{0,31}$`), never a person's name or email, because it appears in logs. `quotaPerHour` must be an integer from 1 to 1,000,000; one invalid record makes the whole file invalid (every key rejected until it is fixed). To revoke a key, set `"revoked": true` on its record or delete the record. `scripts/keys.ts hash <key>` prints a key's hash so you can find its record.
+The keys file is a JSON array of those records. `clientId` must be an opaque id (`^[a-z0-9][a-z0-9-]{0,31}$`), never a person's name or email, because it appears in logs. `quotaPerHour` must be an integer from 1 to 1,000,000; one invalid record makes the whole file invalid (every key rejected until it is fixed). To revoke a key, set `"revoked": true` on its record or delete the record. `scripts/keys.ts hash` prints a key's hash so you can find its record; it reads the key from stdin (`printf '%s' "$KEY" | tsx scripts/keys.ts hash`), which keeps it out of your shell history.
 
 The server re-reads the keys file at most every 30 seconds, so additions and revocations take effect within 30 seconds without a restart. If the file becomes unreadable or invalid, **every key is rejected** until it is fixed, and one error line is logged. This makes a broken edit fail closed, never leaving old keys live.
 

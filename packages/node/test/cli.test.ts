@@ -59,6 +59,17 @@ describe('scripts/keys.ts', () => {
     expect(r.stdout.trim().split('\n')).toHaveLength(1);
   });
 
+  it('hash reads the key from stdin when given - or nothing, keeping it out of shell history', async () => {
+    const key = `rirmcp_${'A'.repeat(43)}`;
+    for (const args of [['hash', '-'], ['hash']]) {
+      const r = spawnSync(TSX, [join(ROOT, 'scripts/keys.ts'), ...args], {
+        encoding: 'utf8', input: `${key}\n`, env: { PATH: process.env.PATH ?? '' }, timeout: 30_000,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim()).toBe(await sha256Hex(key));
+    }
+  });
+
   it('hash prints the SHA-256 of a key', async () => {
     const key = `rirmcp_${'A'.repeat(43)}`;
     const r = run('scripts/keys.ts', ['hash', key]);
