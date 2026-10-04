@@ -23,6 +23,11 @@ const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 type TestEnv = Env & { API_KEY?: string };
 const call = (r: Request, e: TestEnv = env as TestEnv) => worker.fetch(r as Parameters<typeof worker.fetch>[0], e);
 const doCount = async () => (await listDurableObjectIds(env.STATE)).length;
+/** A STATE namespace that records any attempt to reach the DO: robust whatever order the tests run in. */
+function watchedEnv(override: Partial<TestEnv> = {}): { env: TestEnv; reached: () => boolean } {
+  const getByName = vi.fn(() => { throw new Error('the DO must not be reached'); });
+  return { env: { ...(env as TestEnv), ...override, STATE: { getByName } } as unknown as TestEnv, reached: () => getByName.mock.calls.length > 0 };
+}
 
 describe('Worker entry: fail closed on missing configuration (Review Focus 5)', () => {
   it.each([
@@ -36,12 +41,12 @@ describe('Worker entry: fail closed on missing configuration (Review Focus 5)', 
     ['an unknown KEYS_MODE', { KEYS_MODE: 'KV ' }],
     ['a malformed API_KEY', { API_KEY: 'secret' }],
   ])('%s → 503 not_configured, one log line, no DO', async (_name, override) => {
-    const before = await doCount();
+    const w = watchedEnv(override as Partial<TestEnv>);
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     let lines: string[];
     let res: Response;
     try {
-      res = await call(req(bearer(TEST_KEY)), { ...(env as TestEnv), ...override } as TestEnv);
+      res = await call(req(bearer(TEST_KEY)), w.env);
       lines = spy.mock.calls.map((a) => a.map(String).join(' '));
     } finally {
       spy.mockRestore();
@@ -51,33 +56,33 @@ describe('Worker entry: fail closed on missing configuration (Review Focus 5)', 
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0] ?? '{}')).toMatchObject({ status: 503, reason: 'not_configured' });
     expect(lines.join('')).not.toContain('noc (ops)');
-    expect(await doCount()).toBe(before);
+    expect(w.reached()).toBe(false);
   });
 });
 
 describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
   it('rejects a request without a key with 401 and creates no DO', async () => {
-    const before = await doCount();
-    expect((await call(req())).status).toBe(401);
-    expect((await call(req(bearer(generateKey())))).status).toBe(401);
-    expect(await doCount()).toBe(before);
+    const w = watchedEnv();
+    expect((await call(req(), w.env)).status).toBe(401);
+    expect((await call(req(bearer(generateKey())), w.env)).status).toBe(401);
+    expect(w.reached()).toBe(false);
   });
 
   it('rejects a foreign Origin and a foreign Host with 403 and creates no DO', async () => {
-    const before = await doCount();
-    expect((await call(req({ ...bearer(TEST_KEY), origin: 'https://evil.example' }))).status).toBe(403);
-    expect((await call(req({ ...bearer(TEST_KEY), host: 'evil.example' }))).status).toBe(403);
-    expect(await doCount()).toBe(before);
+    const w = watchedEnv();
+    expect((await call(req({ ...bearer(TEST_KEY), origin: 'https://evil.example' }), w.env)).status).toBe(403);
+    expect((await call(req({ ...bearer(TEST_KEY), host: 'evil.example' }), w.env)).status).toBe(403);
+    expect(w.reached()).toBe(false);
   });
 
   it('answers 500 logged as auth_error when KV fails, and creates no DO', async () => {
-    const before = await doCount();
     const brokenKv = { get: () => Promise.reject(new Error('KV unavailable')) } as unknown as KVNamespace;
+    const w = watchedEnv({ KEYS_MODE: 'kv', API_KEYS: brokenKv });
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     let lines: string[];
     let res: Response;
     try {
-      res = await call(req(bearer(generateKey())), { ...(env as TestEnv), KEYS_MODE: 'kv', API_KEYS: brokenKv } as TestEnv);
+      res = await call(req(bearer(generateKey())), w.env);
       lines = spy.mock.calls.map((a) => a.map(String).join(' '));
     } finally {
       spy.mockRestore();
@@ -85,7 +90,7 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect(res.status).toBe(500);
     expect(lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toContainEqual(expect.objectContaining({ status: 500, reason: 'auth_error' }));
     expect(lines.join('\n')).not.toContain('KV unavailable');
-    expect(await doCount()).toBe(before);
+    expect(w.reached()).toBe(false);
   });
 
   it('matches a non-canonical IPv6 allow-list entry', async () => {

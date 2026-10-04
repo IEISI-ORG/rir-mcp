@@ -1,4 +1,5 @@
-import { createMcpHandler, type AuthInfo } from '@modelcontextprotocol/server';
+import { createMcpHandler } from '@modelcontextprotocol/server';
+import { authInfoFor } from './auth-info';
 import type { ClientGate, ClientInfo } from '../ports';
 import { createServer } from '../server';
 import type { RirService } from '../service/service';
@@ -19,14 +20,6 @@ export interface McpHandler {
 
 const MAX_BODY_BYTES = 65_536;
 
-/** The SDK's auth record for an admitted client. The token is blanked so nothing downstream can log it; the SDK
- * requires an expiry, so give one. */
-export function authInfoFor(client: ClientInfo): AuthInfo {
-  return {
-    token: '', clientId: client.clientId, scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 3600,
-    extra: { quotaPerHour: client.quotaPerHour },
-  };
-}
 
 /** The MCP endpoint for an already-authenticated client. Runtime-neutral: a web `fetch` handler. */
 export function mcpHandler(o: McpHandlerOptions): McpHandler {

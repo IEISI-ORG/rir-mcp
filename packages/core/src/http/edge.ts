@@ -3,7 +3,7 @@ import {
   type OAuthTokenVerifier,
 } from '@modelcontextprotocol/server';
 import type { ClientInfo, KeyStore } from '../ports';
-import { authInfoFor } from './handler';
+import { authInfoFor } from './auth-info';
 
 export interface EdgeGateOptions {
   readonly keyStore: KeyStore;

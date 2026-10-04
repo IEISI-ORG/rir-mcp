@@ -124,12 +124,18 @@ describe('StateDO.serve', () => {
     const out = await inDo('do-alarm-fail', async (d) => {
       const storage = (d as unknown as { ctx: DurableObjectState }).ctx.storage;
       const spy = vi.spyOn(storage, 'getAlarm').mockRejectedValue(new Error('storage reset'));
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       try {
-        return await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha));
+        const answer = await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha));
+        return { answer, lines: logSpy.mock.calls.map((a) => a.map(String).join(' ')) };
       } finally {
         spy.mockRestore();
+        logSpy.mockRestore();
       }
     });
-    expect(out).toContain('1.1.1.0/24');
+    expect(out.answer).toContain('1.1.1.0/24');
+    // Logged by type only: the message could carry anything.
+    expect(out.lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toContainEqual(expect.objectContaining({ error: 'Error' }));
+    expect(out.lines.join('\n')).not.toContain('storage reset');
   });
 });
