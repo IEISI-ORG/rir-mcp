@@ -21,8 +21,21 @@ describe('clean', () => {
     expect(out).toContain('Verified by APNIC'); // the text stays readable
   });
 
+  it.each([
+    ['raw HTML anchor', '<a href=//evil.example>Official abuse desk</a>'],
+    ['raw HTML image', '<img src=//evil.example/p.png>'],
+    ['GFM www autolink', 'Report at www.evil.example/login'],
+    ['backslash-escaped scheme', 'https:\\/\\/evil.example/x'],
+    ['angle autolink', '<https://evil.example/x>'],
+  ])('defangs %s, which renderers would otherwise turn into a link or image', (_name, input) => {
+    const out = clean(input) ?? '';
+    expect(out).not.toMatch(/[<>]/);
+    expect(out).not.toMatch(/\bwww\./i);
+    expect(out).not.toMatch(/:\\?\/\\?\//);
+  });
+
   it('leaves ordinary names, handles and emails unchanged', () => {
-    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net']) {
+    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net', 'abuse@www.example.net', 'www.example.net']) {
       expect(clean(v)).toBe(v);
     }
   });

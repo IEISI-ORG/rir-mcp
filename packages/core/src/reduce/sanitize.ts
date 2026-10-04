@@ -7,9 +7,19 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * LLM and on to people, and none of the cleaned fields (names, handles, emails, DNS names) legitimately holds one.
  * A holder name like "[Verified by APNIC](https://…)" must not become a clickable "official" link.
  */
+/** A bare hostname (a nameserver, a reverse zone) or email is data, not an injection: its www. stays as is. */
+const BARE_HOST_OR_EMAIL = /^(?:[A-Za-z0-9._%+-]+@)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\.?$/;
+
 function defang(s: string): string {
+  const bare = BARE_HOST_OR_EMAIL.test(s);
   return s
-    .replace(/([A-Za-z][A-Za-z0-9+.-]*):\/\//g, '$1[:]//')
+    // Raw HTML (<a href=//…>, <img src=…>) and angle autolinks (<https://…>): no tag can survive without < >.
+    .replace(/</g, '‹')
+    .replace(/>/g, '›')
+    // Schemes, including Markdown-escaped slashes (https:\/\/ renders as https://).
+    .replace(/([A-Za-z][A-Za-z0-9+.-]*):\\?\/\\?\//g, '$1[:]//')
+    // GFM extended autolinks need no scheme: www.example.net/login.
+    .replace(/(?<![@.\w-])www\./gi, (m) => (bare ? m : `${m.slice(0, 3)}[.]`))
     .replace(/\]\s*\(/g, '] (')
     .replace(/!\[/g, '! [')
     .replace(/`/g, "'");
