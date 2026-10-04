@@ -26,8 +26,8 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 - ~~keys-file recovery line~~ Done 2026-10-04. Was: keys-file: log one "keys file reloaded" line when a broken file becomes valid again (operators cannot see recovery today).
 - ~~keys.ts stdin~~ Done 2026-10-04 (`9317265`). Was: `scripts/keys.ts hash <key>` puts the key in shell history and `ps`; read it from stdin when the argument is `-` or absent.
 - The `rir-mcp` bin only runs via tsx (extensionless imports; workspace core is TS source) — needs the Plan 4 build.
-- Spec §7 lists "upstream status" as a logged field; `CallLog` logs the outcome code. Update the spec or add the field.
-- Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
+- ~~Spec logged fields~~ Done 2026-10-04 (spec now says outcome code). Was: Spec §7 lists "upstream status" as a logged field; `CallLog` logs the outcome code. Update the spec or add the field.
+- 413 factory assertion done 2026-10-04 (`ef423d4`). Still open: no slow-body timeout test (`startHttp` hard-codes 30 s; needs an injectable timeout). Was: Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
 - ~~EADDRINUSE~~ Done 2026-10-04. Was: EADDRINUSE at startup surfaces as an unhandled rejection rather than a clean `rir-mcp:` message.
 
 ## Plan 2 Task 8 — deferred
@@ -39,7 +39,7 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan digests are dropped on suspension and purged by a DO alarm after their window (`26f3922`). The Task 7 requirements (validate `OPERATOR` via `buildUserAgent`, catch `serve` errors) are in the Plan 3 ledger.
 
 - ~~**Before the first Worker deploy:**~~ Done 2026-10-04 (`5235d76`): running totals in memory, `bytes` before `value`, `schema_version` 1. Was: the `cache` table reads every row's `bytes` on each put (`count(*)`, `sum(bytes)`), and `bytes` sits after the large `value` column. Move `bytes` before `value` or keep running totals in `meta`. Also write a `schema_version` to `meta` now: `CREATE TABLE IF NOT EXISTS` cannot change an existing table.
-- ~~Bootstrap re-reads~~ Done 2026-10-04 (`1ad0f45`): parsed index reused while fresh; 5-minute back-off after a failed refresh (also fixes the Task 6 "no negative caching during IANA outage" item). Still open: each record cache hit is a SQLite row write (`used_at`). Was: Each cache hit is a SQLite row write (`used_at`), and the IANA bootstrap row (~11.5 KB) is read and parsed 2–3 times per lookup. Skip recent recency updates, or keep the parsed bootstrap in memory keyed on `fetchedAt`.
+- ~~Bootstrap re-reads~~ Done 2026-10-04 (`1ad0f45`): parsed index reused while fresh; 5-minute back-off after a failed refresh (also fixes the Task 6 "no negative caching during IANA outage" item). Each record cache hit's row write is skipped while the entry is among the most recent tenth (2026-10-04). Was: Each cache hit is a SQLite row write (`used_at`), and the IANA bootstrap row (~11.5 KB) is read and parsed 2–3 times per lookup. Skip recent recency updates, or keep the parsed bootstrap in memory keyed on `fetchedAt`.
 - ~~Suspension and hourly-window eviction tests~~ Done 2026-10-04 (`0b2270c`). Still open:  `SqlCache` run through the `MemoryCache` cases; a history lookup through the DO.
 - ~~`authInfo` is built in both `core/src/http/edge.ts` and `handler.ts`: extract `authInfoFor(client)`.~~ Done 2026-10-04 (`c3aa169`).
 - ~~README says raw RDAP JSON is "4–250 KB"; the fixtures go up to 370 KB (history). Reword.~~ Done 2026-10-04.
@@ -67,10 +67,10 @@ Fixed at the review: kv mode without the KV binding now answers 503, and key-sto
 
 Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fallback and a `staleUntil` bound (`3fdba21`; regression from `1ad0f45`, reproduced by the reviewer); unversioned cache table rebuilt, unknown version tested (`e2b87d0`); allow-list entries stored in canonical form, incl. IPv6 (`de38145`); quota range documented (`ef3dc5e`). Note: the busy-server test passes through either the 1 h cap or the memory fallback, so no single test pins the cap alone.
 
-- Worker "creates no DO" assertions depend on test order (the singleton `'state'` DO persists within the file): use an `env.STATE` whose `getByName` is a spy, as the DO-failure test does.
-- Alarm-failure test does not assert the log line (`error: 'Error'`, no message).
-- `authInfoFor` lives in `http/handler.ts`, so `edge.ts` imports the server graph: move it to `http/auth-info.ts`.
-- Cold start during an IANA outage (nothing cached) still makes 3 fetches per lookup: no back-off without data.
+- ~~Order-dependent "no DO" assertions~~ Done 2026-10-04 (STATE spy). Was: Worker "creates no DO" assertions depend on test order (the singleton `'state'` DO persists within the file): use an `env.STATE` whose `getByName` is a spy, as the DO-failure test does.
+- ~~Alarm log assertion~~ Done 2026-10-04. Was: Alarm-failure test does not assert the log line (`error: 'Error'`, no message).
+- ~~authInfoFor module~~ Done 2026-10-04 (`http/auth-info.ts`). Was: `authInfoFor` lives in `http/handler.ts`, so `edge.ts` imports the server graph: move it to `http/auth-info.ts`.
+- ~~Cold-start IANA back-off~~ Done 2026-10-04 (`c69a3b4`, 30 s). Was: Cold start during an IANA outage (nothing cached) still makes 3 fetches per lookup: no back-off without data.
 
 ## Parked at final review
 

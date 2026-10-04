@@ -40,6 +40,8 @@ Rules from the user:
 
 | 16 | 2026-10-04 | follow-ups | No new answers; audit not yet due. Audit #5: client quotas now use a sliding hourly window (previous hour's use decays linearly; no double spend across an hour boundary; accurate retry times) on both runtimes; scan detection stays fixed-window by ruling (retention). Iteration-5 minors: keys-file recovery is logged; a busy port gives one clean line; `keys.ts hash`/`revoke` read keys from stdin. 478 root + 56 worker tests pass. | `377f1af`, `9317265` |
 
-**Next iteration:** 17 — daily security audit (due 2026-10-05) if the date has turned; otherwise remaining follow-ups (record cache-hit row writes; spec "upstream status" log field; slow-body and 413-factory tests; iteration-15 test minors; older Plan 1 task minors).
+| 17 | 2026-10-04 | follow-ups | No new answers; audit not yet due. Worker cache hits skip the billed recency write while the entry is among the most recent tenth; a cold-start IANA failure is remembered for 30 s (no 3-fetch storm per lookup); order-independent "no DO" tests via a STATE spy (mutation: 12 fail), alarm log assertion, `auth-info` module; 413 never builds the per-request server (with positive control); spec logs outcome code. 480 root + 57 worker tests pass. | `c69a3b4`, `ef423d4` |
+
+**Next iteration:** 18 — daily security audit (due 2026-10-05; first iteration on or after midnight). Then the older Plan 1 task minors (sanitiser escapes and tag characters, STALE wording, renderer nits).
 **Next code review:** iteration 20.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
