@@ -12,6 +12,8 @@ export function createTables(sql: SqlStorage): void {
   for (const t of STATE_TABLES) sql.exec(`CREATE TABLE IF NOT EXISTS ${t} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
   const stored = sql.exec<{ value: string }>("SELECT value FROM meta WHERE key = 'schema_version'").toArray()[0];
   if (stored && JSON.parse(stored.value) !== SCHEMA_VERSION) throw new Error(`unsupported state schema version ${stored.value}`);
+  // No version recorded: a cache table here predates versioning and may have any shape. Its contents are disposable.
+  if (!stored) sql.exec('DROP TABLE IF EXISTS cache');
   // bytes before the large value column, so reading it never walks the value's overflow pages.
   sql.exec(`CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY, bytes INTEGER NOT NULL, used_at INTEGER NOT NULL,

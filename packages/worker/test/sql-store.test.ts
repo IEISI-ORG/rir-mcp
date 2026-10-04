@@ -184,6 +184,28 @@ describe('SqlCache totals', () => {
 });
 
 describe('createTables', () => {
+  it('refuses a schema version it does not know', async () => {
+    await inDo('schema-unknown', (sql) => {
+      new SqlStateMap<string>(sql, 'meta').set('schema_version', '2');
+      expect(() => createTables(sql)).toThrow(/schema version/);
+    });
+  });
+
+  it('rebuilds an unversioned (pre-versioning) cache table instead of stamping it', async () => {
+    await runInDurableObject(stub('schema-legacy'), async (_i, state) => {
+      const sql = state.storage.sql;
+      // What an older build left behind: no meta row, old column order, no bytes column.
+      sql.exec('DROP TABLE IF EXISTS cache');
+      sql.exec("DELETE FROM meta WHERE key = 'schema_version'");
+      sql.exec('CREATE TABLE cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, fetched_at INTEGER, fresh_until INTEGER, stale_until INTEGER, used_at INTEGER)');
+      sql.exec("INSERT INTO cache VALUES ('k', '1', 0, 0, 0, 0)");
+      createTables(sql);
+      const cols = sql.exec<{ name: string }>('PRAGMA table_info(cache)').toArray().map((c) => c.name);
+      expect(cols).toContain('bytes');
+      expect(() => new SqlCache(sql, new FakeClock())).not.toThrow();
+    });
+  });
+
   it('records schema version 1 and stores bytes before the large value column', async () => {
     await inDo('schema', (sql) => {
       expect(new SqlStateMap<string>(sql, 'meta').get('schema_version')).toBe('1');
