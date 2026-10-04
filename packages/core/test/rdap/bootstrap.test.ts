@@ -72,6 +72,55 @@ describe('Bootstrap', () => {
     expect((await second.routeAsn(4608))?.rir).toBe('apnic');
   });
 
+  it('does not re-read the cache on every lookup while its parsed index is fresh', async () => {
+    const { boot, cache } = setup();
+    let reads = 0;
+    const get = cache.get.bind(cache);
+    cache.get = async (k) => { reads += 1; return get(k); };
+    for (let i = 0; i < 5; i++) {
+      await boot.routeIp(parseIpOrCidr('1.1.1.1'));
+      await boot.baseUrl('apnic');
+      await boot.rdapHosts();
+    }
+    expect(reads).toBe(1); // the first lookup only: nothing is cached yet
+  });
+
+  it('backs off for 5 minutes after a failed refresh while serving stale data', async () => {
+    let up = true;
+    const route = (body: unknown) => (): FakeRoute => (up ? { body } : { status: 503, text: '' });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route(IANA.ipv4),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route(IANA.ipv6),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route(IANA.asn),
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    await boot.routeAsn(4608);
+    up = false;
+    clock.advance(25 * 3_600_000);
+    expect((await boot.routeAsn(4608))?.rir).toBe('apnic'); // refresh fails, stale served
+    const afterFailure = fetch.calls.length;
+    for (let i = 0; i < 3; i++) await boot.routeAsn(4608);
+    expect(fetch.calls.length).toBe(afterFailure); // no refetch storm during the outage
+    up = true;
+    clock.advance(5 * 60_000);
+    await boot.routeAsn(4608);
+    expect(fetch.calls.length).toBe(afterFailure + 3); // retried after the back-off, and recovered
+  });
+
+  it('keeps failing loudly, not routing nowhere, after an empty IANA response with nothing cached', async () => {
+    const empty = { services: [] };
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: { body: empty },
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: { body: empty },
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: { body: empty },
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+  });
+
   it('throws when IANA is down and nothing is cached', async () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
