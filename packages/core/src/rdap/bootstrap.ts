@@ -11,6 +11,8 @@ const FRESH_MS = 24 * 3_600_000;
 const STALE_MS = 7 * 24 * 3_600_000;
 /** After a failed refresh with stale data in hand, wait this long before trying IANA again. */
 const RETRY_MS = 5 * 60_000;
+/** Re-read the cache row at least this often, which also keeps it from sinking to the bottom of the LRU. */
+const MEMO_MS = 3_600_000;
 
 type Service = [string[], string[]];
 interface RawFile { readonly services: readonly Service[] }
@@ -34,7 +36,7 @@ export class Bootstrap {
   private readonly cache: CacheStore;
   private readonly clock: Clock;
   /** The parsed index and how long it may be used without consulting the cache (fresh, or a retry back-off). */
-  private parsed: { fetchedAt: number; index: Index; validUntil: number } | null = null;
+  private parsed: { fetchedAt: number; index: Index; validUntil: number; staleUntil: number } | null = null;
   private inflight: Promise<RawBootstrap> | null = null;
 
   constructor(deps: { http: HttpDeps; cache: CacheStore; clock: Clock }) {
@@ -70,13 +72,17 @@ export class Bootstrap {
   private async index(): Promise<Index> {
     // Every lookup routes through here 2–3 times: skip the cache read (in a Durable Object, a SQL read, a parse
     // of the whole bootstrap and a row write) while the parsed index is still valid.
+    // Capped at MEMO_MS: reading the row hourly keeps a busy cache from evicting it, which would lose the stale fallback.
     if (this.parsed && this.clock.now() < this.parsed.validUntil) return this.parsed.index;
     const entry = await this.cache.get<RawBootstrap>(CACHE_KEY);
-    if (entry && this.clock.now() < entry.freshUntil) return this.parse(entry.value, entry.fetchedAt, entry.freshUntil);
+    const now = this.clock.now();
+    if (entry && now < entry.freshUntil) {
+      return this.parse(entry.value, entry.fetchedAt, Math.min(entry.freshUntil, now + MEMO_MS), entry.staleUntil);
+    }
     try {
       const raw = await this.fetchAll();
       const t = this.clock.now();
-      const index = this.parse(raw, t, t + FRESH_MS);
+      const index = this.parse(raw, t, t + MEMO_MS, t + STALE_MS);
       if (index.ip.length === 0 && index.asn.length === 0) {
         this.parsed = null; // never reuse an empty index
         throw new RdapError('bad_response', 'IANA bootstrap response has no valid services');
@@ -84,8 +90,14 @@ export class Bootstrap {
       await this.cache.put(CACHE_KEY, { value: raw, fetchedAt: t, freshUntil: t + FRESH_MS, staleUntil: t + STALE_MS });
       return index;
     } catch (err) {
-      // Serve stale data and back off, rather than refetching all three files on every lookup during an outage.
-      if (entry) return this.parse(entry.value, entry.fetchedAt, this.clock.now() + RETRY_MS);
+      // Serve stale data and back off, rather than refetching all three files on every lookup during an outage;
+      // never past the data's stale lifetime. If the cache lost the row, the parsed copy in memory still counts.
+      const t = this.clock.now();
+      if (entry) return this.parse(entry.value, entry.fetchedAt, Math.min(t + RETRY_MS, entry.staleUntil), entry.staleUntil);
+      if (this.parsed && t < this.parsed.staleUntil) {
+        this.parsed.validUntil = Math.min(t + RETRY_MS, this.parsed.staleUntil);
+        return this.parsed.index;
+      }
       if (err instanceof RdapError) throw new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
       throw err;
     }
@@ -103,9 +115,10 @@ export class Bootstrap {
     return this.inflight;
   }
 
-  private parse(raw: RawBootstrap, fetchedAt: number, validUntil: number): Index {
+  private parse(raw: RawBootstrap, fetchedAt: number, validUntil: number, staleUntil: number): Index {
     if (this.parsed?.fetchedAt === fetchedAt) {
       this.parsed.validUntil = validUntil;
+      this.parsed.staleUntil = staleUntil;
       return this.parsed.index;
     }
     const index: Index = { ip: [], asn: [], bases: new Map(), hosts: new Set() };
@@ -159,7 +172,7 @@ export class Bootstrap {
         if (Number.isInteger(start) && Number.isInteger(end)) index.asn.push({ start, end, route });
       }
     }
-    this.parsed = { fetchedAt, index, validUntil };
+    this.parsed = { fetchedAt, index, validUntil, staleUntil };
     return index;
   }
 }

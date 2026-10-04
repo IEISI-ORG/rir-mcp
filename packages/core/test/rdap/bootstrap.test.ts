@@ -108,6 +108,64 @@ describe('Bootstrap', () => {
     expect(fetch.calls.length).toBe(afterFailure + 3); // retried after the back-off, and recovered
   });
 
+  it('keeps its stale fallback on a busy server whose cache evicts the bootstrap row', async () => {
+    let up = true;
+    const route = (body: unknown) => (): FakeRoute => (up ? { body } : { status: 503, text: '' });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route(IANA.ipv4),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route(IANA.ipv6),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route(IANA.asn),
+    });
+    const clock = new FakeClock();
+    const cache = new MemoryCache(clock, { maxEntries: 100 });
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache, clock });
+    await boot.routeAsn(4608);
+    // A day of other answers filling the cache, with lookups in between.
+    for (let i = 0; i < 100; i++) {
+      clock.advance(14 * 60_000);
+      await cache.put(`answer:${i}`, { value: i, fetchedAt: clock.now(), freshUntil: clock.now() + 3_600_000, staleUntil: clock.now() + 7 * 86_400_000 });
+      await boot.routeAsn(4608);
+    }
+    up = false;
+    clock.advance(2 * 3_600_000); // past the bootstrap's 24 h freshness
+    const before = fetch.calls.length;
+    for (let i = 0; i < 3; i++) expect((await boot.routeAsn(4608))?.rir).toBe('apnic');
+    expect(fetch.calls.length - before).toBe(3); // one failed refresh, then the back-off
+  });
+
+  it('falls back to the parsed copy in memory when the cache has lost the row during an outage', async () => {
+    let up = true;
+    const route = (body: unknown) => (): FakeRoute => (up ? { body } : { status: 503, text: '' });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route(IANA.ipv4),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route(IANA.ipv6),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route(IANA.asn),
+    });
+    const clock = new FakeClock();
+    const cache = new MemoryCache(clock);
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache, clock });
+    await boot.routeAsn(4608);
+    cache.get = async () => null; // the row is gone (evicted, or another store)
+    up = false;
+    clock.advance(25 * 3_600_000);
+    expect((await boot.routeAsn(4608))?.rir).toBe('apnic');
+    const after = fetch.calls.length;
+    await boot.routeAsn(4608);
+    expect(fetch.calls.length).toBe(after); // and it backs off
+  });
+
+  it('never serves the bootstrap past its stale lifetime', async () => {
+    const { boot, clock, cache, fetch } = setup();
+    await boot.routeAsn(4608);
+    const down = setup(true);
+    const later = new Bootstrap({ http: { fetch: down.fetch, userAgent: 't' }, cache, clock });
+    clock.advance(7 * 86_400_000 - 60_000); // one minute before staleUntil
+    expect((await later.routeAsn(4608))?.rir).toBe('apnic');
+    clock.advance(2 * 60_000); // past staleUntil, inside what would be the 5-minute back-off
+    await expect(later.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    void fetch;
+  });
+
   it('keeps failing loudly, not routing nowhere, after an empty IANA response with nothing cached', async () => {
     const empty = { services: [] };
     const fetch = fakeFetch({
