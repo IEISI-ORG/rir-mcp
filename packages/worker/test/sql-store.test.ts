@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
-import type { CacheEntry, Clock } from '@ieisi/rir-mcp-core';
+import { MemoryClientGate, MemoryRateLimiter, type BucketState, type CacheEntry, type ClientState, type Clock } from '@ieisi/rir-mcp-core';
 import { describe, expect, it } from 'vitest';
 import { createTables, purgeExpiredScanUnits, SqlCache, SqlStateMap } from '../src/sql-store';
 
@@ -106,6 +106,34 @@ describe('SqlCache', () => {
     await inDo('cache-evict', (sql) => new SqlCache(sql, new FakeClock()).put('k', e));
     await evictDurableObject(stub('cache-evict'));
     expect(await inDo('cache-evict', (sql) => new SqlCache(sql, new FakeClock()).get('k'))).toEqual(e);
+  });
+});
+
+describe('limiter and gate state through eviction (Review Focus 3)', () => {
+  it('keeps an hourly cap window (LACNIC-style) across eviction', async () => {
+    const profiles = { lacnic: { ratePerS: 100, burst: 100, hourlyCap: 2 } };
+    const clock = new FakeClock();
+    const make = (sql: SqlStorage) => new MemoryRateLimiter(profiles, clock, new SqlStateMap<BucketState>(sql, 'limiter'));
+    await inDo('limiter-evict', async (sql) => {
+      const l = make(sql);
+      expect((await l.acquire('lacnic', 1)).ok).toBe(true);
+      expect((await l.acquire('lacnic', 1)).ok).toBe(true);
+    });
+    await evictDurableObject(stub('limiter-evict'));
+    expect((await inDo('limiter-evict', (sql) => make(sql).acquire('lacnic', 1))).ok).toBe(false);
+  });
+
+  it('keeps a suspension across eviction', async () => {
+    const clock = new FakeClock();
+    const alpha = { clientId: 'alpha', quotaPerHour: 60 };
+    const make = (sql: SqlStorage) => new MemoryClientGate(clock, { state: new SqlStateMap<ClientState>(sql, 'gate'), salt: 's', scanThreshold: 1 });
+    await inDo('gate-evict', async (sql) => {
+      const g = make(sql);
+      await g.observe(alpha, 'as:1');
+      expect(await g.observe(alpha, 'as:2')).toMatchObject({ ok: false, reason: 'suspended' });
+    });
+    await evictDurableObject(stub('gate-evict'));
+    expect(await inDo('gate-evict', (sql) => make(sql).charge(alpha, 1))).toMatchObject({ ok: false, reason: 'suspended' });
   });
 });
 
