@@ -253,7 +253,7 @@ One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatical
 
 ### Logging
 
-Logged: tool, RIR, cache outcome (hit/miss/stale), upstream status, latency, clientId. **Not logged:** query values, API keys, `Authorization` headers, registry payloads.
+Logged: tool, RIR, cache outcome (hit/miss/stale), outcome code (e.g. `record`, `not_found`, `rate_limited`, `upstream`; amended 2026-10-04: the code, not the raw upstream HTTP status), latency, clientId. **Not logged:** query values, API keys, `Authorization` headers, registry payloads.
 
 ### Prompt-injection controls
 

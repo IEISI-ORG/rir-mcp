@@ -2,7 +2,7 @@ import { DEFAULT_LIMITS, MemoryCache, MemoryClientGate, MemoryRateLimiter, RirSe
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { CLIENT_CAPABILITIES_META_KEY, CLIENT_INFO_META_KEY, PROTOCOL_VERSION_META_KEY } from '@modelcontextprotocol/server';
 import { request } from 'node:http';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHttpApp } from '../src/http-app';
 import { startHttp, toWebRequest } from '../src/http-bridge';
 import { fakeFetch } from '../../core/test/support/fake-fetch';
@@ -19,6 +19,7 @@ const POST_HEADERS = { 'content-type': 'application/json', accept: 'application/
 let base = '';
 let close: () => Promise<void> = async () => {};
 const logs: Array<Record<string, unknown>> = [];
+let service: RirService;
 
 beforeAll(async () => {
   const clock = new FakeClock();
@@ -26,7 +27,7 @@ beforeAll(async () => {
     ...ianaRoutes(),
     'https://rdap.apnic.net/ip/1.1.1.1': { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
   });
-  const service = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+  service = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
   const app = createHttpApp({
     service,
     gate: new MemoryClientGate(clock),
@@ -99,8 +100,17 @@ describe('Streamable HTTP server', () => {
   it('returns 404 off /mcp and 413 for an oversized body', async () => {
     expect((await fetch(`${base}/other`)).status).toBe(404);
     const big = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping', params: { pad: 'x'.repeat(70_000) } });
-    const res = await fetch(`${base}/mcp`, { method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}` }, body: big });
-    expect(res.status).toBe(413);
+    const forClient = vi.spyOn(service, 'forClient');
+    try {
+      const res = await fetch(`${base}/mcp`, { method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}` }, body: big });
+      expect(res.status).toBe(413);
+      expect(forClient).not.toHaveBeenCalled(); // refused before any per-request server was built
+      const ok = await fetch(`${base}/mcp`, { method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}` }, body: INIT });
+      expect(ok.status).toBe(200);
+      expect(forClient).toHaveBeenCalled(); // the spy does see a normal request
+    } finally {
+      forClient.mockRestore();
+    }
   });
 
   it('logs calls with clientId and rejections with a reason, never query values or keys', async () => {
