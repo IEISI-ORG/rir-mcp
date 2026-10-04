@@ -87,7 +87,8 @@ export function historyView(rec: HistoryRecord, opts: HistoryViewOpts, meta?: Me
 type TimelineView = Extract<HistoryView, { mode: 'timeline' }>;
 
 function renderTimeline(v: TimelineView, rec: HistoryRecord, meta?: Meta): string {
-  const header = `${v.key}  history (${RIR_LABEL[rec.rir]} RDAP, ${v.rawRecords} records -> ${v.totalChanges} changes${v.since ? ` since ${v.since}` : ''})`;
+  // Fixed text first: the key is registry-controlled, and at the start of a line "# X" would render as a heading.
+  const header = `history of ${v.key}  (${RIR_LABEL[rec.rir]} RDAP, ${v.rawRecords} records -> ${v.totalChanges} changes${v.since ? ` since ${v.since}` : ''})`;
   const note = v.omitted > 0 ? [`... ${v.omitted} earlier changes omitted; narrow with since=YYYY-MM-DD`] : [];
   return [header, ...note, ...v.changes.map((c) => cap(changeLine(c))), ...v.covering.map((c) => cap(coveringLine(c))), sourceLine(meta)].join('\n');
 }

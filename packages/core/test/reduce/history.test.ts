@@ -60,9 +60,16 @@ describe('reduceHistory (synthetic)', () => {
     expect(stateAt(h, '2000-01-01')).toBeNull();
   });
 
+  it('never starts a line with registry text, so a key like "# X" cannot render as a heading or list', () => {
+    const [first, ...rest] = h.objects;
+    const hostile = { ...h, objects: [{ ...first!, key: '# Heading' }, ...rest] };
+    const text = renderHistory(hostile, meta, { detail: 'summary' });
+    for (const line of text.split('\n')) expect(line, line).not.toMatch(/^\s{0,3}(#|[-+*>]|\d+[.)])(\s|$)/);
+  });
+
   it('renders the summary timeline', () => {
     expect(renderHistory(h, meta, { detail: 'summary' })).toBe([
-      '192.0.2.0/24  history (APNIC RDAP, 7 records -> 5 changes)',
+      'history of 192.0.2.0/24  (APNIC RDAP, 7 records -> 5 changes)',
       '2010-01-01  created    ALPHA  ASSIGNED PORTABLE  AU  active',
       '2011-06-01  withdrawn',
       '2011-06-02  re-created ALPHA  ASSIGNED PORTABLE  AU  active',
@@ -114,7 +121,7 @@ describe('latestFrom and byte budget (synthetic)', () => {
     const text = renderHistory(h, meta, { detail: 'summary' });
     expect(new TextEncoder().encode(text).length).toBeLessThan(1500);
     expect(text).toContain('earlier changes omitted; narrow with since=YYYY-MM-DD');
-    expect(text.split('\n')[0]).toContain('192.0.2.0/24  history (APNIC RDAP, 45 records');
+    expect(text.split('\n')[0]).toContain('history of 192.0.2.0/24  (APNIC RDAP, 45 records');
     expect(text).toContain('source    APNIC RDAP, fetched just now');
     expect(text.split('\n').filter((l) => l.startsWith('covering')).length).toBeLessThanOrEqual(3);
   });

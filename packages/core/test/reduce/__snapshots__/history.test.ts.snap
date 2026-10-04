@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`reduceHistory (recorded APNIC fixtures) > 1.1.1.1: provenance of 1.1.1.0/24 1`] = `
-"1.1.1.0/24  history (APNIC RDAP, 55 records -> 5 changes)
+"history of 1.1.1.0/24  (APNIC RDAP, 55 records -> 5 changes)
 2010-01-22  created    Debogon-prefix  ASSIGNED PORTABLE  AU  active
 2011-08-09  withdrawn
 2011-08-10  re-created Debogon-prefix  ASSIGNED PORTABLE  AU  active
