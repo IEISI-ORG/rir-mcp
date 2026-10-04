@@ -135,6 +135,7 @@ Allow-list entries are bare hostnames: `rdap.example.net` or `[::1]`, with no sc
 1. Put a TLS-terminating reverse proxy (nginx, Caddy, a load balancer) in front. The server itself speaks plain HTTP.
 2. Either keep the server on `127.0.0.1` behind the proxy, or bind it to an internal address with `RIR_MCP_HTTP_HOST`.
 3. Set `RIR_MCP_ALLOWED_HOSTS` to the public hostname clients use, e.g. `rdap.example.net`. This blocks DNS-rebinding attacks.
+4. Run **exactly one** server process per egress IP address. Rate limits, quotas and scan detection live in that process's memory: N replicas behind a load balancer (Kubernetes, PM2 cluster, several containers) would send N times the published per-registry rate from one address and give every key N times its quota. For more capacity, use the Cloudflare deployment, whose single Durable Object keeps the limits exact.
 
 ### Connect a client
 
@@ -230,6 +231,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<your host>/mcp   # 401
 claude mcp add --transport http rir-mcp https://<your host>/mcp --header "Authorization: Bearer rirmcp_..."
 ```
 
+### Protect it from unauthenticated floods
+
+Requests without a valid key never reach the Durable Object, but each one still costs a Worker invocation, a log line and (for a well-formed random key) a KV read. In the Cloudflare dashboard, add a rate-limiting rule (Security → WAF → Rate limiting rules) for your hostname, for example 60 requests per minute per IP to `/mcp`, so a flood of bad keys is dropped at the edge.
+
 ### How it differs from the Node server
 
 - **State survives restarts and deploys.** Quotas, rate-limit windows and suspensions are stored in the Durable Object, so a 24-hour suspension lasts 24 hours even across a redeploy.
@@ -306,6 +311,7 @@ Set the variable (see the client sections above). An invalid value gives `rir-mc
 
 - Contacts of individual people are never returned or cached.
 - Queried values are never logged.
+- Shared servers: an answer says whether it came from the cache and how old it is (`cached 5m ago`), so one key can tell whether anyone queried a resource recently. Answers hold public registry data only; the call rate and scan detection bound such probing.
 - stdio mode: stderr carries only the startup line and `internal error (<type>)` lines.
 - HTTP mode: stderr carries the startup line and the JSON log lines described under *Logs*; API keys are stored only as SHA-256 hashes.
 - Cloudflare: Workers Logs carries the same JSON lines; invocation logs (which record request headers) are off; API keys are stored only as SHA-256 hashes in KV or as a Worker secret.
