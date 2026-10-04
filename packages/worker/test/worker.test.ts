@@ -103,6 +103,17 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect((await call(req(bearer(TEST_KEY)), upper)).status).toBe(200);
   });
 
+  it('refuses an oversized body at the edge with 413, without reaching the DO', async () => {
+    const w = watchedEnv();
+    const big = new Request('https://mcp.example.net/mcp', {
+      method: 'POST',
+      headers: { host: 'mcp.example.net', 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...bearer(TEST_KEY) },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping', params: { pad: 'x'.repeat(70_000) } }),
+    });
+    expect((await call(big, w.env)).status).toBe(413);
+    expect(w.reached()).toBe(false);
+  });
+
   it('answers 404 off the /mcp path', async () => {
     expect((await call(req(bearer(TEST_KEY), '/other'))).status).toBe(404);
   });

@@ -242,6 +242,7 @@ Requests without a valid key never reach the Durable Object, but each one still 
 - **Scan detection** keeps salted hashes of queried /24s, /48s, AS numbers and handles for the client's current hour, and at most about an hour after it ends: they are dropped when a client is suspended, and an hourly alarm deletes any left from ended hours.
 - **Cache:** the same limits as Node (10,000 entries, 50 MB), but stored in the Durable Object, so it survives restarts and deploys.
 - **Logs** go to Workers Logs: the same value-free JSON lines as the Node server's stderr. Cloudflare's own invocation logs are turned off in `wrangler.jsonc`, because they record request headers, including the `Authorization` header that carries the API key. Traces are pinned off too, because they record outbound fetch URLs, which contain the queried address or AS number. Do not turn either back on. `wrangler tail` and Tail Workers receive request headers whatever these settings say: treat a tail session as able to see API keys.
+- **Request bodies** are read at the edge after the key check: over 64 KiB gives 413, and a body that takes more than 10 seconds to arrive gives 408, so a slow client never holds the Durable Object.
 - **One Durable Object** serves every client, so rate limits and request de-duplication are exact worldwide. Requests from far away pay one round trip to its location.
 
 ## Checking that it works
