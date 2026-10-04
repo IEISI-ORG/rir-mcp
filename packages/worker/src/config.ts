@@ -31,7 +31,10 @@ export function loadWorkerConfig(env: WorkerEnv): ConfigResult {
   const allowedOrigins = list(env.ALLOWED_ORIGINS);
   if (!allowedOrigins) return { error: 'ALLOWED_ORIGINS' };
   // Per-user keys only when the operator says so: the KV binding is always declared, possibly empty.
-  if (env.KEYS_MODE === 'kv') return { keyStore: new KvKeyStore(env.API_KEYS), allowedHosts, allowedOrigins };
+  if (env.KEYS_MODE === 'kv') {
+    if (!env.API_KEYS) return { error: 'API_KEYS' };
+    return { keyStore: new KvKeyStore(env.API_KEYS), allowedHosts, allowedOrigins };
+  }
   if (env.KEYS_MODE !== undefined && env.KEYS_MODE !== '') return { error: 'KEYS_MODE' };
   if (!env.API_KEY) return { error: 'API_KEY' };
   try {

@@ -32,6 +32,8 @@ describe('Worker entry: fail closed on missing configuration (Review Focus 5)', 
     ['ALLOWED_HOSTS not a bare hostname', { ALLOWED_HOSTS: 'https://mcp.example.net' }],
     ['ALLOWED_ORIGINS not a bare hostname', { ALLOWED_ORIGINS: 'app.example.net:443' }],
     ['no key source', { API_KEY: undefined, KEYS_MODE: '' }],
+    ['KEYS_MODE kv without the API_KEYS binding', { KEYS_MODE: 'kv', API_KEYS: undefined }],
+    ['an unknown KEYS_MODE', { KEYS_MODE: 'KV ' }],
     ['a malformed API_KEY', { API_KEY: 'secret' }],
   ])('%s → 503 not_configured, one log line, no DO', async (_name, override) => {
     const before = await doCount();

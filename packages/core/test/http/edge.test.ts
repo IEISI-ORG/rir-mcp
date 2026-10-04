@@ -63,4 +63,15 @@ describe('edgeGate', () => {
     const text = JSON.stringify(logs);
     for (const secret of [WRONG, 'evil.example', 'Bearer']) expect(text).not.toContain(secret);
   });
+
+  it('logs a key-store failure as auth_error, not as a bad key', async () => {
+    const logs: Record<string, unknown>[] = [];
+    const gate = edgeGate({
+      keyStore: { verify: () => Promise.reject(new Error('KV unavailable')) },
+      allowedHosts: ['mcp.example.net'], allowedOrigins: [], log: (l) => logs.push(l),
+    });
+    const out = await gate(req('/mcp', auth));
+    expect((out as Response).status).toBe(500);
+    expect(logs).toEqual([{ t: expect.any(String), status: 500, reason: 'auth_error' }]);
+  });
 });

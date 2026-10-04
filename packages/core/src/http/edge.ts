@@ -12,7 +12,7 @@ export interface EdgeGateOptions {
   readonly log: (line: Record<string, unknown>) => void;
 }
 
-type Reason = 'not_found' | 'bad_host' | 'bad_origin' | 'unauthorized';
+type Reason = 'not_found' | 'bad_host' | 'bad_origin' | 'unauthorized' | 'auth_error';
 
 /** Allow-list entries: the SDK matches Host/Origin by bare hostname (no scheme, no port; IPv6 in brackets). */
 export const BARE_HOST = /^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)$/;
@@ -46,7 +46,8 @@ export function edgeGate(o: EdgeGateOptions): (req: Request) => Promise<{ client
     const badOrigin = originValidationResponse(req, o.allowedOrigins);
     if (badOrigin) return reject(badOrigin.status, 'bad_origin', badOrigin);
     const auth = await authenticate(req);
-    if (auth instanceof Response) return reject(auth.status, 'unauthorized', auth);
+    // A key store that throws (e.g. KV unavailable) surfaces as the SDK's 500: still a rejection, but not a bad key.
+    if (auth instanceof Response) return reject(auth.status, auth.status >= 500 ? 'auth_error' : 'unauthorized', auth);
     return { client: { clientId: auth.clientId, quotaPerHour: Number(auth.extra?.quotaPerHour) } };
   };
 }
