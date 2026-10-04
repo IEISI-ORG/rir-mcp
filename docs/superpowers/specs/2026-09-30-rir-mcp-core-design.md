@@ -52,7 +52,7 @@ pnpm monorepo, TypeScript, three packages:
 
 - **`@ieisi/rir-mcp-core`**: tools, input parsing, special-use registry, bootstrap router, RDAP client, reducers, renderer, port interfaces. Uses only `fetch` and Web APIs; no Node or Workers imports.
 - **`@ieisi/rir-mcp-node`**: stdio and Streamable HTTP entry points; in-memory backends.
-- **`@ieisi/rir-mcp-worker`**: Cloudflare Worker; one Durable Object (`StateDO`, SQLite storage) for cache, limiter, quotas, scan detector; secret or KV for auth.
+- **`@ieisi/rir-mcp-worker`**: Cloudflare Worker; one Durable Object (`StateDO`, SQLite storage) for cache, limiter, quotas, scan detector; secret or KV for auth. *(Amended 2026-10-04, Q9:)* the edge Worker does the path, Host, Origin and key checks, then makes one RPC to `StateDO`, which runs the MCP handler itself over its SQLite state. One round trip per request instead of one per cache, limiter and quota step.
 
 ```
 packages/
@@ -223,7 +223,7 @@ On upstream 429 or 5xx the RIR's rate halves for 5 minutes, then restores. Profi
 | Limiter + quotas + scan counters | in-process | `StateDO` |
 | Keys | `RIR_MCP_API_KEY` env, or keys file of SHA-256 hashes | secret or KV (§7) |
 
-One Durable Object instance holds all shared state for a deployment (global consistency, no KV write limits). Shard by RIR if it becomes a bottleneck.
+One Durable Object instance holds all shared state for a deployment (global consistency, no KV write limits) and serves every MCP request (Q9). Shard by RIR if it becomes a bottleneck. The Worker cache is bounded by entry count (10k) and total bytes (50 MB); state survives Durable Object eviction; scan-detector digests are kept only for the current hour (purged by an alarm).
 
 ## 7. Security, access, Terms of Use
 
@@ -239,9 +239,9 @@ One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatical
 
 - Per-user mode takes precedence if both are configured.
 - Keys: `rirmcp_` + 32 random bytes base64url; only hashes stored (per-user mode). Comparison is constant-time.
-- KV is eventually consistent: changes "may take up to 60 seconds or more" to reach other locations [CF-KV], so a revoked key can keep working briefly. Accepted: data is public and quotas still apply. For urgent revocation, also add the key's hash to a deny-list in `StateDO` (strongly consistent).
-- Revocation parity (decided 2026-10-03, QUESTIONS.md Q4): operators get one model on both runtimes ("edit the keys; effective in under a minute"). Node re-reads the keys file at most every 30 s and reloads when its contents change (not mtime: `cp -p`/`rsync -t` preserve it); if the file becomes unreadable or invalid, every key is rejected until it is fixed and one error is logged — fail closed at runtime as at startup, so a half-finished revocation never leaves old keys live. Cloudflare checks the `StateDO` deny-list on the same per-request DO call the quota check already makes.
-- `scripts/keys.ts create|revoke|list` manages KV records; a key is issued only after the client accepts the ToU (version recorded).
+- KV is eventually consistent: changes "may take up to 60 seconds or more" to reach other locations [CF-KV], so a revoked key can keep working briefly. Accepted: data is public and quotas still apply. ~~For urgent revocation, also add the key's hash to a deny-list in `StateDO` (strongly consistent).~~ *(Deferred 2026-10-04, Q10: no admin endpoint yet; revoke by deleting the KV record, effective within about 60 s.)*
+- Revocation parity (decided 2026-10-03, QUESTIONS.md Q4): operators get one model on both runtimes ("edit the keys; effective in under a minute"). Node re-reads the keys file at most every 30 s and reloads when its contents change (not mtime: `cp -p`/`rsync -t` preserve it); if the file becomes unreadable or invalid, every key is rejected until it is fixed and one error is logged — fail closed at runtime as at startup, so a half-finished revocation never leaves old keys live. ~~Cloudflare checks the `StateDO` deny-list on the same per-request DO call the quota check already makes.~~ *(Q10: Cloudflare revocation is the KV delete above.)*
+- `scripts/keys.ts create|revoke|list` manages KV records; a key is issued only after the client accepts the ToU (version recorded). *(As built 2026-10-04: `keys.ts new … --target kv` and `revoke <key|sha256> --target kv` print the `wrangler kv key put/delete` commands for the operator to run; no network calls. `list` is not built: `wrangler kv key list --binding API_KEYS` lists hashes. ToU version recording waits for Plan 4.)*
 - Node HTTP binds to `127.0.0.1` by default; both HTTP entry points validate `Origin` and return 403 when it is present and invalid [MCP-HTTP]; public binding is an explicit option.
 - stdio: no auth (local user is the operator).
 

@@ -48,11 +48,40 @@ describe('scripts/keys.ts', () => {
     expect(r.stdout.trim()).toBe(await sha256Hex(key));
   });
 
+  it('new --target kv prints a key, then a wrangler command that stores its record and never contains the key', async () => {
+    const r = run('scripts/keys.ts', ['new', 'acme-noc', '120', '--target', 'kv']);
+    expect(r.status).toBe(0);
+    const [key = '', command = ''] = r.stdout.trim().split('\n');
+    expect(key).toMatch(KEY_RE);
+    const m = /^npx wrangler kv key put ([0-9a-f]{64}) '(\{[^']*\})' --binding API_KEYS --remote$/.exec(command);
+    expect(m).not.toBeNull();
+    expect(m?.[1]).toBe(await sha256Hex(key));
+    const [rec] = parseKeyRecords([{ ...JSON.parse(m?.[2] ?? ''), sha256: m?.[1] }]);
+    expect(rec).toMatchObject({ clientId: 'acme-noc', quotaPerHour: 120 });
+    expect(command).not.toContain(key);
+    expect(command).not.toContain('rirmcp_');
+  });
+
+  it('revoke --target kv prints the delete command for a key or for its hash', async () => {
+    const key = `rirmcp_${'A'.repeat(43)}`;
+    const hash = await sha256Hex(key);
+    const expected = `npx wrangler kv key delete ${hash} --binding API_KEYS --remote`;
+    for (const arg of [key, hash]) {
+      const r = run('scripts/keys.ts', ['revoke', arg, '--target', 'kv']);
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim()).toBe(expected);
+    }
+  });
+
   it.each([
     ['a clientId that is not opaque', ['new', 'Jane Smith']],
     ['a bad quota', ['new', 'acme', '0']],
     ['hash of a malformed key', ['hash', 'nope']],
     ['no command', []],
+    ['an unknown target', ['new', 'acme', '--target', 'd1']],
+    ['revoke without --target kv', ['revoke', `rirmcp_${'A'.repeat(43)}`]],
+    ['revoke of something that is neither a key nor a hash', ['revoke', 'acme', '--target', 'kv']],
+    ['new --raw --target kv (single keys are a wrangler secret)', ['new', '--raw', '--target', 'kv']],
   ])('rejects %s with exit 2 and no key on stdout', (_name, args) => {
     const r = run('scripts/keys.ts', args);
     expect(r.status).toBe(2);

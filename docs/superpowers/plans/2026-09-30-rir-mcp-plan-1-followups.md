@@ -45,6 +45,13 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 - README says raw RDAP JSON is "4–250 KB"; the fixtures go up to 370 KB (history). Reword.
 - Task 8 docs: describe Worker persistence accurately (suspensions survive restarts; salted digests persist for up to an hour), and check whether Workers Logs records request headers such as `Authorization` before deploying.
 
+## Plan 3 (Cloudflare Worker) — open items after Task 8
+
+- Not yet run on a live Cloudflare account. First deploy: follow `docs/deployment.md` → Cloudflare Workers, then run one live lookup per RIR through the Worker. Do the iteration-10 "before the first Worker deploy" items first (cache column order, `schema_version`).
+- `wrangler` sends anonymous usage telemetry by default; set `WRANGLER_SEND_METRICS=false` when running it here.
+- Single-key Worker deployments have a fixed quota of 60/hour (no `QUOTA_PER_HOUR` var yet); per-user KV records set their own.
+- Urgent revocation (StateDO deny-list, admin endpoint) deferred by Q10.
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)

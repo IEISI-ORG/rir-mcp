@@ -7,7 +7,7 @@
 | Local stdio (Claude Code / Claude Desktop) | Available |
 | Self-hosted HTTP (Streamable HTTP, API keys) | Available |
 | Docker image | Not yet available (Plan 4) |
-| Cloudflare Workers | Not yet available (Plan 3) |
+| Cloudflare Workers (edge Worker + one Durable Object, API keys) | Available; tested locally in workerd, not yet run on a live account |
 
 Both available modes run from a clone of this repository (see *Install and verify*). They share the cache, rate limits and privacy rules described below.
 
@@ -157,7 +157,7 @@ Each request is checked in this order: path `/mcp` (else 404), `Host` allow-list
 ### Quotas and scan detection
 
 - **Quota:** each key may make `quotaPerHour` upstream lookups per hour (default 60). Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
-- **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values. A restart lifts all suspensions.
+- **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values, and only for the current hour. A restart lifts all suspensions. (On Cloudflare, state persists: see below.)
 
 ### Logs
 
@@ -169,6 +169,73 @@ stderr carries one JSON line per tool call and per rejected request, for example
 ```
 
 Logs never contain queried values, API keys, `Authorization` headers or registry data. Errors are logged by type only.
+
+## Cloudflare Workers
+
+The Worker serves the same five tools at `https://<your host>/mcp`. Cloudflare runs the edge part close to each client: it checks the path, `Host`, `Origin` and API key there. It then forwards the request to a single Durable Object, which holds the cache, the per-RIR rate limits, the quotas and the scan detector in its own SQLite storage.
+
+Commands below are for you to run against your own Cloudflare account. Nothing in this repository deploys anything. Run them from `packages/worker`; `npx wrangler` uses the copy installed there.
+
+### Set up
+
+```bash
+cd packages/worker
+npx wrangler login
+npx wrangler kv namespace create API_KEYS   # prints the namespace id
+```
+
+Edit `wrangler.jsonc`:
+
+- `kv_namespaces[0].id`: the id printed above.
+- `vars.OPERATOR`: your operator contact, with the same rules as `RIR_MCP_OPERATOR` (printable ASCII, no parentheses or semicolons, at most 200 characters).
+- `vars.ALLOWED_HOSTS`: the hostname clients connect to, for example `rir-mcp.<your-subdomain>.workers.dev` or your custom domain. Bare hostnames only, comma-separated.
+- `vars.ALLOWED_ORIGINS`: leave empty unless a browser-based client must connect; then list its hostname.
+- `vars.KEYS_MODE`: empty for a single key, `kv` for per-user keys.
+
+If any of `OPERATOR`, `ALLOWED_HOSTS` or the key source is missing or invalid, the Worker answers **503** `{"error":"not_configured"}` to every request and logs which setting is wrong (never its value).
+
+### API keys
+
+Single key (`KEYS_MODE` empty): store it as a secret, then give it to the client.
+
+```bash
+KEY="$(../../node_modules/.bin/tsx ../../scripts/keys.ts new --raw)"
+printf '%s' "$KEY" | npx wrangler secret put API_KEY
+echo "$KEY"
+```
+
+Per-user keys (`KEYS_MODE` set to `kv`): each key's record lives in the `API_KEYS` namespace under the key's SHA-256. The `API_KEY` secret is ignored in this mode.
+
+```bash
+../../node_modules/.bin/tsx ../../scripts/keys.ts new acme-noc 60 --target kv
+# line 1: the key, give it to the client (shown once, never stored)
+# line 2: a `npx wrangler kv key put <sha256> '{"clientId":"acme-noc","quotaPerHour":60}' ...` command, run it
+```
+
+To revoke a key, pass the key or its SHA-256 and run the command it prints:
+
+```bash
+../../node_modules/.bin/tsx ../../scripts/keys.ts revoke <key-or-sha256> --target kv
+# npx wrangler kv key delete <sha256> --binding API_KEYS --remote
+```
+
+KV is cached at the edge for up to 60 seconds, so additions and revocations take effect within about a minute. A record that is malformed (bad JSON, missing or zero quota, a `clientId` that is not an opaque id) is treated as no key.
+
+### Deploy and check
+
+```bash
+npx wrangler deploy
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<your host>/mcp   # 401
+claude mcp add --transport http rir-mcp https://<your host>/mcp --header "Authorization: Bearer rirmcp_..."
+```
+
+### How it differs from the Node server
+
+- **State survives restarts and deploys.** Quotas, rate-limit windows and suspensions are stored in the Durable Object, so a 24-hour suspension lasts 24 hours even across a redeploy.
+- **Scan detection** keeps salted hashes of queried /24s, /48s, AS numbers and handles only for the current hour. They are dropped when a client is suspended, and an hourly alarm deletes any left from ended hours.
+- **Cache:** at most 10,000 entries and 50 MB, least recently used first out. A single answer over 500 KB is not cached.
+- **Logs** go to Workers Logs: the same value-free JSON lines as the Node server's stderr. Cloudflare's own invocation logs are turned off in `wrangler.jsonc`, because they record request headers, including the `Authorization` header that carries the API key. Do not turn them back on.
+- **One Durable Object** serves every client, so rate limits and request de-duplication are exact worldwide. Requests from far away pay one round trip to its location.
 
 ## Checking that it works
 
@@ -240,4 +307,5 @@ Set the variable (see the client sections above). An invalid value gives `rir-mc
 - Queried values are never logged.
 - stdio mode: stderr carries only the startup line and `internal error (<type>)` lines.
 - HTTP mode: stderr carries the startup line and the JSON log lines described under *Logs*; API keys are stored only as SHA-256 hashes.
+- Cloudflare: Workers Logs carries the same JSON lines; invocation logs (which record request headers) are off; API keys are stored only as SHA-256 hashes in KV or as a Worker secret.
 - Terms of Use: https://github.com/IEISI-ORG/rir-mcp/blob/main/TERMS_OF_USE.md (to be published).

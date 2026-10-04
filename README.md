@@ -71,7 +71,7 @@ Early development. Interfaces and output may still change.
 |------|--------|
 | Local stdio (Claude Code, Claude Desktop) | Available |
 | Self-hosted HTTP with API keys | Available |
-| Cloudflare Workers | In progress |
+| Cloudflare Workers | Available; not yet run on a live account |
 | Docker image, npm package | Planned |
 
 ## Development
@@ -87,7 +87,7 @@ RIR_MCP_OPERATOR='https://your-tracker.example/issues' corepack pnpm test:live  
 |---------|----------|
 | `packages/core` | Runtime-neutral server: RDAP client, reducers, rendering, rate limits, auth. No Node or Cloudflare imports. |
 | `packages/node` | stdio and HTTP entry points for Node. |
-| `packages/worker` | Cloudflare Worker and Durable Object (in progress). |
+| `packages/worker` | Cloudflare Worker and Durable Object. |
 
 The design is in [docs/superpowers/specs/](docs/superpowers/specs/2026-09-30-rir-mcp-core-design.md) and the implementation plans are in [docs/superpowers/plans/](docs/superpowers/plans/).
 

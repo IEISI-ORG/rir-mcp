@@ -10,5 +10,7 @@
   // Required at deploy time; the Worker answers 503 while OPERATOR or ALLOWED_HOSTS is empty.
   // KEYS_MODE "kv" selects per-user keys in API_KEYS; otherwise the API_KEY secret (wrangler secret put API_KEY).
   "vars": { "OPERATOR": "", "ALLOWED_HOSTS": "", "ALLOWED_ORIGINS": "", "KEYS_MODE": "" },
-  "observability": { "enabled": true }
+  // Our own log lines carry no values. Invocation logs record request headers (including Authorization, i.e. the
+  // API key) and Cloudflare does not document redacting them, so they stay off. Do not re-enable.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } }
 }
