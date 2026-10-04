@@ -179,6 +179,18 @@ describe('Bootstrap', () => {
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
   });
 
+  it('fails fast for 30 s after a cold-start failure instead of refetching on every lookup', async () => {
+    const { boot, fetch, clock } = setup(true);
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    const after = fetch.calls.length;
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    await expect(boot.routeIp(parseIpOrCidr('1.1.1.1'))).rejects.toBeInstanceOf(RdapError);
+    expect(fetch.calls.length).toBe(after);
+    clock.advance(30_000);
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    expect(fetch.calls.length).toBe(after + 3); // retried after the back-off
+  });
+
   it('throws when IANA is down and nothing is cached', async () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);

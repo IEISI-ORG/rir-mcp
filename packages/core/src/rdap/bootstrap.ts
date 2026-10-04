@@ -13,6 +13,8 @@ const STALE_MS = 7 * 24 * 3_600_000;
 const RETRY_MS = 5 * 60_000;
 /** Re-read the cache row at least this often, which also keeps it from sinking to the bottom of the LRU. */
 const MEMO_MS = 3_600_000;
+/** With no bootstrap data at all, a failed fetch is remembered this long: lookups fail fast instead of refetching. */
+const COLD_RETRY_MS = 30_000;
 
 type Service = [string[], string[]];
 interface RawFile { readonly services: readonly Service[] }
@@ -38,6 +40,7 @@ export class Bootstrap {
   /** The parsed index and how long it may be used without consulting the cache (fresh, or a retry back-off). */
   private parsed: { fetchedAt: number; index: Index; validUntil: number; staleUntil: number } | null = null;
   private inflight: Promise<RawBootstrap> | null = null;
+  private coldFailure: { until: number; error: RdapError } | null = null;
 
   constructor(deps: { http: HttpDeps; cache: CacheStore; clock: Clock }) {
     this.http = deps.http;
@@ -76,6 +79,7 @@ export class Bootstrap {
     if (this.parsed && this.clock.now() < this.parsed.validUntil) return this.parsed.index;
     const entry = await this.cache.get<RawBootstrap>(CACHE_KEY);
     const now = this.clock.now();
+    if (!entry && !this.parsed && this.coldFailure && now < this.coldFailure.until) throw this.coldFailure.error;
     if (entry && now < entry.freshUntil) {
       return this.parse(entry.value, entry.fetchedAt, Math.min(entry.freshUntil, now + MEMO_MS), entry.staleUntil);
     }
@@ -98,7 +102,11 @@ export class Bootstrap {
         this.parsed.validUntil = Math.min(t + RETRY_MS, this.parsed.staleUntil);
         return this.parsed.index;
       }
-      if (err instanceof RdapError) throw new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
+      if (err instanceof RdapError) {
+        const error = new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
+        this.coldFailure = { until: t + COLD_RETRY_MS, error };
+        throw error;
+      }
       throw err;
     }
   }
