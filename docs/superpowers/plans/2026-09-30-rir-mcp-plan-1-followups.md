@@ -16,19 +16,19 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 Fixed the same day: Medium #1 (history domain keys raw → `dnsName`), Medium #2 (deleted personal entity's history served → reducer marks `personal`, service refuses), Low #3 (redirect query/fragment/path → RDAP-path check), Low #6 (`SingleKeyStore` NaN quota → validated).
 
 - **#4 Byte-bounded memory:** `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
-- **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
+- ~~**#5 Fixed hourly windows**~~ Done 2026-10-04 (`377f1af`) for the quota (sliding window, both runtimes). Scan detection keeps its fixed window by ruling: a sliding one would retain the previous hour's salted digests. Was: **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
 - **IANA bootstrap refetch before `charge`:** during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
 
 ## Code review, iteration 5 (2026-10-04, Plan 2 Tasks 1–7) — deferred Minors
 
 Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quota fail-open in the gate. Allow-list format validation is folded into Plan 2 Task 8.
 
-- keys-file: log one "keys file reloaded" line when a broken file becomes valid again (operators cannot see recovery today).
-- `scripts/keys.ts hash <key>` puts the key in shell history and `ps`; read it from stdin when the argument is `-` or absent.
+- ~~keys-file recovery line~~ Done 2026-10-04. Was: keys-file: log one "keys file reloaded" line when a broken file becomes valid again (operators cannot see recovery today).
+- ~~keys.ts stdin~~ Done 2026-10-04 (`9317265`). Was: `scripts/keys.ts hash <key>` puts the key in shell history and `ps`; read it from stdin when the argument is `-` or absent.
 - The `rir-mcp` bin only runs via tsx (extensionless imports; workspace core is TS source) — needs the Plan 4 build.
 - Spec §7 lists "upstream status" as a logged field; `CallLog` logs the outcome code. Update the spec or add the field.
 - Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
-- EADDRINUSE at startup surfaces as an unhandled rejection rather than a clean `rir-mcp:` message.
+- ~~EADDRINUSE~~ Done 2026-10-04. Was: EADDRINUSE at startup surfaces as an unhandled rejection rather than a clean `rir-mcp:` message.
 
 ## Plan 2 Task 8 — deferred
 

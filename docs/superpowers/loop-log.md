@@ -38,6 +38,8 @@ Rules from the user:
 
 | 15 | 2026-10-04 | code review | Fresh reviewer (Opus) on `641fd1a..df94156`: 0 Critical, 1 Important, 7 Minor. Important was a regression from iteration 14: the bootstrap memo stopped refreshing the cache row's LRU position, so a busy server could evict it and lose the 7-day stale fallback during an IANA outage (reproduced). Fixed: memo capped at 1 h, in-memory stale fallback, never past `staleUntil`. Also fixed: unversioned cache table rebuilt rather than stamped; IPv6 allow-list entries canonicalised; quota range documented. 4 Minors to follow-ups. 472 root + 56 worker tests pass. | `3fdba21`, `de38145`, `ef3dc5e` |
 
-**Next iteration:** 16 — daily security audit (due 2026-10-05) if the date has turned; otherwise remaining follow-ups (record cache-hit row writes, audit #5 sliding windows, older Plan 1/2 minors, iteration-15 minors).
+| 16 | 2026-10-04 | follow-ups | No new answers; audit not yet due. Audit #5: client quotas now use a sliding hourly window (previous hour's use decays linearly; no double spend across an hour boundary; accurate retry times) on both runtimes; scan detection stays fixed-window by ruling (retention). Iteration-5 minors: keys-file recovery is logged; a busy port gives one clean line; `keys.ts hash`/`revoke` read keys from stdin. 478 root + 56 worker tests pass. | `377f1af`, `9317265` |
+
+**Next iteration:** 17 — daily security audit (due 2026-10-05) if the date has turned; otherwise remaining follow-ups (record cache-hit row writes; spec "upstream status" log field; slow-body and 413-factory tests; iteration-15 test minors; older Plan 1 task minors).
 **Next code review:** iteration 20.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
