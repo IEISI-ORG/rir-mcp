@@ -7,3 +7,4 @@ coverage/
 .superpowers/
 .wrangler/
 .dev.vars.*
+.claude/
