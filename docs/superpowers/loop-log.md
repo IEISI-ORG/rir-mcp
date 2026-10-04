@@ -34,6 +34,8 @@ Rules from the user:
 
 | 13 | 2026-10-04 | follow-ups | No new answers; audit not yet due. Worker cache: running totals in memory (no per-put table scan), `bytes` before `value`, `schema_version` 1 — the "before first deploy" items. Plan 3 final-review minors: quota capped at 1,000,000 everywhere (a typo could issue an unlimited key), uppercase hashes in `revoke`, alarm-arming failure no longer loses an answer, case-insensitive allow-lists (Node and Worker), `.gitignore`, two Worker test gaps. Node now clears idle clients' scan digests hourly. 462 root + 51 worker tests pass. | `5235d76`, `e8af5cb`, `1d428b2` |
 
-**Next iteration:** 14 — daily security audit (due 2026-10-05) if the date has turned; then remaining follow-ups (iteration-10 minors: per-hit row writes and bootstrap re-reads, authInfo helper, README size range, more eviction tests; older Plan 1/2 items; audit #5 sliding windows; Node byte-bounded cache).
+| 14 | 2026-10-04 | follow-ups | No new answers; audit not yet due. IANA bootstrap: parsed index reused while fresh (was re-read and re-parsed 2–3× per lookup) and a 5-minute back-off after a failed refresh (was 3 IANA fetches per lookup during an outage); an empty IANA response is never memoised. Node `MemoryCache` bounded by bytes (50 MB) as well as entries — closes audit Low #4 on both runtimes. `authInfoFor` helper, README size range, hourly-window and suspension eviction tests (mutation-checked). 468 root + 53 worker tests pass. | `1ad0f45`, `5d3ba1e`, `0b2270c` |
+
+**Next iteration:** 15 — code review (fresh reviewer) of `641fd1a..HEAD` (iterations 13–14 follow-ups); daily security audit too if the date has turned to 2026-10-05.
 **Next code review:** iteration 15.
 **Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
