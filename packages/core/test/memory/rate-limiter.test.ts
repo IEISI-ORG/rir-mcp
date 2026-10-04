@@ -75,6 +75,15 @@ describe('MemoryRateLimiter', () => {
     expect((await lim.acquire('apnic', 1)).ok).toBe(false);
   });
 
+  it.each([NaN, 0, -1, Infinity])('clampProfile never lets an operator value (%s) loosen or disable a limit', async (bad) => {
+    const p = clampProfile({ ratePerS: bad, burst: bad, hourlyCap: bad }, DEFAULT_LIMITS.lacnic);
+    expect(p).toEqual(DEFAULT_LIMITS.lacnic);
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter({ lacnic: p }, clock);
+    for (let i = 0; i < 3; i++) expect((await lim.acquire('lacnic', 1)).ok).toBe(true);
+    expect((await lim.acquire('lacnic', 1)).ok).toBe(false);
+  });
+
   it('throws for an unknown bucket', async () => {
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
     await expect(lim.acquire('nope', 1)).rejects.toThrow('No rate-limit profile');

@@ -19,12 +19,15 @@ export const DEFAULT_LIMITS: Readonly<Record<Rir, LimitProfile>> = {
 export const PENALTY_FACTOR = 0.5;
 export const PENALTY_MS = 5 * 60_000;
 
+/** An operator value that is not a finite positive number is ignored: NaN would otherwise disable the limit. */
+const usable = (v: number | undefined): number | undefined => (v !== undefined && Number.isFinite(v) && v > 0 ? v : undefined);
+
 export function clampProfile(requested: Partial<LimitProfile>, max: LimitProfile): LimitProfile {
   const profile: { ratePerS: number; burst: number; hourlyCap?: number } = {
-    ratePerS: Math.min(requested.ratePerS ?? max.ratePerS, max.ratePerS),
-    burst: Math.min(requested.burst ?? max.burst, max.burst),
+    ratePerS: Math.min(usable(requested.ratePerS) ?? max.ratePerS, max.ratePerS),
+    burst: Math.min(usable(requested.burst) ?? max.burst, max.burst),
   };
-  const cap = requested.hourlyCap ?? max.hourlyCap;
+  const cap = usable(requested.hourlyCap) ?? max.hourlyCap;
   if (cap !== undefined) profile.hourlyCap = max.hourlyCap !== undefined ? Math.min(cap, max.hourlyCap) : cap;
   return profile;
 }
