@@ -170,7 +170,8 @@ export class CachedFetcher {
           allowRedirectTo: (h) => hosts.has(h),
           onRedirect: async (host) => {
             const target = rirForHost(host);
-            if (!target || target === req.rir) return;
+            if (!target) return;
+            // Every request to a registry takes a token, including a redirect within the same RIR.
             const p = await this.deps.limiter.acquire(target, req.weight);
             if (!p.ok) throw new LocalRateLimit(target, p.retryAfterS);
             actual = target;

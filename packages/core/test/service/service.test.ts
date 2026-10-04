@@ -52,6 +52,19 @@ describe('upstream Retry-After (audit 2026-10-05 F2)', () => {
   });
 });
 
+describe('redirect charging (audit 2026-10-05 F7)', () => {
+  it('takes a rate-limit token for a redirect within the same RIR too: every request to a registry counts', async () => {
+    const acquired: string[] = [];
+    const counting: RateLimiter = { acquire: async (b) => { acquired.push(b); return { ok: true }; }, penalise: async () => {} };
+    const { service } = setup({
+      [IP_URL]: { status: 302, text: '', headers: { location: `${APNIC}ip/1.1.1.0/24` } },
+      [`${APNIC}ip/1.1.1.0/24`]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
+    }, counting);
+    expect((await service.ip('1.1.1.1')).kind).toBe('record');
+    expect(acquired).toEqual(['apnic', 'apnic']);
+  });
+});
+
 describe('RirService.ip', () => {
   it('fetches once, then serves from cache', async () => {
     const { service, rdapCalls } = setup();
