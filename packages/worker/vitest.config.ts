@@ -7,7 +7,14 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
       miniflare: {
-        bindings: { OPERATOR: 'https://github.com/IEISI-ORG/rir-mcp/issues', ALLOWED_HOSTS: 'x', ALLOWED_ORIGINS: '' },
+        // Test-only values. API_KEY is a fixed, well-known test key: never a real secret.
+        bindings: {
+          OPERATOR: 'https://github.com/IEISI-ORG/rir-mcp/issues',
+          ALLOWED_HOSTS: 'mcp.example.net',
+          ALLOWED_ORIGINS: 'app.example.net',
+          KEYS_MODE: '',
+          API_KEY: `rirmcp_${'T'.repeat(43)}`,
+        },
       },
     }),
   ],

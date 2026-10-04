@@ -1,4 +1,4 @@
-import { buildUserAgent, DEFAULT_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
+import { BARE_HOST, buildUserAgent, DEFAULT_QUOTA_PER_HOUR, SingleKeyStore, systemClock, type Clock, type KeyStore } from '@ieisi/rir-mcp-core';
 import { localhostAllowedHostnames, localhostAllowedOrigins } from '@modelcontextprotocol/server';
 import { ConfigError } from './errors';
 import { FileKeyStore, type KeysFileIo } from './keys-file';
@@ -38,8 +38,6 @@ export interface HttpConfig extends NodeConfig {
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
 
-// The SDK matches Host/Origin by bare hostname (no scheme, no port; IPv6 in brackets), so anything else never matches.
-const BARE_HOST = /^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)$/;
 
 function list(env: Env, name: string): string[] | undefined {
   const items = env[name]?.split(',').map((s) => s.trim()).filter((s) => s !== '');

@@ -14,6 +14,9 @@ export interface EdgeGateOptions {
 
 type Reason = 'not_found' | 'bad_host' | 'bad_origin' | 'unauthorized';
 
+/** Allow-list entries: the SDK matches Host/Origin by bare hostname (no scheme, no port; IPv6 in brackets). */
+export const BARE_HOST = /^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)$/;
+
 /** Path → Host → Origin → Bearer (spec §7). Returns the client, or the rejection to send. Runtime-neutral. */
 export function edgeGate(o: EdgeGateOptions): (req: Request) => Promise<{ client: ClientInfo } | Response> {
   const verifier: OAuthTokenVerifier = {
