@@ -105,6 +105,9 @@ export class Bootstrap {
         this.parsed.validUntil = Math.min(retryAt, this.parsed.staleUntil);
         return this.parsed.index;
       }
+      // Nothing usable left (no entry, and the in-memory index is past its stale lifetime): forget it, so the cold
+      // back-off below applies instead of refetching on every lookup.
+      this.parsed = null;
       if (err instanceof RdapError) {
         const error = new RdapError('upstream', `IANA RDAP bootstrap unavailable (${err.code})`);
         this.coldFailure = { until: t + Math.max(COLD_RETRY_MS, asked), error };

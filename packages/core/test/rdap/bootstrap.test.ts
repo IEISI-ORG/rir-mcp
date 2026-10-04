@@ -227,6 +227,25 @@ describe('Bootstrap', () => {
     for (const ip of ['1.1.1.1', '8.8.8.8', '9.9.9.9', '10.0.0.1']) expect(await boot.routeIp(parseIpOrCidr(ip))).toBeNull();
   });
 
+  it('keeps backing off after the in-memory index has passed its stale lifetime', async () => {
+    let up = true;
+    const route = (body: unknown) => (): FakeRoute => (up ? { body } : { status: 503, text: '' });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route(IANA.ipv4),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route(IANA.ipv6),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route(IANA.asn),
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    await boot.routeAsn(4608);
+    up = false;
+    clock.advance(7 * 86_400_000 + 60_000); // past staleUntil: nothing usable left
+    await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    const after = fetch.calls.length;
+    for (let i = 0; i < 10; i++) await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
+    expect(fetch.calls.length).toBe(after); // was 3 more per lookup
+  });
+
   it('throws when IANA is down and nothing is cached', async () => {
     const { boot } = setup(true);
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
