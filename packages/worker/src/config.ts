@@ -14,7 +14,8 @@ export interface WorkerConfig {
 export type ConfigResult = WorkerConfig | { readonly error: string };
 
 function list(value: string | undefined): string[] | undefined {
-  const items = (value ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // Lower-cased: the SDK compares against the URL's lower-cased hostname.
+  const items = (value ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => s !== '');
   return items.every((h) => BARE_HOST.test(h)) ? items : undefined;
 }
 

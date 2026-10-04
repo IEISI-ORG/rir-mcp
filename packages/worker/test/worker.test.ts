@@ -68,6 +68,11 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect((await call(req({ ...bearer(TEST_KEY), host: 'evil.example' }))).status).toBe(403);
   });
 
+  it('matches allow-list entries case-insensitively', async () => {
+    const upper = { ...(env as TestEnv), ALLOWED_HOSTS: 'MCP.Example.NET' } as TestEnv;
+    expect((await call(req(bearer(TEST_KEY)), upper)).status).toBe(200);
+  });
+
   it('answers 404 off the /mcp path', async () => {
     expect((await call(req(bearer(TEST_KEY), '/other'))).status).toBe(404);
   });

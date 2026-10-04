@@ -57,6 +57,12 @@ describe('loadHttpConfig', () => {
     expect(c.allowedOrigins).toEqual(['app.example.net']);
   });
 
+  it('lower-cases allow-list entries (the SDK compares lower-cased hostnames)', () => {
+    const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_ALLOWED_HOSTS: 'RDAP.Example.net', RIR_MCP_ALLOWED_ORIGINS: 'App.Example.NET' }, io());
+    expect(c.allowedHosts).toEqual(['rdap.example.net']);
+    expect(c.allowedOrigins).toEqual(['app.example.net']);
+  });
+
   it('applies RIR_MCP_QUOTA_PER_HOUR to the single key', async () => {
     const c = loadHttpConfig({ ...OP, RIR_MCP_API_KEY: KEY, RIR_MCP_QUOTA_PER_HOUR: '120' }, io());
     expect(await c.keyStore.verify(KEY)).toEqual({ clientId: 'default', quotaPerHour: 120 });

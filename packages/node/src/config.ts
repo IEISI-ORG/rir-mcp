@@ -40,7 +40,8 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
 
 
 function list(env: Env, name: string): string[] | undefined {
-  const items = env[name]?.split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // Lower-cased: the SDK compares against the URL's lower-cased hostname.
+  const items = env[name]?.split(',').map((s) => s.trim().toLowerCase()).filter((s) => s !== '');
   if (!items || items.length === 0) return undefined;
   const bad = items.find((h) => !BARE_HOST.test(h));
   if (bad !== undefined) {
