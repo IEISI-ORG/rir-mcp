@@ -156,7 +156,7 @@ Each request is checked in this order: path `/mcp` (else 404), `Host` allow-list
 
 ### Quotas and scan detection
 
-- **Quota:** each key may make `quotaPerHour` upstream lookups per hour (default 60; any integer from 1 to 1,000,000). Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
+- **Quota:** each key may make `quotaPerHour` upstream lookups per rolling hour (default 60; any integer from 1 to 1,000,000). The previous hour's use counts down gradually, so a full quota cannot be spent twice across an hour boundary; the refusal says when to retry. Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
 - **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values. They are kept for the client's current hour and cleared within about an hour after it ends (an hourly sweep covers clients that stop querying). A restart lifts all suspensions. (On Cloudflare, state persists: see below.)
 
 ### Logs

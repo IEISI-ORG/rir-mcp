@@ -9,6 +9,8 @@ const OK: GateResult = { ok: true };
 export interface ClientState {
   windowStart: number;
   used: number;
+  /** Charges in the previous hour; they still count, weighted by how much of that hour is within the last 60 min. */
+  prevUsed: number;
   /** Salted, truncated digests of the distinct scan units seen this window (never the units themselves). */
   units: string[];
   suspendedUntil: number;
@@ -41,9 +43,12 @@ export class MemoryClientGate implements ClientGate {
     const now = this.clock.now();
     const s = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
-    // Written as !(<=) so a NaN or missing quota denies instead of allowing everything.
-    if (!(s.used + weight <= client.quotaPerHour)) {
-      return { ok: false, reason: 'quota', retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
+    // Sliding window (audit 2026-10-03 #5): the previous hour's charges decay linearly, so a full quota spent at
+    // 00:59 cannot be spent again at 01:00. Written as !(<=) so a NaN or missing quota denies instead of allowing all.
+    const elapsed = now - s.windowStart;
+    const carried = s.prevUsed * (1 - elapsed / HOUR_MS);
+    if (!(carried + s.used + weight <= client.quotaPerHour)) {
+      return { ok: false, reason: 'quota', retryAfterS: retryAfter(s, elapsed, weight, client.quotaPerHour) };
     }
     s.used += weight;
     this.state.set(client.clientId, s);
@@ -78,16 +83,25 @@ export class MemoryClientGate implements ClientGate {
   private current(clientId: string, now: number): ClientState {
     const stored = this.state.get(clientId);
     const s: ClientState = stored
-      ? { ...stored, units: [...stored.units] }
-      : { windowStart: now, used: 0, units: [], suspendedUntil: 0 };
+      ? { ...stored, prevUsed: stored.prevUsed ?? 0, units: [...stored.units] }
+      : { windowStart: now, used: 0, prevUsed: 0, units: [], suspendedUntil: 0 };
     if (now >= s.suspendedUntil && s.suspendedUntil !== 0) {
       s.suspendedUntil = 0;
       s.windowStart = now;
       s.used = 0;
+      s.prevUsed = 0;
       s.units = [];
     }
-    if (now - s.windowStart >= HOUR_MS) {
+    const elapsed = now - s.windowStart;
+    if (elapsed >= 2 * HOUR_MS) {
       s.windowStart = now;
+      s.used = 0;
+      s.prevUsed = 0;
+      s.units = [];
+    } else if (elapsed >= HOUR_MS) {
+      // Windows stay aligned so the carry-over weight is exact.
+      s.windowStart += HOUR_MS;
+      s.prevUsed = s.used;
       s.used = 0;
       s.units = [];
     }
@@ -113,4 +127,15 @@ export function clearExpiredUnits(state: Map<string, ClientState>, now: number):
   for (const [id, s] of state) {
     if (s.units.length > 0 && now - s.windowStart >= HOUR_MS) state.set(id, { ...s, units: [] });
   }
+}
+
+/** Seconds until `weight` fits under the sliding window, given the state at `elapsed` into its window. */
+function retryAfter(s: ClientState, elapsed: number, weight: number, quota: number): number {
+  const ms = s.used + weight <= quota
+    // Blocked only by the carry-over: wait until prevUsed * (1 - t/H) <= quota - used - weight.
+    ? HOUR_MS * (1 - (quota - s.used - weight) / s.prevUsed) - elapsed
+    // The current hour alone is over: after it ends it becomes the carry-over, which must then decay enough.
+    : HOUR_MS - elapsed + HOUR_MS * Math.max(0, Math.min(1, 1 - (quota - weight) / s.used));
+  // A NaN quota (already denied, fail closed) must still give a usable retry time.
+  return Number.isFinite(ms) ? Math.max(1, Math.ceil(ms / 1000)) : HOUR_MS / 1000;
 }

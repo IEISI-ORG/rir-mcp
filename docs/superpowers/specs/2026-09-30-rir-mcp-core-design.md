@@ -141,7 +141,7 @@ Inputs in IANA special-purpose registries [IANA-SP4] [IANA-SP6] [IANA-SPASN] (RF
 1  validate + canonicalise   zod; AS04608 -> 4608; 1.1.1.1/24 -> 1.1.1.0/24
 2  special-use check         local answer, stop
 3  cache get                 exact canonical key; fresh -> return
-4  caller quota              hosted only; per clientId
+4  caller quota              hosted only; per clientId; sliding hourly window (amended 2026-10-04, audit #5)
 5  global limiter            per-RIR bucket; weight 1 (current) / 5 (history)
 6  route                     IANA bootstrap [RFC9224] [IANA-BOOT] -> https base URL only
 7  fetch                     10 s timeout; User-Agent; Accept: application/rdap+json;

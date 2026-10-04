@@ -12,25 +12,68 @@ describe('MemoryClientGate quota', () => {
     expect(await g.charge(alpha, 5)).toEqual({ ok: true });
     const denied = await g.charge(alpha, 1);
     expect(denied).toMatchObject({ ok: false, reason: 'quota' });
-    expect((denied as { retryAfterS: number }).retryAfterS).toBe(3600);
+    // Sliding window: after the hour the previous hour's 10 still weigh 1.0, decaying; a weight-1 call fits once
+    // the carry-over is down to 9, i.e. 6 minutes into the next hour.
+    expect((denied as { retryAfterS: number }).retryAfterS).toBe(3960);
     expect(await g.charge(beta, 1)).toEqual({ ok: true });
   });
 
-  it('does not count denied charges and resets after the hour', async () => {
-    const clock = new FakeClock();
-    const g = new MemoryClientGate(clock);
+  it('does not count denied charges', async () => {
+    const g = new MemoryClientGate(new FakeClock());
     await g.charge(alpha, 9);
     expect((await g.charge(alpha, 5)).ok).toBe(false);
     expect((await g.charge(alpha, 1)).ok).toBe(true);
-    clock.advance(3_600_000);
+  });
+});
+
+describe('MemoryClientGate sliding quota window (audit 2026-10-03 #5)', () => {
+  const MIN = 60_000;
+
+  it('refuses a burst across the hour boundary', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock);
+    expect((await g.charge(alpha, 1)).ok).toBe(true); // opens the window at t=0
+    clock.advance(59 * MIN);
+    expect((await g.charge(alpha, 9)).ok).toBe(true);
+    clock.advance(2 * MIN); // one minute into the next hour: the previous 10 still weigh 59/60
+    expect((await g.charge(alpha, 1)).ok).toBe(false);
+  });
+
+  it('lets the carry-over decay through the next hour, with an accurate retry time', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock);
+    await g.charge(alpha, 10);
+    clock.advance(90 * MIN); // previous 10 weigh 0.5
+    expect((await g.charge(alpha, 5)).ok).toBe(true);
+    const denied = await g.charge(alpha, 1);
+    expect(denied).toMatchObject({ ok: false, reason: 'quota', retryAfterS: 360 });
+    clock.advance(6 * MIN); // weight 0.4: 4 + 5 + 1 = 10
+    expect((await g.charge(alpha, 1)).ok).toBe(true);
+  });
+
+  it('resets fully after two idle hours', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock);
+    await g.charge(alpha, 10);
+    clock.advance(120 * MIN);
     expect((await g.charge(alpha, 10)).ok).toBe(true);
+  });
+
+  it('reads state stored before the sliding window (no prevUsed) as no carry-over', async () => {
+    const clock = new FakeClock();
+    const state = new Map<string, ClientState>([
+      ['alpha', { windowStart: clock.now(), used: 4, units: [], suspendedUntil: 0 } as unknown as ClientState],
+    ]);
+    const g = new MemoryClientGate(clock, { state });
+    expect((await g.charge(alpha, 6)).ok).toBe(true);
+    expect((await g.charge(alpha, 1)).ok).toBe(false);
   });
 });
 
 describe('MemoryClientGate quota hardening', () => {
   it.each([NaN, Infinity * 0, undefined as unknown as number])('fails closed on a non-numeric quota (%s)', async (q) => {
     const g = new MemoryClientGate(new FakeClock());
-    expect(await g.charge({ clientId: 'x', quotaPerHour: q }, 1)).toMatchObject({ ok: false, reason: 'quota' });
+    expect(await g.charge({ clientId: 'x', quotaPerHour: q }, 1)).toMatchObject({ ok: false, reason: 'quota', retryAfterS: 3600 });
   });
 
   it('refunds charges that reached no upstream, never below zero', async () => {
@@ -98,11 +141,11 @@ describe('clearExpiredUnits', () => {
     const HOUR = 3_600_000;
     const now = 10 * HOUR;
     const state = new Map<string, ClientState>([
-      ['old', { windowStart: now - HOUR, used: 3, units: ['aa'], suspendedUntil: 0 }],
-      ['live', { windowStart: now - 1, used: 1, units: ['bb'], suspendedUntil: 0 }],
+      ['old', { windowStart: now - HOUR, used: 3, prevUsed: 0, units: ['aa'], suspendedUntil: 0 }],
+      ['live', { windowStart: now - 1, used: 1, prevUsed: 0, units: ['bb'], suspendedUntil: 0 }],
     ]);
     clearExpiredUnits(state, now);
-    expect(state.get('old')).toEqual({ windowStart: now - HOUR, used: 3, units: [], suspendedUntil: 0 });
+    expect(state.get('old')).toEqual({ windowStart: now - HOUR, used: 3, prevUsed: 0, units: [], suspendedUntil: 0 });
     expect(state.get('live')?.units).toEqual(['bb']);
   });
 });
