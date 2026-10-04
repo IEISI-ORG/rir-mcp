@@ -38,7 +38,7 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 
 Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan digests are dropped on suspension and purged by a DO alarm after their window (`26f3922`). The Task 7 requirements (validate `OPERATOR` via `buildUserAgent`, catch `serve` errors) are in the Plan 3 ledger.
 
-- **Before the first Worker deploy:** the `cache` table reads every row's `bytes` on each put (`count(*)`, `sum(bytes)`), and `bytes` sits after the large `value` column. Move `bytes` before `value` or keep running totals in `meta`. Also write a `schema_version` to `meta` now: `CREATE TABLE IF NOT EXISTS` cannot change an existing table.
+- ~~**Before the first Worker deploy:**~~ Done 2026-10-04 (`5235d76`): running totals in memory, `bytes` before `value`, `schema_version` 1. Was: the `cache` table reads every row's `bytes` on each put (`count(*)`, `sum(bytes)`), and `bytes` sits after the large `value` column. Move `bytes` before `value` or keep running totals in `meta`. Also write a `schema_version` to `meta` now: `CREATE TABLE IF NOT EXISTS` cannot change an existing table.
 - Each cache hit is a SQLite row write (`used_at`), and the IANA bootstrap row (~11.5 KB) is read and parsed 2–3 times per lookup. Skip recent recency updates, or keep the parsed bootstrap in memory keyed on `fetchedAt`.
 - Test gaps: suspension and LACNIC hourly window surviving `evictDurableObject`; `SqlCache` run through the `MemoryCache` cases; a history lookup through the DO.
 - `authInfo` is built in both `core/src/http/edge.ts` and `handler.ts`: extract `authInfoFor(client)`.
@@ -56,12 +56,12 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 
 Fixed at the review: kv mode without the KV binding now answers 503, and key-store failures log `auth_error` (`41fc1c3`); traces pinned off, docs corrected for browser clients, tail and retention, spec §7 amended (`8af70ce`).
 
-- `scripts/keys.ts` and `parseKeyRecords` accept any positive integer quota, e.g. `1e+23` (effectively unlimited). Cap at 1,000,000 like `RIR_MCP_QUOTA_PER_HOUR`. `revoke` rejects an uppercase hex hash instead of lower-casing it.
-- `StateDO.serve`: if `getAlarm`/`setAlarm` throws after the handler finished, the answer is lost although the quota was charged. Wrap the arming in try/catch and log the type.
-- `ALLOWED_HOSTS` / `RIR_MCP_ALLOWED_HOSTS` are compared case-sensitively with the SDK's lower-cased hostname: an uppercase entry gives a permanent 403. Lower-case both lists when loading.
-- `.gitignore`: add `.wrangler/` and `.dev.vars.*`.
-- Tests: KV `get` throwing through the Worker entry; 403 Host/Origin create no DO.
-- Node keeps an idle client's scan hashes in memory until its next request or a restart. Add a periodic sweep, for parity with the Worker's alarm.
+- ~~Quota bound~~ Done 2026-10-04 (`e8af5cb`). Was: `scripts/keys.ts` and `parseKeyRecords` accept any positive integer quota, e.g. `1e+23` (effectively unlimited). Cap at 1,000,000 like `RIR_MCP_QUOTA_PER_HOUR`. `revoke` rejects an uppercase hex hash instead of lower-casing it.
+- ~~Alarm arming~~ Done 2026-10-04. Was: `StateDO.serve`: if `getAlarm`/`setAlarm` throws after the handler finished, the answer is lost although the quota was charged. Wrap the arming in try/catch and log the type.
+- ~~Allow-list case~~ Done 2026-10-04. Was: `ALLOWED_HOSTS` / `RIR_MCP_ALLOWED_HOSTS` are compared case-sensitively with the SDK's lower-cased hostname: an uppercase entry gives a permanent 403. Lower-case both lists when loading.
+- ~~`.gitignore`: add `.wrangler/` and `.dev.vars.*`.~~ Done 2026-10-04.
+- ~~Tests: KV `get` throwing through the Worker entry; 403 Host/Origin create no DO.~~ Done 2026-10-04.
+- ~~Node idle scan hashes~~ Done 2026-10-04 (`1d428b2`, hourly `clearExpiredUnits`). Was: Node keeps an idle client's scan hashes in memory until its next request or a restart. Add a periodic sweep, for parity with the Worker's alarm.
 
 ## Parked at final review
 
