@@ -4,13 +4,20 @@ import type { CacheEntry, CacheStore, Clock, StateMap } from '@ieisi/rir-mcp-cor
 const STATE_TABLES = ['limiter', 'gate', 'meta'] as const;
 type StateTable = (typeof STATE_TABLES)[number];
 
+/** Bump with a migration in createTables: CREATE TABLE IF NOT EXISTS never changes an existing table. */
+const SCHEMA_VERSION = '1';
+
 /** Idempotent: safe to run in every constructor. */
 export function createTables(sql: SqlStorage): void {
   for (const t of STATE_TABLES) sql.exec(`CREATE TABLE IF NOT EXISTS ${t} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  const stored = sql.exec<{ value: string }>("SELECT value FROM meta WHERE key = 'schema_version'").toArray()[0];
+  if (stored && JSON.parse(stored.value) !== SCHEMA_VERSION) throw new Error(`unsupported state schema version ${stored.value}`);
+  // bytes before the large value column, so reading it never walks the value's overflow pages.
   sql.exec(`CREATE TABLE IF NOT EXISTS cache (
-    key TEXT PRIMARY KEY, value TEXT NOT NULL, bytes INTEGER NOT NULL,
-    fetched_at INTEGER NOT NULL, fresh_until INTEGER NOT NULL, stale_until INTEGER NOT NULL, used_at INTEGER NOT NULL)`);
+    key TEXT PRIMARY KEY, bytes INTEGER NOT NULL, used_at INTEGER NOT NULL,
+    fetched_at INTEGER NOT NULL, fresh_until INTEGER NOT NULL, stale_until INTEGER NOT NULL, value TEXT NOT NULL)`);
   sql.exec('CREATE INDEX IF NOT EXISTS cache_used_at ON cache (used_at)');
+  if (!stored) sql.exec("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", JSON.stringify(SCHEMA_VERSION));
 }
 
 /** A `StateMap` over one SQLite table. Values go through JSON, so callers must `set` after every change. */
@@ -62,13 +69,25 @@ export class SqlCache implements CacheStore {
   private readonly maxBytes: number;
   /** Recency counter, not the clock: two hits in the same millisecond must still be ordered. */
   private seq: number;
+  /** Running totals: this object is the table's only writer, so it scans once at start instead of on every put. */
+  private entries: number;
+  private bytes: number;
 
   constructor(sql: SqlStorage, clock: Clock, limits: SqlCacheLimits = {}) {
     this.sql = sql;
     this.clock = clock;
     this.maxEntries = limits.maxEntries ?? 10_000;
     this.maxBytes = limits.maxBytes ?? 50_000_000;
-    this.seq = sql.exec<{ m: number }>('SELECT coalesce(max(used_at), 0) AS m FROM cache').one().m;
+    const start = sql.exec<{ m: number; n: number; b: number }>(
+      'SELECT coalesce(max(used_at), 0) AS m, count(*) AS n, coalesce(sum(bytes), 0) AS b FROM cache',
+    ).one();
+    this.seq = start.m;
+    this.entries = start.n;
+    this.bytes = start.b;
+  }
+
+  totals(): { entries: number; bytes: number } {
+    return { entries: this.entries, bytes: this.bytes };
   }
 
   async get<T>(key: string): Promise<CacheEntry<T> | null> {
@@ -77,7 +96,7 @@ export class SqlCache implements CacheStore {
     ).toArray()[0];
     if (!row) return null;
     if (this.clock.now() >= row.stale_until) {
-      this.sql.exec('DELETE FROM cache WHERE key = ?', key);
+      this.remove(key);
       return null;
     }
     this.sql.exec('UPDATE cache SET used_at = ? WHERE key = ?', ++this.seq, key);
@@ -89,27 +108,29 @@ export class SqlCache implements CacheStore {
     const bytes = encoder.encode(value).length;
     if (bytes > this.maxBytes / 100) {
       // Not cached; and an older entry for this key must not be served as if it were still current.
-      this.sql.exec('DELETE FROM cache WHERE key = ?', key);
+      this.remove(key);
       return;
     }
+    this.remove(key);
     this.sql.exec(
-      `INSERT INTO cache (key, value, bytes, fetched_at, fresh_until, stale_until, used_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (key) DO UPDATE SET value = excluded.value, bytes = excluded.bytes, fetched_at = excluded.fetched_at,
-         fresh_until = excluded.fresh_until, stale_until = excluded.stale_until, used_at = excluded.used_at`,
-      key, value, bytes, entry.fetchedAt, entry.freshUntil, entry.staleUntil, ++this.seq,
+      `INSERT INTO cache (key, bytes, used_at, fetched_at, fresh_until, stale_until, value) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      key, bytes, ++this.seq, entry.fetchedAt, entry.freshUntil, entry.staleUntil, value,
     );
-    this.evict();
+    this.entries += 1;
+    this.bytes += bytes;
+    while (this.entries > this.maxEntries || this.bytes > this.maxBytes) {
+      const oldest = this.sql.exec<{ key: string }>('SELECT key FROM cache ORDER BY used_at LIMIT 1').toArray()[0];
+      if (!oldest) break;
+      this.remove(oldest.key);
+    }
   }
 
-  private evict(): void {
-    let { n, b } = this.sql.exec<{ n: number; b: number }>('SELECT count(*) AS n, coalesce(sum(bytes), 0) AS b FROM cache').one();
-    while (n > this.maxEntries || b > this.maxBytes) {
-      const oldest = this.sql.exec<{ key: string; bytes: number }>('SELECT key, bytes FROM cache ORDER BY used_at LIMIT 1').toArray()[0];
-      if (!oldest) break;
-      this.sql.exec('DELETE FROM cache WHERE key = ?', oldest.key);
-      n -= 1;
-      b -= oldest.bytes;
-    }
+  /** The only way rows leave the table, so the running totals stay exact. */
+  private remove(key: string): void {
+    const gone = this.sql.exec<{ bytes: number }>('DELETE FROM cache WHERE key = ? RETURNING bytes', key).toArray()[0];
+    if (!gone) return;
+    this.entries -= 1;
+    this.bytes -= gone.bytes;
   }
 }
 

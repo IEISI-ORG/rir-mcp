@@ -127,7 +127,44 @@ describe('purgeExpiredScanUnits', () => {
   });
 });
 
+describe('SqlCache totals', () => {
+  const actual = (sql: SqlStorage) => sql.exec<{ n: number; b: number }>('SELECT count(*) AS n, coalesce(sum(bytes), 0) AS b FROM cache').one();
+
+  it('keeps its running totals equal to the table through puts, overwrites, expiry, oversize and eviction', async () => {
+    await inDo('totals', async (sql) => {
+      const clock = new FakeClock();
+      const cache = new SqlCache(sql, clock, { maxEntries: 5, maxBytes: 10_000 });
+      for (let i = 0; i < 8; i++) await cache.put(`k${i}`, entry('x'.repeat(10 * i), clock.now()));
+      await cache.put('k7', entry('short', clock.now()));
+      await cache.put('k6', entry('y'.repeat(500), clock.now())); // oversize: deleted
+      await cache.put('e', entry('expiring', clock.now(), 10, 20));
+      clock.t += 30;
+      await cache.get('e');
+      const { n, b } = actual(sql);
+      expect(cache.totals()).toEqual({ entries: n, bytes: b });
+      expect(n).toBeLessThanOrEqual(5);
+    });
+  });
+
+  it('seeds its totals from the table after Durable Object eviction', async () => {
+    await inDo('totals-evict', (sql) => new SqlCache(sql, new FakeClock()).put('k', entry('value', 1_000_000)));
+    await evictDurableObject(stub('totals-evict'));
+    const [totals, real] = await inDo('totals-evict', (sql) => [new SqlCache(sql, new FakeClock()).totals(), actual(sql)] as const);
+    expect(totals).toEqual({ entries: real.n, bytes: real.b });
+    expect(totals.entries).toBe(1);
+  });
+});
+
 describe('createTables', () => {
+  it('records schema version 1 and stores bytes before the large value column', async () => {
+    await inDo('schema', (sql) => {
+      expect(new SqlStateMap<string>(sql, 'meta').get('schema_version')).toBe('1');
+      const cols = sql.exec<{ name: string }>('PRAGMA table_info(cache)').toArray().map((c) => c.name);
+      expect(cols.indexOf('bytes')).toBeLessThan(cols.indexOf('value'));
+    });
+  });
+
+
   it('is idempotent', async () => {
     await inDo('tables', (sql) => {
       createTables(sql);
