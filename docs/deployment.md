@@ -111,7 +111,7 @@ node_modules/.bin/tsx scripts/keys.ts new acme-noc 60
 # line 2: {"sha256":"...","clientId":"acme-noc","quotaPerHour":60}, add it to the keys file
 ```
 
-The keys file is a JSON array of those records. `clientId` must be an opaque id (`^[a-z0-9][a-z0-9-]{0,31}$`), never a person's name or email, because it appears in logs. To revoke a key, set `"revoked": true` on its record or delete the record. `scripts/keys.ts hash <key>` prints a key's hash so you can find its record.
+The keys file is a JSON array of those records. `clientId` must be an opaque id (`^[a-z0-9][a-z0-9-]{0,31}$`), never a person's name or email, because it appears in logs. `quotaPerHour` must be an integer from 1 to 1,000,000; one invalid record makes the whole file invalid (every key rejected until it is fixed). To revoke a key, set `"revoked": true` on its record or delete the record. `scripts/keys.ts hash <key>` prints a key's hash so you can find its record.
 
 The server re-reads the keys file at most every 30 seconds, so additions and revocations take effect within 30 seconds without a restart. If the file becomes unreadable or invalid, **every key is rejected** until it is fixed, and one error line is logged. This makes a broken edit fail closed, never leaving old keys live.
 
@@ -156,7 +156,7 @@ Each request is checked in this order: path `/mcp` (else 404), `Host` allow-list
 
 ### Quotas and scan detection
 
-- **Quota:** each key may make `quotaPerHour` upstream lookups per hour (default 60). Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
+- **Quota:** each key may make `quotaPerHour` upstream lookups per hour (default 60; any integer from 1 to 1,000,000). Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
 - **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values. They are kept for the client's current hour and cleared within about an hour after it ends (an hourly sweep covers clients that stop querying). A restart lifts all suspensions. (On Cloudflare, state persists: see below.)
 
 ### Logs
@@ -219,7 +219,7 @@ To revoke a key, pass the key or its SHA-256 and run the command it prints:
 # npx wrangler kv key delete <sha256> --binding API_KEYS --remote
 ```
 
-KV is cached at the edge for up to 60 seconds, so additions and revocations take effect within about a minute. A record that is malformed (bad JSON, missing or zero quota, a `clientId` that is not an opaque id) is treated as no key.
+KV is cached at the edge for up to 60 seconds, so additions and revocations take effect within about a minute. A record that is malformed (bad JSON, a quota that is missing or outside 1–1,000,000, a `clientId` that is not an opaque id) is treated as no key.
 
 ### Deploy and check
 
