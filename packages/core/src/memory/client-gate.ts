@@ -76,7 +76,8 @@ export class MemoryClientGate implements ClientGate {
     if (rate) return rate;
     const { s, changed } = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
-    // A repeated unit in an unchanged window changes nothing: skip the write (a billed row in a Durable Object).
+    // A unit already recorded this window changes nothing: skip the write (a billed row in a Durable Object). Every
+    // path that sets `changed` also empties `units`, so the flag is belt and braces, not a separate guarantee.
     if (!changed && s.units.includes(digest)) return OK;
     if (!s.units.includes(digest)) s.units.push(digest);
     if (s.units.length <= this.opts.scanThreshold) {

@@ -11,6 +11,14 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Code review, iteration 20 (2026-10-05, df94156..6849036) — deferred Minors
+
+Fixed in the iteration: sanitiser bypasses via character references, backslash escapes and `www.` after `_`/`-`/`.` (C1), with renderer-based tests; post-staleUntil IANA refetch storm (I1); entity-cap test (M1); strikethrough/bold (M2); marker without `//` (M4); docs wording (M7); comment (M8).
+
+- History timeline lines start with a registry-controlled key (`render/history.ts:90`): a handle like `# X` or `1. X` would render as a heading or list item. Prefix the line or strip a leading `#`/list marker.
+- A weight above the client's quota (history = 5 for a quota of 1–4) is refused forever but told to retry: return a distinct message or cap the weight at the quota.
+- `docs/deployment.md` says every tool call counts against the call rate; special-use and invalid inputs never reach it, and an IP/ASN history can take two tokens (and fall through to `history_unavailable` at the burst edge).
+
 ## Daily security audit 2026-10-05 (snapshot 731beb3) — results
 
 Fresh-context auditor (Opus). No Critical or High. Fixed the same day:
@@ -32,7 +40,7 @@ Fixed the same day: Medium #1 (history domain keys raw → `dnsName`), Medium #2
 
 - **#4 Byte-bounded memory:** *(cache byte bound done 2026-10-04 on both runtimes; array caps still open, see audit 2026-10-05)* `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
 - ~~**#5 Fixed hourly windows**~~ Done 2026-10-04 (`377f1af`) for the quota (sliding window, both runtimes). Scan detection keeps its fixed window by ruling: a sliding one would retain the previous hour's salted digests. Was: **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
-- ~~**IANA bootstrap refetch before `charge`:**~~ *(Closed 2026-10-05: memo, 5-minute and 30-second back-offs bound it to about 3 fetches per 30 s at worst.)* during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
+- ~~**IANA bootstrap refetch before `charge`:**~~ *(Closed 2026-10-05: memo, 5-minute and 30-second back-offs bound it to about 3 fetches per 30 s at worst — true only after the iteration-20 fix: before it, an index past its 7-day stale lifetime disabled the cold back-off.)* during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
 
 ## Code review, iteration 5 (2026-10-04, Plan 2 Tasks 1–7) — deferred Minors
 
