@@ -11,6 +11,7 @@
   // KEYS_MODE "kv" selects per-user keys in API_KEYS; otherwise the API_KEY secret (wrangler secret put API_KEY).
   "vars": { "OPERATOR": "", "ALLOWED_HOSTS": "", "ALLOWED_ORIGINS": "", "KEYS_MODE": "" },
   // Our own log lines carry no values. Invocation logs record request headers (including Authorization, i.e. the
-  // API key) and Cloudflare does not document redacting them, so they stay off. Do not re-enable.
-  "observability": { "enabled": true, "logs": { "invocation_logs": false } }
+  // API key) and Cloudflare does not document redacting them, so they stay off. Traces record outbound fetch URLs,
+  // which contain the queried address or AS number, so they are pinned off too. Do not re-enable either.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false }, "traces": { "enabled": false } }
 }

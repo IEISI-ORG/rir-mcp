@@ -9,7 +9,7 @@
 | Docker image | Not yet available (Plan 4) |
 | Cloudflare Workers (edge Worker + one Durable Object, API keys) | Available; tested locally in workerd, not yet run on a live account |
 
-Both available modes run from a clone of this repository (see *Install and verify*). They share the cache, rate limits and privacy rules described below.
+All three available modes run from a clone of this repository (see *Install and verify*). They share the rate limits and privacy rules described below; the Cloudflare section lists where it differs.
 
 ## Prerequisites
 
@@ -126,7 +126,7 @@ The server re-reads the keys file at most every 30 seconds, so additions and rev
 | `RIR_MCP_HTTP_HOST` | `127.0.0.1` | Bind address |
 | `RIR_MCP_HTTP_PORT` | `4608` | Port (IANA-unassigned; also APNIC's AS number) |
 | `RIR_MCP_ALLOWED_HOSTS` | `localhost, 127.0.0.1, [::1]` | `Host` header names accepted. **Required** when binding anything other than loopback |
-| `RIR_MCP_ALLOWED_ORIGINS` | `localhost, 127.0.0.1, [::1]` | Browser `Origin` hostnames accepted; requests without `Origin` (non-browser clients) are unaffected |
+| `RIR_MCP_ALLOWED_ORIGINS` | `localhost, 127.0.0.1, [::1]` | `Origin` hostnames accepted; requests without `Origin` (non-browser clients such as Claude Code) are unaffected. Browser-based clients are not supported yet: the server sends no CORS headers |
 
 Allow-list entries are bare hostnames: `rdap.example.net` or `[::1]`, with no scheme, port or path. The server refuses to start on an entry it could never match.
 
@@ -157,7 +157,7 @@ Each request is checked in this order: path `/mcp` (else 404), `Host` allow-list
 ### Quotas and scan detection
 
 - **Quota:** each key may make `quotaPerHour` upstream lookups per hour (default 60). Cached answers are free and keep working after the quota is used up. A history lookup costs 5. A reverse-DNS lookup costs 1 however many zones it checks. If the shared per-RIR limit refuses a lookup, the client's unit is refunded.
-- **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values, and only for the current hour. A restart lifts all suspensions. (On Cloudflare, state persists: see below.)
+- **Scan detection:** a key that queries more than 200 distinct /24s, /48s, AS numbers or handles in an hour is suspended for 24 hours. The server logs `{"alert":"client_suspended","client":"<id>"}`. Only salted hashes of what was queried are kept, in memory, to count distinct values. They are reset with the client's hourly window, on its next request after the hour (an idle client's stay in memory until then or until a restart). A restart lifts all suspensions. (On Cloudflare, state persists: see below.)
 
 ### Logs
 
@@ -189,8 +189,8 @@ Edit `wrangler.jsonc`:
 - `kv_namespaces[0].id`: the id printed above.
 - `vars.OPERATOR`: your operator contact, with the same rules as `RIR_MCP_OPERATOR` (printable ASCII, no parentheses or semicolons, at most 200 characters).
 - `vars.ALLOWED_HOSTS`: the hostname clients connect to, for example `rir-mcp.<your-subdomain>.workers.dev` or your custom domain. Bare hostnames only, comma-separated.
-- `vars.ALLOWED_ORIGINS`: leave empty unless a browser-based client must connect; then list its hostname.
-- `vars.KEYS_MODE`: empty for a single key, `kv` for per-user keys.
+- `vars.ALLOWED_ORIGINS`: leave empty. Non-browser clients such as Claude Code send no `Origin` and are unaffected; browser-based clients are not supported yet (no CORS headers).
+- `vars.KEYS_MODE`: empty for a single key (quota fixed at 60 lookups per hour for now), `kv` for per-user keys (quota per record).
 
 If any of `OPERATOR`, `ALLOWED_HOSTS` or the key source is missing or invalid, the Worker answers **503** `{"error":"not_configured"}` to every request and logs which setting is wrong (never its value).
 
@@ -232,9 +232,9 @@ claude mcp add --transport http rir-mcp https://<your host>/mcp --header "Author
 ### How it differs from the Node server
 
 - **State survives restarts and deploys.** Quotas, rate-limit windows and suspensions are stored in the Durable Object, so a 24-hour suspension lasts 24 hours even across a redeploy.
-- **Scan detection** keeps salted hashes of queried /24s, /48s, AS numbers and handles only for the current hour. They are dropped when a client is suspended, and an hourly alarm deletes any left from ended hours.
+- **Scan detection** keeps salted hashes of queried /24s, /48s, AS numbers and handles for the client's current hour, and at most about an hour after it ends: they are dropped when a client is suspended, and an hourly alarm deletes any left from ended hours.
 - **Cache:** at most 10,000 entries and 50 MB, least recently used first out. A single answer over 500 KB is not cached.
-- **Logs** go to Workers Logs: the same value-free JSON lines as the Node server's stderr. Cloudflare's own invocation logs are turned off in `wrangler.jsonc`, because they record request headers, including the `Authorization` header that carries the API key. Do not turn them back on.
+- **Logs** go to Workers Logs: the same value-free JSON lines as the Node server's stderr. Cloudflare's own invocation logs are turned off in `wrangler.jsonc`, because they record request headers, including the `Authorization` header that carries the API key. Traces are pinned off too, because they record outbound fetch URLs, which contain the queried address or AS number. Do not turn either back on. `wrangler tail` and Tail Workers receive request headers whatever these settings say: treat a tail session as able to see API keys.
 - **One Durable Object** serves every client, so rate limits and request de-duplication are exact worldwide. Requests from far away pay one round trip to its location.
 
 ## Checking that it works

@@ -229,7 +229,7 @@ One Durable Object instance holds all shared state for a deployment (global cons
 
 ### Authentication (hosted HTTP)
 
-One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatically, **fail closed**:
+One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatically (on Cloudflare: by `KEYS_MODE`, see below), **fail closed**:
 
 | Mode | Cloudflare | Node | clientId |
 |---|---|---|---|
@@ -237,7 +237,7 @@ One scheme: `Authorization: Bearer <key>`. Two storage modes, chosen automatical
 | Single key | Worker secret `API_KEY` | `RIR_MCP_API_KEY` | `default` |
 | Neither configured | reject all requests | refuse to start HTTP | — |
 
-- Per-user mode takes precedence if both are configured.
+- Per-user mode takes precedence if both are configured. *(Amended 2026-10-04, Plan 3 Task 7: on Cloudflare, per-user mode is selected explicitly with `KEYS_MODE=kv`, because the KV binding is always declared and may be empty; an unknown `KEYS_MODE` is a configuration error. A missing or invalid setting answers 503 `not_configured` and logs `{"status":503,"reason":"not_configured","setting":"<name>"}` per request, in place of the planned `{"alert":"no_auth_configured"}`.)*
 - Keys: `rirmcp_` + 32 random bytes base64url; only hashes stored (per-user mode). Comparison is constant-time.
 - KV is eventually consistent: changes "may take up to 60 seconds or more" to reach other locations [CF-KV], so a revoked key can keep working briefly. Accepted: data is public and quotas still apply. ~~For urgent revocation, also add the key's hash to a deny-list in `StateDO` (strongly consistent).~~ *(Deferred 2026-10-04, Q10: no admin endpoint yet; revoke by deleting the KV record, effective within about 60 s.)*
 - Revocation parity (decided 2026-10-03, QUESTIONS.md Q4): operators get one model on both runtimes ("edit the keys; effective in under a minute"). Node re-reads the keys file at most every 30 s and reloads when its contents change (not mtime: `cp -p`/`rsync -t` preserve it); if the file becomes unreadable or invalid, every key is rejected until it is fixed and one error is logged — fail closed at runtime as at startup, so a half-finished revocation never leaves old keys live. ~~Cloudflare checks the `StateDO` deny-list on the same per-request DO call the quota check already makes.~~ *(Q10: Cloudflare revocation is the KV delete above.)*
