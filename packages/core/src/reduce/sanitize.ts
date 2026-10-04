@@ -3,25 +3,26 @@
 const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u2800\u3164\uFFA0]/gu;
 
 /**
- * Markdown that would render as a link, image or code span, and URLs, are defanged: registry text is shown to an
- * LLM and on to people, and none of the cleaned fields (names, handles, emails, DNS names) legitimately holds one.
- * A holder name like "[Verified by APNIC](https://…)" must not become a clickable "official" link.
+ * Registry text is shown to an LLM and on to people, so nothing in it may render as a link, image, HTML or code.
+ * None of the cleaned fields (names, handles, emails, DNS names) legitimately holds a URL or markup.
+ * - No square brackets: every Markdown link or image (inline, reference, lenient "[x] (url)") starts with "[".
+ * - No angle brackets: no raw HTML (<a href=//…>, <img>) and no <https://…> autolinks.
+ * - Schemes (also with Markdown-escaped slashes) and word-initial "www." are defanged, so bare autolinkers
+ *   (GFM extended autolinks) find nothing. The markers use parentheses, never square brackets.
+ * - Backticks become quotes (no code spans).
+ * Emails and bare hostnames keep their "www." (abuse@www.example.net, a nameserver www.example.net).
  */
-/** A bare hostname (a nameserver, a reverse zone) or email is data, not an injection: its www. stays as is. */
 const BARE_HOST_OR_EMAIL = /^(?:[A-Za-z0-9._%+-]+@)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\.?$/;
 
 function defang(s: string): string {
   const bare = BARE_HOST_OR_EMAIL.test(s);
   return s
-    // Raw HTML (<a href=//…>, <img src=…>) and angle autolinks (<https://…>): no tag can survive without < >.
+    .replace(/\[/g, '(')
+    .replace(/\]/g, ')')
     .replace(/</g, '‹')
     .replace(/>/g, '›')
-    // Schemes, including Markdown-escaped slashes (https:\/\/ renders as https://).
-    .replace(/([A-Za-z][A-Za-z0-9+.-]*):\\?\/\\?\//g, '$1[:]//')
-    // GFM extended autolinks need no scheme: www.example.net/login.
-    .replace(/(?<![@.\w-])www\./gi, (m) => (bare ? m : `${m.slice(0, 3)}[.]`))
-    .replace(/\]\s*\(/g, '] (')
-    .replace(/!\[/g, '! [')
+    .replace(/([A-Za-z][A-Za-z0-9+.-]*):\\?\/\\?\//g, '$1(:)//')
+    .replace(/(?<![@.\w-])www\./gi, (m) => (bare ? m : `${m.slice(0, 3)}(.)`))
     .replace(/`/g, "'");
 }
 

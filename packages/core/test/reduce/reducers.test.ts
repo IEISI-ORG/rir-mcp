@@ -34,6 +34,16 @@ describe('clean', () => {
     expect(out).not.toMatch(/:\\?\/\\?\//);
   });
 
+  it.each([
+    ['a lenient-Markdown link with a space', '[Verified by APNIC] (https://evil.example/x)'],
+    ['a relative link', '[Official](evil.example/login)'],
+    ['brackets in a handle', 'X](//evil.example'],
+    ['a defang marker turned into a link', 'www.(evil.example)'],
+    ['a reference link', '[Official][1]'],
+  ])('leaves no square bracket in registry text, so no link or image can start (%s)', (_name, input) => {
+    expect(clean(input) ?? '').not.toMatch(/[[\]]/);
+  });
+
   it('leaves ordinary names, handles and emails unchanged', () => {
     for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net', 'abuse@www.example.net', 'www.example.net']) {
       expect(clean(v)).toBe(v);
