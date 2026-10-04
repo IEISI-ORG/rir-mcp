@@ -45,6 +45,13 @@ describe('MCP server', () => {
     expect(r.structuredContent).toMatchObject({ answer: 'record', rir: 'apnic', cache: 'miss' });
   });
 
+  it.each(['2012-13-45', '2012-02-30', '0000-00-00'])('rejects an impossible history date %s', async (at) => {
+    const c = await connect();
+    const r = await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1', at } });
+    expect(r.isError).toBe(true);
+    await c.close();
+  });
+
   it('returns isError with an example for bad input', async () => {
     const c = await connect();
     const r = await c.callTool({ name: 'rdap_asn_lookup', arguments: { asn: 'AS-FOO' } });
