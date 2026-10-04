@@ -199,3 +199,57 @@ Behaviour: unchanged. Gate `observe` computes the digest **before** reading stat
 - Spec §6 backends (Worker: StateDO SQLite for cache, limiter, quotas, scan counters) → Tasks 4–5. Spec §7 Cloudflare auth → Tasks 6–7. Deny-list → deferred (Q10). Spec §9 "Worker: StateDO via Cloudflare's Vitest plugin" → Tasks 3–7.
 - Audit 2026-10-03 #4 (byte-bounded cache) is resolved for the Worker by `SqlCache` (Task 4); Node's `MemoryCache` keeps its follow-up.
 - Audit #5 (fixed windows) unchanged: same algorithm on both runtimes, still a follow-up.
+
+---
+
+## Execution record (2026-10-04, closed)
+
+Executed inline on `main` (loop iterations 7–12), commits `c15bd68`..`8af70ce`. Two fresh-context reviews: iteration 10 (Tasks 2–5) and the final whole-plan review (iteration 12). Final state: 456 root tests + 45 worker tests pass, typecheck clean, `wrangler deploy --dry-run` passes. Not run on a live Cloudflare account (Q11).
+
+### Task completion
+
+- Task 1: complete (commits 8a69dbc..c15bd68, tests: corepack pnpm test → 432 passed | 5 skipped)
+- Task 2: complete (commits 157e744..8ef9862, tests: corepack pnpm test → 442 passed | 5 skipped; typecheck clean)
+- Task 3: complete (commits 8ef9862..50db450, tests: corepack pnpm test:worker → 2 passed; root suite 442 passed | 5 skipped; typecheck both projects exit 0)
+- Task 4: complete (commits 481400f..2b61922, tests: corepack pnpm test:worker → 11 passed; root 442 passed | 5 skipped; typecheck exit 0)
+- Task 5: complete (commits 2b61922..5758939, tests: corepack pnpm test:worker → 15 passed; root 444 passed | 5 skipped; typecheck exit 0)
+- Task 6: complete (commits e92115f..6d08f34, tests: corepack pnpm test:worker → 29 passed; typecheck exit 0)
+- Task 7: complete (commits 6d08f34..3571f16, tests: corepack pnpm test:worker → 43 passed; root 449 passed | 5 skipped; typecheck exit 0)
+- Task 8: complete (commits 3571f16..b0f91ef, tests: corepack pnpm test:worker → 43 passed; root 455 passed | 5 skipped; typecheck exit 0)
+
+### Rulings made during execution (with cost if wrong)
+
+- Setup: Ruling: executing on main without a worktree — user instruction "keep using main" — cost if wrong: work would need moving to a branch.
+- Task 3: Ruling: test:worker script uses `corepack pnpm --filter` not `pnpm --filter` — plain pnpm is not on PATH inside scripts (exit 127), project rule is corepack pnpm — cost if wrong: none.
+- Task 3: Ruling: types script is `wrangler types --strict-vars false` — strict mode typed the empty vars as literal "" which Task 7 cannot compare with real values — cost if wrong: vars typed string instead of literals.
+- Task 3: Ruling: worker-configuration.d.ts (16k lines, generated) committed and `@cloudflare/workers-types` not added — wrangler types now emits runtime types inline, so the extra package is redundant — cost if wrong: add the package.
+- Task 4: Ruling: SqlCache recency is a monotonic counter seeded from max(used_at), not clock time — same-millisecond hits would tie and make LRU order undefined — cost if wrong: none (only ordering matters).
+- Task 4: Ruling: an oversize put deletes any older entry for that key — otherwise a superseded entry could still be served as fresh — cost if wrong: loses a stale fallback for that one key.
+- Task 4: Ruling: SqlStateMap accepts only tables limiter/gate/meta — SQL identifiers cannot be bound, so the name is allow-listed — cost if wrong: none.
+- Task 4: Ruling: core index now exports type CacheEntry — the worker needs it for SqlCache; not in the brief — cost if wrong: none.
+- Task 5: Ruling: fixtures bundled as JSON imports instead of core's node:fs loader — workerd has no filesystem; fake-fetch.ts reused as the brief says — cost if wrong: none.
+- Task 5: Ruling: StateDO constructor runs createTables and salt setup synchronously without blockConcurrencyWhile — all SQL is synchronous, so no request can interleave — cost if wrong: wrap in blockConcurrencyWhile.
+- Task 7: Ruling (carried from review Important #2): loadWorkerConfig validates OPERATOR by calling buildUserAgent (invalid → 503 not_configured, no DO created; test OPERATOR 'noc (ops)'); the entry wraps stub.serve in try/catch → 500 {"error":"internal"} and logs err.name only — the DO constructor throws on a bad OPERATOR, and DO overload/reset errors reach the same path — cost if wrong: an uncaught exception instead of a clean 5xx.
+- Task 6: Ruling: record built as { ...value, sha256: hash } (hash last) and non-object JSON rejected before parseKeyRecords — defensive binding of the record to the looked-up hash; no observable effect today because nothing reads record.sha256 (a test for it passed under mutation and was removed) — cost if wrong: none.
+- Task 7: Ruling: an unknown KEYS_MODE value (not '' or 'kv') is a config error (503) — a typo must not silently fall back to the single key — cost if wrong: none.
+- Task 7: Ruling: ALLOWED_ORIGINS may be empty (no browser origins allowed; non-browser clients unaffected) — Workers have no localhost default like Node — cost if wrong: operators must list origins for browser clients.
+- Task 7: Ruling: config and edgeGate cached per env object in a WeakMap — the single key is hashed once per isolate, not per request — cost if wrong: none (env is per-isolate).
+- Task 7: Ruling: 503 log line carries `setting` (the name, never the value) — operators need to know which setting is wrong — cost if wrong: none.
+- Task 8: Ruling: revoke prints `wrangler kv key delete` instead of rewriting the record with revoked: true, and accepts the key or its sha256 — a valid record needs clientId and quota, which the key alone does not give, and operators rarely still have the key; an absent record is rejected exactly like a revoked one — cost if wrong: no audit trail of revoked keys in KV.
+- Task 8: Ruling: wrangler commands print positionals first (`put <hash> '<json>' --binding API_KEYS --remote`), matching wrangler's own usage line; the brief had flags first — both parse (--remote is boolean) — cost if wrong: none.
+- Task 8: Ruling: `new --raw --target kv` is an error — a single Worker key is a secret, not a KV record — cost if wrong: none.
+- Task 8: Ruling (security): wrangler.jsonc sets observability.logs.invocation_logs = false — Cloudflare documents that invocation logs capture request headers and does not document redacting Authorization; the API key must never be logged — cost if wrong: less request metadata in Workers Logs.
+- Final: Ruling: re-graded Minor→Important #1 (KEYS_MODE=kv without API_KEYS binding → 500 every request, not 503; KV outage logged as unauthorized) — Review Focus 5 requires 503 for a missing setting — fixed: 'KEYS_MODE kv without the API_KEYS binding' and 'logs a key-store failure as auth_error' RED→GREEN, suite 456 + worker 45 (41fc1c3).
+- Final: Ruling: re-graded Minor→Important #3 (traces would record outbound URLs with queried values; tail sees headers) — hard rule: never log query values — fixed by pinning observability.traces off (dry-run validated) and a docs warning (8af70ce). Config-only; no test possible offline.
+- Final: Ruling: re-graded Minor→Important #2, #4 (docs promise browser support that does not exist; spec §7 precedence and log line stale) plus #5, #10 in the same section — an operator following the docs gets broken advice — fixed (8af70ce). Also corrected the Node scan-hash retention wording (idle clients keep hashes in memory until their next request or a restart).
+
+### Review findings fixed
+
+- Task 5: Finding: responseMode 'json' applies only to 2026-07-28 exchanges; 2025-era clients get a one-shot SSE response (spec-valid; clients must accept both). Test parses either. Not a defect; noted for the iteration-10 review.
+- Task 5: Finding → fixed in core (c1c81ba): AbortSignal.timeout(10 s) stayed pending after each upstream lookup, so evictDurableObject hung and the DO stayed active 10 s per lookup. Confirmed by bisection (only after upstream fetch) and by a 200 ms timeout making eviction pass. Clearable deadline; test 'clears its timeout once the body is read' RED→GREEN; stall test added as a regression guard.
+- Review: fixed Important #1 unread upstream bodies not cancelled after the deadline fix — 'cancels the unread body after …' ×4 RED→GREEN, suite 448/448 (10b5234).
+- Review: fixed #6 re-graded Minor→Important (persisted, brute-forceable scan digests kept indefinitely for idle clients; spec §7 counts not values) — 'drops the scan digests once a client is suspended' and 'clears scan digests of expired windows only…' and 'schedules an alarm that purges…' RED→GREEN; salt-survival test added (mutation-checked); suite 449 + worker 18 (26f3922).
+
+### Deferred minors
+
+Listed in `docs/superpowers/plans/2026-09-30-rir-mcp-plan-1-followups.md` under "Code review, iteration 10", "Plan 3 (Cloudflare Worker) — open items" and "Plan 3 final review".

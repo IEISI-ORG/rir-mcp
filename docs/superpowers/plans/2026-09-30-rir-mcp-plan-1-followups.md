@@ -52,6 +52,17 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 - Single-key Worker deployments have a fixed quota of 60/hour (no `QUOTA_PER_HOUR` var yet); per-user KV records set their own.
 - Urgent revocation (StateDO deny-list, admin endpoint) deferred by Q10.
 
+## Plan 3 final review (2026-10-04) — deferred Minors
+
+Fixed at the review: kv mode without the KV binding now answers 503, and key-store failures log `auth_error` (`41fc1c3`); traces pinned off, docs corrected for browser clients, tail and retention, spec §7 amended (`8af70ce`).
+
+- `scripts/keys.ts` and `parseKeyRecords` accept any positive integer quota, e.g. `1e+23` (effectively unlimited). Cap at 1,000,000 like `RIR_MCP_QUOTA_PER_HOUR`. `revoke` rejects an uppercase hex hash instead of lower-casing it.
+- `StateDO.serve`: if `getAlarm`/`setAlarm` throws after the handler finished, the answer is lost although the quota was charged. Wrap the arming in try/catch and log the type.
+- `ALLOWED_HOSTS` / `RIR_MCP_ALLOWED_HOSTS` are compared case-sensitively with the SDK's lower-cased hostname: an uppercase entry gives a permanent 403. Lower-case both lists when loading.
+- `.gitignore`: add `.wrangler/` and `.dev.vars.*`.
+- Tests: KV `get` throwing through the Worker entry; 403 Host/Origin create no DO.
+- Node keeps an idle client's scan hashes in memory until its next request or a restart. Add a periodic sweep, for parity with the Worker's alarm.
+
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
