@@ -233,7 +233,7 @@ claude mcp add --transport http rir-mcp https://<your host>/mcp --header "Author
 
 - **State survives restarts and deploys.** Quotas, rate-limit windows and suspensions are stored in the Durable Object, so a 24-hour suspension lasts 24 hours even across a redeploy.
 - **Scan detection** keeps salted hashes of queried /24s, /48s, AS numbers and handles for the client's current hour, and at most about an hour after it ends: they are dropped when a client is suspended, and an hourly alarm deletes any left from ended hours.
-- **Cache:** at most 10,000 entries and 50 MB, least recently used first out. A single answer over 500 KB is not cached.
+- **Cache:** the same limits as Node (10,000 entries, 50 MB), but stored in the Durable Object, so it survives restarts and deploys.
 - **Logs** go to Workers Logs: the same value-free JSON lines as the Node server's stderr. Cloudflare's own invocation logs are turned off in `wrangler.jsonc`, because they record request headers, including the `Authorization` header that carries the API key. Traces are pinned off too, because they record outbound fetch URLs, which contain the queried address or AS number. Do not turn either back on. `wrangler tail` and Tail Workers receive request headers whatever these settings say: treat a tail session as able to see API keys.
 - **One Durable Object** serves every client, so rate limits and request de-duplication are exact worldwide. Requests from far away pay one round trip to its location.
 
@@ -274,7 +274,7 @@ Cache lifetimes:
 | History | 7 days | 30 days |
 | IANA bootstrap | 24 hours | 7 days |
 
-The cache is in memory, holds up to 10,000 entries, and is lost when the server restarts. When a registry cannot be reached and a stale entry exists, the answer is served and labelled `STALE`.
+The cache is in memory, holds up to 10,000 entries and 50 MB of answers (least recently used first out; a single answer over 500 KB is not cached), and is lost when the server restarts. When a registry cannot be reached and a stale entry exists, the answer is served and labelled `STALE`.
 
 ## Refreshing test fixtures
 

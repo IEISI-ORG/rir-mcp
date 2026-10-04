@@ -219,11 +219,11 @@ On upstream 429 or 5xx the RIR's rate halves for 5 minutes, then restores. Profi
 
 | | Node | Worker |
 |---|---|---|
-| Cache | in-memory LRU, 10k entries (implemented in `core/src/memory/`: no runtime imports, so it lives in core and Node re-uses it) | `StateDO` SQLite |
+| Cache | in-memory LRU, 10k entries and 50 MB of values (implemented in `core/src/memory/`: no runtime imports, so it lives in core and Node re-uses it) | `StateDO` SQLite |
 | Limiter + quotas + scan counters | in-process | `StateDO` |
 | Keys | `RIR_MCP_API_KEY` env, or keys file of SHA-256 hashes | secret or KV (§7) |
 
-One Durable Object instance holds all shared state for a deployment (global consistency, no KV write limits) and serves every MCP request (Q9). Shard by RIR if it becomes a bottleneck. The Worker cache is bounded by entry count (10k) and total bytes (50 MB); state survives Durable Object eviction; scan-detector digests are kept only for the current hour (purged by an alarm).
+One Durable Object instance holds all shared state for a deployment (global consistency, no KV write limits) and serves every MCP request (Q9). Shard by RIR if it becomes a bottleneck. The Worker cache is bounded by entry count (10k) and total bytes (50 MB); state survives Durable Object eviction; scan-detector digests are kept for the current hour and purged within about an hour after it ends (by an alarm; Node by an hourly sweep).
 
 ## 7. Security, access, Terms of Use
 
