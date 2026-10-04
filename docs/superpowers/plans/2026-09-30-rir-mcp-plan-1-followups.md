@@ -11,13 +11,28 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Daily security audit 2026-10-05 (snapshot 731beb3) — results
+
+Fresh-context auditor (Opus). No Critical or High. Fixed the same day:
+- **F1 Medium** — per-client call-rate limit on every tool call, cached ones included (120/min, burst 60, in memory; each batch element counts); `observe` skips the state write for a repeated unit (`869be83`).
+- **F2 Medium** — upstream `Retry-After` honoured: the limiter refuses the bucket until then (capped 1 h, persisted), read on 5xx too and as an HTTP date; IANA back-offs too (`6335b23`).
+- **F3 Low → Medium** — links, images, code spans and URLs defanged in registry text (`dc2ed36`).
+- **F4/F5/F6** — docs: one Node process per egress IP; WAF rate-limit rule for floods; cache-age note (`1e81e81`). **F7** `.claude/` ignored (`0b71b58`).
+
+Deferred (Low/Info):
+- Bootstrap base URLs are not checked for port, userinfo or path the way redirects are (IANA is trusted, over TLS).
+- A redirect from an RIR to itself makes a second request without charging a second token.
+- The Worker has no slow-body or request deadline (only authenticated clients can hold DO requests).
+- Dependency hygiene: caret ranges and an `-alpha` miniflare in dev tooling; consider pnpm `minimumReleaseAge`.
+- Residual of audit 2026-10-03 #4: array caps in reducers (status, nameservers, history `at` state, network `structuredContent`). The cache byte bound is done on both runtimes.
+
 ## Daily security audit 2026-10-03 (snapshot 998bb8a) — deferred Lows
 
 Fixed the same day: Medium #1 (history domain keys raw → `dnsName`), Medium #2 (deleted personal entity's history served → reducer marks `personal`, service refuses), Low #3 (redirect query/fragment/path → RDAP-path check), Low #6 (`SingleKeyStore` NaN quota → validated).
 
-- **#4 Byte-bounded memory:** `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
+- **#4 Byte-bounded memory:** *(cache byte bound done 2026-10-04 on both runtimes; array caps still open, see audit 2026-10-05)* `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
 - ~~**#5 Fixed hourly windows**~~ Done 2026-10-04 (`377f1af`) for the quota (sliding window, both runtimes). Scan detection keeps its fixed window by ruling: a sliding one would retain the previous hour's salted digests. Was: **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
-- **IANA bootstrap refetch before `charge`:** during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
+- ~~**IANA bootstrap refetch before `charge`:**~~ *(Closed 2026-10-05: memo, 5-minute and 30-second back-offs bound it to about 3 fetches per 30 s at worst.)* during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
 
 ## Code review, iteration 5 (2026-10-04, Plan 2 Tasks 1–7) — deferred Minors
 
@@ -93,7 +108,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
 - **Task 4**: no clamp for backward clock step (fails safe); clampProfile accepts 0/negative/NaN; penalise ignores unknown bucket while acquire throws.
 - **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
-- **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); HTTP-date Retry-After dropped; unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
+- **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
 - **Task 5**: reader lock not released on mid-read error; stream-error test setTimeout not cleaned.
 - **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; no negative caching during IANA outage (3 fetches per lookup after 24h); ASN '' → 0 accepted; bases last-write-wins.
 - **Task 6**: rejected payload leaves this.parsed set (harmless); Service type/asRawFile narrower than runtime checks.

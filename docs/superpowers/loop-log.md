@@ -42,6 +42,8 @@ Rules from the user:
 
 | 17 | 2026-10-04 | follow-ups | No new answers; audit not yet due. Worker cache hits skip the billed recency write while the entry is among the most recent tenth; a cold-start IANA failure is remembered for 30 s (no 3-fetch storm per lookup); order-independent "no DO" tests via a STATE spy (mutation: 12 fail), alarm log assertion, `auth-info` module; 413 never builds the per-request server (with positive control); spec logs outcome code. 480 root + 57 worker tests pass. | `c69a3b4`, `ef423d4` |
 
-**Next iteration:** 18 — daily security audit (due 2026-10-05; first iteration on or after midnight). Then the older Plan 1 task minors (sanitiser escapes and tag characters, STALE wording, renderer nits).
+| 18 | 2026-10-05 | audit | Daily security audit (fresh Opus auditor, snapshot `731beb3`): 0 Critical/High, 2 Medium, Lows/Infos. Fixed: per-client call-rate limit on every tool call incl. cached and batched (one key could saturate the single DO — 1000 cached calls wrote 1407 SQLite rows); upstream `Retry-After` honoured (was 300 requests in 10 min to an RIR that asked for an hour's pause); markdown links/images/URLs defanged in registry text (re-graded Medium); docs for single Node process per egress IP, WAF rule, cache-age note; `.claude/` ignored. 5 Low/Info deferred. 492 root + 57 worker tests pass. | `6335b23`, `869be83`, `1e81e81` |
+
+**Next iteration:** 19 — remaining follow-ups: reducer array caps (audit #4 residual), self-redirect charging, Worker request deadline, Plan 1 task minors (sanitiser test escapes, STALE wording, renderer nits).
 **Next code review:** iteration 20.
-**Security audit:** 2026-10-04 done (iteration 6, snapshot `af76a4c`); next due 2026-10-05.
+**Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
