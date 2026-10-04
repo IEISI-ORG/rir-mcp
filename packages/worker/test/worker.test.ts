@@ -63,9 +63,29 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect(await doCount()).toBe(before);
   });
 
-  it('rejects a foreign Origin and a foreign Host with 403', async () => {
+  it('rejects a foreign Origin and a foreign Host with 403 and creates no DO', async () => {
+    const before = await doCount();
     expect((await call(req({ ...bearer(TEST_KEY), origin: 'https://evil.example' }))).status).toBe(403);
     expect((await call(req({ ...bearer(TEST_KEY), host: 'evil.example' }))).status).toBe(403);
+    expect(await doCount()).toBe(before);
+  });
+
+  it('answers 500 logged as auth_error when KV fails, and creates no DO', async () => {
+    const before = await doCount();
+    const brokenKv = { get: () => Promise.reject(new Error('KV unavailable')) } as unknown as KVNamespace;
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    let lines: string[];
+    let res: Response;
+    try {
+      res = await call(req(bearer(generateKey())), { ...(env as TestEnv), KEYS_MODE: 'kv', API_KEYS: brokenKv } as TestEnv);
+      lines = spy.mock.calls.map((a) => a.map(String).join(' '));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(res.status).toBe(500);
+    expect(lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toContainEqual(expect.objectContaining({ status: 500, reason: 'auth_error' }));
+    expect(lines.join('\n')).not.toContain('KV unavailable');
+    expect(await doCount()).toBe(before);
   });
 
   it('matches allow-list entries case-insensitively', async () => {
