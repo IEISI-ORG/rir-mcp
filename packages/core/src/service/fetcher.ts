@@ -45,6 +45,8 @@ export interface FetchRequest<T> {
   readonly ticket?: QuotaTicket;
   /** What the client's quota is charged, when it differs from the RIR limiter's `weight` (history on small quotas). */
   readonly quotaWeight?: number;
+  /** What the whole logical request needs from the quota, for an accurate retry time if this charge is refused. */
+  readonly quotaRetryWeight?: number;
 }
 
 export interface QuotaTicket {
@@ -147,7 +149,7 @@ export class CachedFetcher {
         if (!pre.ok) return entry ? fromEntry(entry, 'stale', req.rir) : rateLimited(req.rir, pre.retryAfterS);
       }
       if (req.scope && !req.ticket?.charged) {
-        const g = await req.scope.gate.charge(req.scope.client, req.quotaWeight ?? req.weight);
+        const g = await req.scope.gate.charge(req.scope.client, req.quotaWeight ?? req.weight, req.quotaRetryWeight);
         if (!g.ok) {
           denial = g;
           return DENIED;

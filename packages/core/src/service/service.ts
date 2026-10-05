@@ -231,6 +231,10 @@ export class RirService {
       const quotaCap = this.scope ? Math.min(WEIGHT.history, this.scope.client.quotaPerHour) : WEIGHT.history;
       const out = await this.get({
         key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), quotaWeight: Math.max(0, quotaCap - meter.units),
+        // If refused, the retry time is for the whole request: next time the companion is usually cached, so the
+        // history needs the full cap. A unit the companion already spent stays spent (refunding it would let refused
+        // requests make free upstream lookups).
+        quotaRetryWeight: quotaCap,
         freshS: TTL_S.history, staleS: TTL_S.historyStale,
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
@@ -313,8 +317,8 @@ export class RirService {
 /** A gate that passes everything through and counts the quota units a request really spent (charges minus refunds). */
 function metered(gate: ClientGate, meter: { units: number }): ClientGate {
   return {
-    charge: async (client, weight) => {
-      const g = await gate.charge(client, weight);
+    charge: async (client, weight, retryWeight) => {
+      const g = await gate.charge(client, weight, retryWeight);
       if (g.ok) meter.units += weight;
       return g;
     },

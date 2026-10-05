@@ -46,7 +46,7 @@ export class MemoryClientGate implements ClientGate {
     this.salt = opts.salt ?? crypto.getRandomValues(new Uint8Array(16)).join('.');
   }
 
-  async charge(client: ClientInfo, weight: number): Promise<GateResult> {
+  async charge(client: ClientInfo, weight: number, retryWeight = weight): Promise<GateResult> {
     const now = this.clock.now();
     const { s } = this.current(client.clientId, now);
     if (now < s.suspendedUntil) return this.suspended(s, now);
@@ -57,7 +57,7 @@ export class MemoryClientGate implements ClientGate {
     // Key stores validate quotas (1..1,000,000); this is the last line of defence, so anything below 1 (or NaN) denies.
     if (!(client.quotaPerHour >= 1)) return { ok: false, reason: 'quota', retryAfterS: HOUR_MS / 1000 };
     if (!(carried + s.used + weight <= client.quotaPerHour)) {
-      return { ok: false, reason: 'quota', retryAfterS: retryAfter(s, elapsed, weight, client.quotaPerHour) };
+      return { ok: false, reason: 'quota', retryAfterS: retryAfter(s, elapsed, Math.max(weight, retryWeight), client.quotaPerHour) };
     }
     s.used += weight;
     this.state.set(client.clientId, s);

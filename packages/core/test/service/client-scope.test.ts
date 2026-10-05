@@ -156,3 +156,24 @@ describe('a blocked registry costs no state writes (audit 2026-10-06 L1)', () =>
     expect(gateState.writes - gw).toBe(0);
   });
 });
+
+describe('history retry times are real (iteration-30 review I1)', () => {
+  it.each([2, 3, 4])('quota %i: a refused entity history succeeds when retried at the time it was given', async (q) => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      [IP]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
+      'https://rdap.apnic.net/entity/ORG-ARAD1-AP': { body: loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json') },
+      'https://rdap.apnic.net/history/entity/ORG-ARAD1-AP': { body: { records: [] } },
+    });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const scoped = base.forClient({ client: { clientId: 'small', quotaPerHour: q }, gate: new MemoryClientGate(clock) });
+    await scoped.ip('1.1.1.1'); // one unit used
+    clock.advance(10_000); // let APNIC's burst refill, so only the client quota is in play
+    const first = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
+    expect(first).toMatchObject({ kind: 'error', code: 'quota_exceeded' });
+    clock.advance((first as { retryAfterS: number }).retryAfterS * 1000);
+    const again = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
+    expect(again, `first retry ${(first as { retryAfterS: number }).retryAfterS}s`).not.toMatchObject({ code: 'quota_exceeded' });
+  });
+});
