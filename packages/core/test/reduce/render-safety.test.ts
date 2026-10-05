@@ -46,6 +46,10 @@ const HOSTILE = [
   '~~EXAMPLE-NET',
   '~struck~ text',
   '`run this`',
+  // Single-underscore emphasis (audit 2026-10-06 L3)
+  '_Verified by APNIC_',
+  '__init__ Corp',
+  'Acme _official_ abuse desk',
 ];
 
 const md = new MarkdownIt({ html: true, linkify: true });

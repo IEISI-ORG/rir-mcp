@@ -14,8 +14,8 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * - Schemes become "x(:)(/)(/)" (no "//" left for protocol-relative linkifiers), and "www." after anything but a
  *   letter, digit or "@" becomes "www(.)" (GFM also autolinks after "_", "-", "."). Emails keep theirs via "@";
  *   DNS-name fields pass { host: true } and keep a leading "www.".
- * - "~" (GFM strikes through even single tildes), "*" (bold and italics), runs of "_", and backticks (code) are
- *   neutralised.
+ * - "~" (GFM strikes through even single tildes), "*" (bold and italics), "_" at a word edge (emphasis), and
+ *   backticks (code) are neutralised; "_" inside a word (abuse_team@) is kept.
  * Accepted residual: linkifiers with fuzzy matching (markdown-it, Slack) link a bare domain such as "evil.com", but
  * such a link shows exactly where it goes.
  */
@@ -32,6 +32,8 @@ function defang(s: string, host: boolean): string {
     .replace(/~/g, '∼')
     .replace(/\*/g, '∗')
     .replace(/_{2,}/g, '_')
+    // A single '_' at a word edge starts or ends emphasis; inside a word (abuse_team@) it is kept.
+    .replace(/(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, '‗')
     .replace(/`/g, "'");
 }
 
