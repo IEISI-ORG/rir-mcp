@@ -108,3 +108,25 @@ describe('history on small quotas (iteration-25 review)', () => {
     expect(out.kind === 'error' ? out.code : out.kind).not.toBe('quota_exceeded');
   });
 });
+
+describe('history quota cannot be bypassed via a stale companion (iteration-25 commit review)', () => {
+  it('an exhausted quota-1 key gets no free history fetch when the companion is served stale', async () => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      'https://rdap.apnic.net/entity/ORG-ARAD1-AP': { body: loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json') },
+      'https://rdap.apnic.net/history/entity/ORG-ARAD1-AP': { body: { records: [] } },
+    });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    await base.entity('ORG-ARAD1-AP'); // cached
+    clock.advance(2 * 3_600_000); // stale, still within its stale lifetime
+    const gate = new MemoryClientGate(clock);
+    const client = { clientId: 'one', quotaPerHour: 1 };
+    await gate.charge(client, 1); // quota spent
+    const scoped = base.forClient({ client, gate });
+    const before = fetch.calls.filter((u) => u.includes('/history/')).length;
+    const out = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
+    expect(fetch.calls.filter((u) => u.includes('/history/')).length).toBe(before); // no free upstream history call
+    expect(out).toMatchObject({ kind: 'error', code: 'quota_exceeded' });
+  });
+});

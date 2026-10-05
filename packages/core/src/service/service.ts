@@ -3,7 +3,7 @@ import { InputError } from '../input/errors';
 import { inferRirFromHandle, parseHandle } from '../input/handle';
 import { formatPrefix, parseIpOrCidr } from '../input/ip';
 import { reverseZones } from '../input/reverse-zone';
-import type { CacheStore, Clock, FetchLike, RateLimiter } from '../ports';
+import type { CacheStore, ClientGate, Clock, FetchLike, RateLimiter } from '../ports';
 import { Bootstrap } from '../rdap/bootstrap';
 import { MAX_BYTES, type HttpDeps } from '../rdap/client';
 import { RdapError } from '../rdap/errors';
@@ -198,7 +198,13 @@ export class RirService {
 
   history(req: HistoryRequest): Promise<Answer<HistoryRecord>> {
     return guard(async () => {
-      const target = await this.historyTarget(req.type ?? inferHistoryType(req.resource), req);
+      // The companion lookups run through a gate that counts the quota units they really cost (net of refunds), so
+      // the history charge below is exact. Guessing from cache status let an exhausted key fetch history for free.
+      const meter = { units: 0 };
+      const self = this.scope
+        ? new RirService(this.deps, { bootstrap: this.bootstrap, fetcher: this.fetcher }, { ...this.scope, gate: metered(this.scope.gate, meter) })
+        : this;
+      const target = await self.historyTarget(req.type ?? inferHistoryType(req.resource), req);
       if ('kind' in target) return target;
       let redirected: Answer<{ readonly changed?: string }> | undefined;
       let servedBy: Rir = target.rir;
@@ -224,7 +230,7 @@ export class RirService {
       // ask, using its full hour). The RIR limiter is still charged the full weight. NaN quotas stay NaN and deny.
       const quotaCap = this.scope ? Math.min(WEIGHT.history, this.scope.client.quotaPerHour) : WEIGHT.history;
       const out = await this.get({
-        key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), quotaWeight: Math.max(0, quotaCap - misses),
+        key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), quotaWeight: Math.max(0, quotaCap - meter.units),
         freshS: TTL_S.history, staleS: TTL_S.historyStale,
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
@@ -302,4 +308,20 @@ export class RirService {
     const ageS = Math.max(0, Math.round((this.clock.now() - out.fetchedAt) / 1000));
     return { kind: 'record', record: out.value, meta: { rir: out.rir, cache: out.cache, ageS, url: out.url } };
   }
+}
+
+/** A gate that passes everything through and counts the quota units a request really spent (charges minus refunds). */
+function metered(gate: ClientGate, meter: { units: number }): ClientGate {
+  return {
+    charge: async (client, weight) => {
+      const g = await gate.charge(client, weight);
+      if (g.ok) meter.units += weight;
+      return g;
+    },
+    refund: async (client, weight) => {
+      await gate.refund(client, weight);
+      meter.units = Math.max(0, meter.units - weight);
+    },
+    observe: (client, unit) => gate.observe(client, unit),
+  };
 }
