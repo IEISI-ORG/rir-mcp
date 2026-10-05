@@ -71,6 +71,8 @@ Rules from the user:
 
 | 30 | 2026-10-06 | review + audit | Code review (fresh Opus, `068ee83..7286016`): 0 Critical, 1 Important, 7 Minor. Daily audit (fresh Opus, snapshot `7286016`): 0 Critical/High/Medium, 3 Low, 4 Info. Fixed: a blocked registry no longer costs three storage writes per refused call (re-graded Medium); refused history gives a whole-request retry time; reverse-DNS history uses only computed zones; underscore emphasis; gate options / infinite Retry-After fail closed; strict clamps; counter clear order. SECURITY.md added; GitHub security settings (all off) asked as Q13. 657 root + 63 worker tests pass. | `7e551ee`, `93a4033`, `02f2b6f`, `83625ce` |
 
-**Next iteration:** 31 — deferred items from iteration 30 (rangeToCidrs early stop, limiter weight accounting, test gaps); after 2026-10-07 remove the four minimumReleaseAge exclusions.
+| 31 | 2026-10-06 | follow-ups | No new answers. rangeToCidrs stops at the prefix limit (hostile IPv6 history: 6.6 s CPU before); a nameless holder renders "name removed"; combining overlays dropped and mark stacks capped; small-quota and per-tool leak tests tightened. Ruling: history limiter weight under-count not fixed (registry rate still respected; exact fix needs token metering). 660 root + 63 worker tests pass. | — |
+
+**Next iteration:** 32 — remove the four minimumReleaseAge exclusions if after 2026-10-07 (else wait); remaining test gaps (Worker GET-body through workerd, edge log reasons); daily audit when 2026-10-07 arrives.
 **Next code review:** iteration 35.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
