@@ -57,6 +57,8 @@ Rules from the user:
 
 | 23 | 2026-10-05 | follow-ups | No new answers. A removed holder renders "(none)" instead of "(none) ((none))"; prefix lengths with leading zeros (`/024`) refused; rangeToCidrs edge-case tests; input echo in errors confirmed bounded by the 64-char schemas. 610 root + 62 worker tests pass. | `802a981` |
 
-**Next iteration:** 24 — daily security audit if the date has turned to 2026-10-06; otherwise remaining Plan 1 test gaps (prefixContains IPv6, limiter penalty restoration, MCP-boundary bad-input cases).
+| 24 | 2026-10-05 | follow-ups | No new answers. Limiter refill split at the end of a penalty (a bucket emptied by an upstream error came back early: 310 tokens instead of 160). Tests: IPv6/equal prefixContains, penalty rate restoration, seven bad-input cases at the MCP boundary. 620 root + 62 worker tests pass. | `3252afe`, `488ece5` |
+
+**Next iteration:** 25 — code review (fresh reviewer) of `2a39f48..HEAD` (iterations 21–24); daily security audit too if the date has turned to 2026-10-06.
 **Next code review:** iteration 25.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.

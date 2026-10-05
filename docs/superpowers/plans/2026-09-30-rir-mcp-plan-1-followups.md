@@ -105,13 +105,13 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 
 ## Deferred minors by task
 
-- **Task 1**: ~~rangeToCidrs lacks IPv6/single-address/start>end tests~~ (done 2026-10-05); prefixContains lacks IPv6/equal cases.
+- **Task 1**: ~~rangeToCidrs lacks IPv6/single-address/start>end tests~~ (done 2026-10-05); ~~prefixContains lacks IPv6/equal cases~~ (done 2026-10-05).
 - ~~**Task 1**: `1.1.1.1/024` accepted as /24~~ (done 2026-10-05, refused).
 - ~~**Task 2**: toUpperCase maps non-ASCII (ß→SS, ı→I) into valid handles; reject non-ASCII before upper-casing.~~ (done earlier, `input/handle.ts`)
 - **Task 2**: inferRirFromHandle expects parseHandle output (no normalisation/doc).
 - **Task 2**: no tests for 64-char handle boundary, handle hint, IPv6 /30 /50 /96, IPv4 /24 /16 zones; `4608.0` parses as asdot silently; error messages echo raw input (bounded: the tool schemas cap inputs at 64 characters, so not a risk).
 - **Task 3**: tests cover 10/27 IP rows; no table-driven drift guard; longest-prefix branch unexercised (no overlapping rows).
-- **Task 4**: refill applies one rate across a span straddling penaltyUntil; no test for rate restoration after 5 min.
+- ~~**Task 4**: refill applies one rate across a span straddling penaltyUntil; no test for rate restoration after 5 min.~~ (done 2026-10-05, `3252afe`)
 - **Task 4**: cost=min(weight,burst) undocumented/untested (LACNIC history would drain 3 not 5; history is APNIC-only so moot today).
 - **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
 - **Task 4**: no clamp for backward clock step (fails safe); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
@@ -132,7 +132,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 11**: coalescing window between cache.get and inflight check can start a second call after a just-finished refresh; reducer TypeError/cache.put failure propagate without penalise; dead `?? 'apnic'` in entity history path; too_large doesn't penalise; no cache-content assertion for personal entities; no redirect allow-list wiring test.
 - **Task 11**: cold ip/asn history stores no validatedFor, so one extra refetch can occur on the first later call with changed > latestFrom (bounded, once).
 - **Task 11**: companion failing with upstream/too_large and no stale fallback is not counted → total 6; only during an upstream failure (limiter already penalised → history served stale), non-blocking.
-- **Task 12**: Review Focus 2 at MCP boundary only tests AS-FOO (add IP bad-input + schema-rejection cases); ~~DATE regex allows 2012-13-45~~ (done 2026-10-05); no test that since/detail change output; purity regex false-positive prone; outputSchema rir/cache are plain strings; resource test shallow.
+- **Task 12**: ~~Review Focus 2 at MCP boundary only tests AS-FOO~~ (done 2026-10-05); ~~DATE regex allows 2012-13-45~~ (done 2026-10-05); no test that since/detail change output; purity regex false-positive prone; outputSchema rir/cache are plain strings; resource test shallow.
 - **Task 12**: historyView without meta ignores source line in byte budget (latent trap); no test for timeline-mode structured output.
 - **Task 13**: README docs reference not a markdown link; TERMS_OF_USE link dead until Plan 4; placeholder contacts `you@example.net` / `github.com/you/...` look copyable — use `<operator contact>`; live.test.ts comment omits corepack.
 - **Task 13**: stderr also carries config-error line/Node warnings; history cost described as 5 (≈5); Claude Desktop PATH/nvm note; no test that onError logs type only or that stdout has only protocol frames; "listening" logged before connection.
