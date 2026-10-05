@@ -115,6 +115,18 @@ describe('MemoryRateLimiter', () => {
     expect(ok).toBeLessThanOrEqual(11); // 1 per second over 10 s, not 4 per second
   });
 
+  it('does not credit the same time twice after the clock steps backwards', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter({ x: { ratePerS: 1, burst: 100 } }, clock);
+    for (let i = 0; i < 100; i++) await lim.acquire('x', 1);
+    clock.advance(-10_000);
+    await lim.acquire('x', 1); // refused, but must not move the bucket's clock back
+    clock.advance(11_000); // 1 s after the original time
+    let ok = 0;
+    while ((await lim.acquire('x', 1)).ok) ok++;
+    expect(ok).toBeLessThanOrEqual(1);
+  });
+
   it('throws for an unknown bucket', async () => {
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
     await expect(lim.acquire('nope', 1)).rejects.toThrow('No rate-limit profile');

@@ -16,6 +16,11 @@ const json = (status: number, error: string) => Response.json({ error }, { statu
  */
 export async function bufferBody(request: Request, limits: BodyLimits): Promise<Request | Response> {
   if (!request.body) return request;
+  // workerd delivers a body for a GET/HEAD with Content-Length, but a Request with that method cannot carry one.
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    await request.body.cancel().catch(() => undefined);
+    return new Request(request.url, { method: request.method, headers: request.headers });
+  }
   const declared = Number(request.headers.get('content-length') ?? '0');
   if (declared > limits.maxBytes) {
     await request.body.cancel().catch(() => undefined);

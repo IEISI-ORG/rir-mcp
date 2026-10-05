@@ -88,7 +88,8 @@ export class MemoryRateLimiter implements RateLimiter {
     const normal = Math.max(0, now - Math.max(s.updatedAt, s.penaltyUntil));
     const gained = (penalised * PENALTY_FACTOR + normal) / 1000 * profile.ratePerS;
     s.tokens = Math.min(burstOf(profile), s.tokens + gained);
-    s.updatedAt = now;
+    // Never move the bucket's clock backwards: a backward step would let the same span be credited twice.
+    s.updatedAt = Math.max(s.updatedAt, now);
     if (now - s.windowStart >= HOUR_MS) {
       s.windowStart = now;
       s.windowCount = 0;

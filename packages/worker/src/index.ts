@@ -32,13 +32,14 @@ export default {
     }
     const admitted = await gate(request);
     if (admitted instanceof Response) return admitted;
-    // Buffer the body here, within a deadline and the size limit, so a slow client never holds the DO open.
-    const buffered = await bufferBody(request, { maxBytes: MAX_BODY_BYTES, deadlineMs: BODY_DEADLINE_MS });
-    if (buffered instanceof Response) {
-      log({ t: now(), status: buffered.status, reason: buffered.status === 413 ? 'too_large' : 'slow_body' });
-      return buffered;
-    }
     try {
+      // Buffer the body here, within a deadline and the size limit, so a slow client never holds the DO open.
+      const buffered = await bufferBody(request, { maxBytes: MAX_BODY_BYTES, deadlineMs: BODY_DEADLINE_MS });
+      if (buffered instanceof Response) {
+        const reason = buffered.status === 413 ? 'too_large' : buffered.status === 408 ? 'slow_body' : 'bad_body';
+        log({ t: now(), status: buffered.status, reason });
+        return buffered;
+      }
       return await env.STATE.getByName('state').serve(buffered, admitted.client);
     } catch (err) {
       // DO errors (overload, reset, a constructor failure) end here. The message may hold query values: type only.

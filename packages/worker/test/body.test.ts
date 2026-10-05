@@ -31,6 +31,14 @@ describe('bufferBody', () => {
     expect(Date.now() - started).toBeLessThan(2000);
   });
 
+  it('drops a body sent with GET or HEAD instead of throwing', async () => {
+    const withBody = { method: 'GET', headers: {}, url: 'https://mcp.example.net/mcp', body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array(3)); c.close(); } }) } as unknown as Request;
+    const out = await bufferBody(withBody, { maxBytes: 1000, deadlineMs: 1000 });
+    expect(out).toBeInstanceOf(Request);
+    expect((out as Request).method).toBe('GET');
+    expect((out as Request).body).toBeNull();
+  });
+
   it('leaves a request without a body as it is', async () => {
     const get = new Request('https://mcp.example.net/mcp', { method: 'GET' });
     expect(await bufferBody(get, { maxBytes: 1000, deadlineMs: 50 })).toBe(get);
