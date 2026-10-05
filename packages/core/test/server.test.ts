@@ -52,6 +52,21 @@ describe('MCP server', () => {
     await c.close();
   });
 
+  it.each([
+    ['rdap_ip_lookup', { address: '300.1.1.1' }],
+    ['rdap_ip_lookup', { address: '1.1.1.0/33' }],
+    ['rdap_reverse_dns', { address: 'not-an-ip' }],
+    ['rdap_entity_lookup', { handle: 'bad handle!' }],
+    ['rdap_ip_lookup', { address: '1'.repeat(65) }], // over the schema's 64 characters
+    ['rdap_history', { resource: 'x'.repeat(65) }],
+    ['rdap_asn_lookup', { asn: 42 }], // wrong type
+  ])('returns isError for bad input to %s %j', async (name, args) => {
+    const c = await connect();
+    const r = await c.callTool({ name, arguments: args as Record<string, unknown> });
+    expect(r.isError).toBe(true);
+    await c.close();
+  });
+
   it('returns isError with an example for bad input', async () => {
     const c = await connect();
     const r = await c.callTool({ name: 'rdap_asn_lookup', arguments: { asn: 'AS-FOO' } });

@@ -48,6 +48,17 @@ describe('prefixContains', () => {
   });
 });
 
+describe('prefixContains, IPv6 and equal prefixes', () => {
+  it('contains equal prefixes and more-specifics, not less-specifics or other families', () => {
+    const p = (v: string) => parseIpOrCidr(v);
+    expect(prefixContains(p('2001:db8::/32'), p('2001:db8::/32'))).toBe(true);
+    expect(prefixContains(p('2001:db8::/32'), p('2001:db8:1::/48'))).toBe(true);
+    expect(prefixContains(p('2001:db8:1::/48'), p('2001:db8::/32'))).toBe(false);
+    expect(prefixContains(p('2001:db8::/32'), p('2001:db9::1'))).toBe(false);
+    expect(prefixContains(p('0.0.0.0/0'), p('::/0'))).toBe(false);
+  });
+});
+
 describe('prefix length spelling', () => {
   it.each(['1.1.1.0/024', '2001:db8::/032', '1.1.1.0/00'])('refuses a non-canonical length with leading zeros (%s)', (v) => {
     expect(() => parseIpOrCidr(v)).toThrow(/prefix length/);
