@@ -31,23 +31,21 @@ export class MemoryRateLimiter implements RateLimiter {
     this.state = state;
   }
 
+  async check(name: string, weight: number): Promise<AcquireResult> {
+    const profile = this.profile(name);
+    const now = this.clock.now();
+    return this.refusal(profile, this.refill(name, profile, now), weight, now) ?? { ok: true };
+  }
+
   async acquire(name: string, weight: number): Promise<AcquireResult> {
     const profile = this.profile(name);
     const now = this.clock.now();
     const s = this.refill(name, profile, now);
-    // Persist the refill whatever the outcome, so a persisted store sees the same state as memory would.
-    this.state.set(name, s);
-    if (s.blockedUntil !== undefined && now < s.blockedUntil) {
-      return { ok: false, retryAfterS: Math.max(1, Math.ceil((s.blockedUntil - now) / 1000)) };
-    }
-    if (profile.hourlyCap !== undefined && s.windowCount + weight > profile.hourlyCap) {
-      return { ok: false, retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
-    }
+    // A refusal saves nothing: the refill is linear and capped, so recomputing it later from the older state gives
+    // the same tokens, and a blocked registry must not cost a storage write per call (audit 2026-10-06 L1).
+    const refused = this.refusal(profile, s, weight, now);
+    if (refused) return refused;
     const cost = Math.min(weight, burstOf(profile));
-    if (s.tokens + EPSILON < cost) {
-      const rate = this.rate(profile, s, now);
-      return { ok: false, retryAfterS: Math.max(1, Math.ceil((cost - s.tokens) / rate - EPSILON)) };
-    }
     s.tokens = Math.max(0, s.tokens - cost);
     s.windowCount += weight;
     this.state.set(name, s);
@@ -66,6 +64,21 @@ export class MemoryRateLimiter implements RateLimiter {
       s.blockedUntil = Math.max(s.blockedUntil ?? 0, now + Math.min(retryAfterS * 1000, MAX_BLOCK_MS));
     }
     this.state.set(name, s);
+  }
+
+  private refusal(profile: LimitProfile, s: BucketState, weight: number, now: number): AcquireResult | null {
+    if (s.blockedUntil !== undefined && now < s.blockedUntil) {
+      return { ok: false, retryAfterS: Math.max(1, Math.ceil((s.blockedUntil - now) / 1000)) };
+    }
+    if (profile.hourlyCap !== undefined && s.windowCount + weight > profile.hourlyCap) {
+      return { ok: false, retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
+    }
+    const cost = Math.min(weight, burstOf(profile));
+    if (s.tokens + EPSILON < cost) {
+      const rate = this.rate(profile, s, now);
+      return { ok: false, retryAfterS: Math.max(1, Math.ceil((cost - s.tokens) / rate - EPSILON)) };
+    }
+    return null;
   }
 
   private profile(name: string): LimitProfile {

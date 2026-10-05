@@ -24,6 +24,8 @@ export type AcquireResult = { readonly ok: true } | { readonly ok: false; readon
 
 export interface RateLimiter {
   acquire(bucket: string, weight: number): Promise<AcquireResult>;
+  /** Read-only: would acquire refuse now? Lets a caller skip charging a client for a lookup that cannot run. */
+  check?(bucket: string, weight: number): Promise<AcquireResult>;
   /** Called after upstream 429/5xx/timeout/bad response: back off this bucket. */
   /** retryAfterS: the upstream's Retry-After, if any; the bucket is then refused until it has passed (capped). */
   penalise(bucket: string, retryAfterS?: number): Promise<void>;

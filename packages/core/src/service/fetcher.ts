@@ -140,6 +140,12 @@ export class CachedFetcher {
     const p = (async (): Promise<FetchOutcome<T> | typeof DENIED> => {
       // Charge the client first so an over-quota client cannot spend shared RIR tokens...
       let charged = false;
+      if (req.scope && !req.ticket?.charged && this.deps.limiter.check) {
+        // A lookup the registry limiter would refuse is answered without charging and refunding the client: during
+        // a Retry-After block that pair cost two storage writes per call (audit 2026-10-06 L1).
+        const pre = await this.deps.limiter.check(req.rir, req.weight);
+        if (!pre.ok) return entry ? fromEntry(entry, 'stale', req.rir) : rateLimited(req.rir, pre.retryAfterS);
+      }
       if (req.scope && !req.ticket?.charged) {
         const g = await req.scope.gate.charge(req.scope.client, req.quotaWeight ?? req.weight);
         if (!g.ok) {

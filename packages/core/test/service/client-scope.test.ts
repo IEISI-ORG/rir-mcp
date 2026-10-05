@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryCache } from '../../src/memory/cache';
-import { MemoryClientGate } from '../../src/memory/client-gate';
-import { MemoryRateLimiter } from '../../src/memory/rate-limiter';
+import { MemoryClientGate, type ClientState } from '../../src/memory/client-gate';
+import { MemoryRateLimiter, type BucketState } from '../../src/memory/rate-limiter';
 import type { RateLimiter } from '../../src/ports';
 import { DEFAULT_LIMITS } from '../../src/rdap/limits';
 import { RirService } from '../../src/service/service';
@@ -128,5 +128,31 @@ describe('history quota cannot be bypassed via a stale companion (iteration-25 c
     const out = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
     expect(fetch.calls.filter((u) => u.includes('/history/')).length).toBe(before); // no free upstream history call
     expect(out).toMatchObject({ kind: 'error', code: 'quota_exceeded' });
+  });
+});
+
+describe('a blocked registry costs no state writes (audit 2026-10-06 L1)', () => {
+  it('refuses uncached calls during a Retry-After block without charging, refunding or saving the limiter', async () => {
+    const clock = new FakeClock();
+    const counting = <V,>() => {
+      const m = new Map<string, V>();
+      const c = { writes: 0, get: (k: string) => m.get(k), set: (k: string, v: V) => { c.writes += 1; m.set(k, v); } };
+      return c;
+    };
+    const limiterState = counting<BucketState>();
+    const gateState = counting<ClientState>();
+    const limiter = new MemoryRateLimiter(DEFAULT_LIMITS, clock, limiterState);
+    const fetch = fakeFetch({ ...ianaRoutes() });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter });
+    await limiter.penalise('apnic', 3600);
+    const gate = new MemoryClientGate(clock, { state: gateState });
+    const scoped = base.forClient({ client: { clientId: 'k', quotaPerHour: 60 }, gate });
+    await scoped.ip('1.1.1.1'); // the first call may record the scan unit once
+    const [lw, gw] = [limiterState.writes, gateState.writes];
+    for (let i = 2; i < 102; i++) {
+      expect(await scoped.ip(`1.1.1.${i}`)).toMatchObject({ kind: 'error', code: 'rate_limited' });
+    }
+    expect(limiterState.writes - lw).toBe(0);
+    expect(gateState.writes - gw).toBe(0);
   });
 });
