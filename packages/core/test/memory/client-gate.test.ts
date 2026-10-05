@@ -70,21 +70,22 @@ describe('MemoryClientGate sliding quota window (audit 2026-10-03 #5)', () => {
   });
 });
 
-describe('MemoryClientGate heavy calls on small quotas', () => {
-  it('lets a call heavier than the whole quota through once it has the full hour, instead of refusing forever', async () => {
+describe('MemoryClientGate full-quota charges', () => {
+  // Heavy calls on small quotas are capped per request by the service (quotaWeight); the gate charges what it is given.
+  it('allows a charge of the whole quota once the hour is free, and its retry time is real', async () => {
     const clock = new FakeClock();
     const g = new MemoryClientGate(clock);
     const small = { clientId: 'small', quotaPerHour: 3 };
-    expect((await g.charge(small, 5)).ok).toBe(true); // costs the whole quota
-    const denied = await g.charge(small, 5);
+    expect((await g.charge(small, 3)).ok).toBe(true);
+    const denied = await g.charge(small, 3);
     expect(denied).toMatchObject({ ok: false, reason: 'quota' });
     clock.advance((denied as { retryAfterS: number }).retryAfterS * 1000);
-    expect((await g.charge(small, 5)).ok).toBe(true); // the retry time it was given is real
+    expect((await g.charge(small, 3)).ok).toBe(true);
   });
 });
 
 describe('MemoryClientGate quota hardening', () => {
-  it.each([NaN, Infinity * 0, undefined as unknown as number])('fails closed on a non-numeric quota (%s)', async (q) => {
+  it.each([NaN, Infinity * 0, undefined as unknown as number, 0, -1, 0.5])('fails closed on a non-numeric or sub-1 quota (%s)', async (q) => {
     const g = new MemoryClientGate(new FakeClock());
     expect(await g.charge({ clientId: 'x', quotaPerHour: q }, 1)).toMatchObject({ ok: false, reason: 'quota', retryAfterS: 3600 });
   });

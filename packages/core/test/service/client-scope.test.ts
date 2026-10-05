@@ -93,3 +93,18 @@ describe('per-client call rate through the service (audit 2026-10-05 F1)', () =>
     expect(results.filter((r) => r.kind === 'record').length).toBeLessThanOrEqual(60);
   });
 });
+
+describe('history on small quotas (iteration-25 review)', () => {
+  it.each([1, 3, 4])('entity history works on a quota of %i: the whole request costs at most the quota', async (q) => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      'https://rdap.apnic.net/entity/ORG-ARAD1-AP': { body: loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json') },
+      'https://rdap.apnic.net/history/entity/ORG-ARAD1-AP': { body: { records: [] } },
+    });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const scoped = base.forClient({ client: { clientId: 'small', quotaPerHour: q }, gate: new MemoryClientGate(clock) });
+    const out = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
+    expect(out.kind === 'error' ? out.code : out.kind).not.toBe('quota_exceeded');
+  });
+});

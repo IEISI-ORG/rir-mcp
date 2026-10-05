@@ -220,8 +220,12 @@ export class RirService {
       const misses = companion && ((companion.kind === 'record' && companion.meta.cache !== 'hit')
         || (companion.kind === 'error' && companion.code === 'not_found')) ? 1 : 0;
       const validatedFor = companion?.kind === 'record' ? companion.record.changed : undefined;
+      // The whole request costs the client at most its quota (a history is 5; a key with a quota of 1-4 can still
+      // ask, using its full hour). The RIR limiter is still charged the full weight. NaN quotas stay NaN and deny.
+      const quotaCap = this.scope ? Math.min(WEIGHT.history, this.scope.client.quotaPerHour) : WEIGHT.history;
       const out = await this.get({
-        key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), freshS: TTL_S.history, staleS: TTL_S.historyStale,
+        key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), quotaWeight: Math.max(0, quotaCap - misses),
+        freshS: TTL_S.history, staleS: TTL_S.historyStale,
         maxBytes: MAX_BYTES.history, force,
         reduce: (raw) => ({ ...reduceHistory(raw, { rir: 'apnic', query: target.query }), validatedFor }),
       });

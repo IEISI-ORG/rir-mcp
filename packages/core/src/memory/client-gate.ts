@@ -54,13 +54,12 @@ export class MemoryClientGate implements ClientGate {
     // 00:59 cannot be spent again at 01:00. Written as !(<=) so a NaN or missing quota denies instead of allowing all.
     const elapsed = now - s.windowStart;
     const carried = s.prevUsed * (1 - elapsed / HOUR_MS);
-    // A call heavier than the whole quota (history on a quota of 1-4) costs the whole quota rather than being refused
-    // forever while told to retry. A NaN quota stays NaN here and still denies.
-    const w = Math.min(weight, client.quotaPerHour);
-    if (!(carried + s.used + w <= client.quotaPerHour)) {
-      return { ok: false, reason: 'quota', retryAfterS: retryAfter(s, elapsed, w, client.quotaPerHour) };
+    // Key stores validate quotas (1..1,000,000); this is the last line of defence, so anything below 1 (or NaN) denies.
+    if (!(client.quotaPerHour >= 1)) return { ok: false, reason: 'quota', retryAfterS: HOUR_MS / 1000 };
+    if (!(carried + s.used + weight <= client.quotaPerHour)) {
+      return { ok: false, reason: 'quota', retryAfterS: retryAfter(s, elapsed, weight, client.quotaPerHour) };
     }
-    s.used += w;
+    s.used += weight;
     this.state.set(client.clientId, s);
     return OK;
   }

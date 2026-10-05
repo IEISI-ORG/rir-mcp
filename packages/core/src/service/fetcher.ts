@@ -43,6 +43,8 @@ export interface FetchRequest<T> {
   readonly scope?: ClientScope;
   /** Shared by the fetches of one logical lookup (e.g. a reverse-DNS zone walk) so the quota is charged once (Q5). */
   readonly ticket?: QuotaTicket;
+  /** What the client's quota is charged, when it differs from the RIR limiter's `weight` (history on small quotas). */
+  readonly quotaWeight?: number;
 }
 
 export interface QuotaTicket {
@@ -133,7 +135,7 @@ export class CachedFetcher {
       // Charge the client first so an over-quota client cannot spend shared RIR tokens...
       let charged = false;
       if (req.scope && !req.ticket?.charged) {
-        const g = await req.scope.gate.charge(req.scope.client, req.weight);
+        const g = await req.scope.gate.charge(req.scope.client, req.quotaWeight ?? req.weight);
         if (!g.ok) {
           denial = g;
           return DENIED;
@@ -145,7 +147,7 @@ export class CachedFetcher {
       if (!permit.ok) {
         // ...and give the charge back when the shared limiter refuses: no upstream call was made.
         if (charged && req.scope) {
-          await req.scope.gate.refund(req.scope.client, req.weight);
+          await req.scope.gate.refund(req.scope.client, req.quotaWeight ?? req.weight);
           if (req.ticket) req.ticket.charged = false;
         }
         return entry ? fromEntry(entry, 'stale', req.rir) : rateLimited(req.rir, permit.retryAfterS);
