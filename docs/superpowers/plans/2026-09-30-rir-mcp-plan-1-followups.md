@@ -15,7 +15,7 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 
 Fixed in the iteration: history quota capped per request (Important 1), quotas below 1 deny (2), fractional burst/hourly cap (3), GET with a body (4), edge log reasons (5), backward clock step (6), pre-1970 dates (7); plus a background commit review's finding that the first quotaWeight let an exhausted quota-1 key fetch history free (`56e8197`).
 
-- A holder rename that keeps its handle renders as "(none) (New Name)", which reads as "holder removed": render "renamed holder to New Name" when only holderName changed.
+- ~~Holder rename display~~ Done 2026-10-05. Was: A holder rename that keeps its handle renders as "(none) (New Name)", which reads as "holder removed": render "renamed holder to New Name" when only holderName changed.
 
 ## Code review, iteration 20 (2026-10-05, df94156..6849036) — deferred Minors
 
@@ -126,7 +126,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 5**: reader lock not released on mid-read error; stream-error test setTimeout not cleaned.
 - **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; no negative caching during IANA outage (3 fetches per lookup after 24h); ASN '' → 0 accepted; bases last-write-wins.
 - **Task 6**: rejected payload leaves this.parsed set (harmless); Service type/asRawFile narrower than runtime checks.
-- **Task 7**: remarks/notices titles and redacted[].description not scrubbed or linted (currently boilerplate only); lint lacks no-links/no-adr assertions for people; arin-contact@google.com / network-abuse@google.com are role mailboxes (kept).
+- **Task 7**: remarks/notices titles and redacted[].description not scrubbed or linted (currently boilerplate only); ~~lint lacks no-adr assertions for people~~ (done 2026-10-05: a person's vCard must be exactly the scrubbed form); arin-contact@google.com / network-abuse@google.com are role mailboxes (kept).
 - **Task 7**: PERSON_KEY is a name heuristic (keys like *_holder/*_admin would not match) — rescan key inventory when adding fixtures; scrubber passes object values under PERSON_KEY (lint fails closed); unused k in lint loop.
 - **Task 8**: sanitize.ts / reducers.test.ts contain raw invisible chars (U+200B.., U+202E) instead of \u escapes — fragile; rewrite as escapes.
 - **Task 8**: clean() does not strip U+E0000–E007F tag characters (known prompt-injection channel), U+061C, U+00AD, U+180E.

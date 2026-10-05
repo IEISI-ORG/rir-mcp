@@ -61,6 +61,8 @@ Rules from the user:
 
 | 25 | 2026-10-05 | code review | Fresh reviewer (Opus) on `2a39f48..068ee83`: 0 Critical, 3 Important, 6 Minor. My iteration-21 heavy-call fix was incomplete (entity/reverse-DNS history still refused on quotas 1–4) and let quotas ≤0 through: replaced by a request-level quotaWeight; then a background commit review found that version let an exhausted quota-1 key fetch history free — fixed by metering the companion's real cost. Fractional burst/hourly cap can't loosen limits; GET-with-body crash, log reasons, backward clock step, pre-1970 dates fixed. 1 Minor deferred. 631 root + 63 worker tests pass. | `56e8197`, `d58b90d` |
 
-**Next iteration:** 26 — daily security audit (due 2026-10-06) if the date has turned; otherwise the holder-rename display and any new follow-ups.
+| 26 | 2026-10-05 | follow-ups | No new answers. Holder rename renders "renamed to <name>". Fixture PII lint now requires a person's vCard to be exactly the scrubbed form (phone/address of a real person would have passed before); verified no real personal data is committed (people carry the scrubber's placeholder phone; other numbers are org/role); mutation-checked. 632 root + 63 worker tests pass. | — |
+
+**Next iteration:** 27 — daily security audit (due 2026-10-06) if the date has turned; otherwise remaining low-value Plan 1 notes, or idle if nothing actionable remains.
 **Next code review:** iteration 30.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
