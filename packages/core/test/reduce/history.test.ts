@@ -67,6 +67,16 @@ describe('reduceHistory (synthetic)', () => {
     for (const line of text.split('\n')) expect(line, line).not.toMatch(/^\s{0,3}(#|[-+*>]|\d+[.)])(\s|$)/);
   });
 
+  it('renders a removed holder as "(none)", not "(none) ((none))"', () => {
+    const cleared = reduceHistory({ records: [
+      rec('2017-01-01', '2018-01-01', { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') }] }),
+      rec('2018-01-01', null, { name: 'BETA', ...live }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    const text = renderHistory(cleared, meta, { detail: 'summary' });
+    expect(text).toContain('2018-01-01  holder     (none)');
+    expect(text).not.toContain('((none))');
+  });
+
   it('renders the summary timeline', () => {
     expect(renderHistory(h, meta, { detail: 'summary' })).toBe([
       'history of 192.0.2.0/24  (APNIC RDAP, 7 records -> 5 changes)',

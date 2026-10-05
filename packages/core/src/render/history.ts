@@ -16,8 +16,12 @@ const BUDGET_BYTES = 1500;
 const cap = (s: string): string => (s.length > MAX_LINE ? `${s.slice(0, MAX_LINE - 1)}…` : s);
 const byteLength = (s: string): number => new TextEncoder().encode(s).length;
 const row = (date: string, label: string, text: string): string => `${date}  ${label.padEnd(11)}${text}`.trimEnd();
-const holderLabel = (f: StateSummary): string =>
-  f.holder === 'personal' ? 'private individual' : `${f.holder ?? '(none)'}${f.holderName ? ` (${f.holderName})` : ''}`;
+const holderLabel = (f: StateSummary): string => {
+  if (f.holder === 'personal') return 'private individual';
+  // A removed holder arrives as holder and holderName both '(none)': show it once.
+  const name = f.holderName && f.holderName !== '(none)' ? ` (${f.holderName})` : '';
+  return `${f.holder ?? '(none)'}${name}`;
+};
 const describe = (f: StateSummary): string =>
   [f.name, f.type, f.country, f.status, f.nameservers, f.holder ? `holder ${holderLabel(f)}` : undefined].filter(Boolean).join('  ');
 
