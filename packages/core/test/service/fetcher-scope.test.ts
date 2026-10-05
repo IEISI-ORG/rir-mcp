@@ -59,3 +59,36 @@ describe('CachedFetcher with client scopes', () => {
     expect(gate.charged).toEqual(['a']);
   });
 });
+
+describe('coalescing across a cache read (Plan 1 Task 11)', () => {
+  it('joins a fetch that is in flight when the request starts, even if it finishes during the cache read', async () => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({ [URL_A]: { body: { ok: 1 } } });
+    const inner = new MemoryCache(clock);
+    let gate: Promise<unknown> | undefined;
+    // The second request's read sees the cache before the first fetch stores its result, then resumes after that
+    // fetch is done. Armed just before the second request, so only its (synchronously started) read waits.
+    let armed = false;
+    const cache = {
+      get: async <T,>(k: string) => {
+        const wait = armed ? gate : undefined;
+        armed = false;
+        const snapshot = await inner.get<T>(k);
+        if (wait) await wait;
+        return snapshot;
+      },
+      put: inner.put.bind(inner),
+    };
+    const fetcher = new CachedFetcher({
+      http: { fetch, userAgent: 't' }, cache, limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock),
+      clock, rdapHosts: async () => new Set(['rdap.apnic.net']),
+    });
+    const req = { key: 'ip:1.1.1.1', rir: 'apnic' as const, url: URL_A, weight: 1, freshS: 60, staleS: 60, maxBytes: 1000, reduce: (raw: unknown) => raw };
+    const first = fetcher.get(req);
+    gate = first;
+    armed = true;
+    const second = fetcher.get(req);
+    await Promise.all([first, second]);
+    expect(fetch.calls.filter((u) => u === URL_A)).toHaveLength(1);
+  });
+});

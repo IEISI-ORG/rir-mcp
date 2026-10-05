@@ -112,6 +112,9 @@ const DENIED = Symbol('denied');
 export class CachedFetcher {
   private readonly deps: FetcherDeps;
   private readonly inflight = new Map<string, Promise<FetchOutcome<unknown> | typeof DENIED>>();
+  /** A counter of finished refreshes, and the count at which each key's last refresh finished. */
+  private finished = 0;
+  private readonly finishedAt = new Map<string, number>();
 
   constructor(deps: FetcherDeps) {
     this.deps = deps;
@@ -122,6 +125,7 @@ export class CachedFetcher {
   }
 
   async get<T>(req: FetchRequest<T>): Promise<FetchOutcome<T>> {
+    const readAt = this.finished;
     const entry = await this.deps.cache.get<Stored<T>>(req.key);
     if (entry && !req.force && this.deps.clock.now() < entry.freshUntil) return fromEntry(entry, 'hit', req.rir);
     const running = this.inflight.get(req.key);
@@ -130,6 +134,8 @@ export class CachedFetcher {
       // The originator was refused by its own client gate; that refusal is not ours, so try on our own account.
       return out === DENIED ? this.get(req) : (out as FetchOutcome<T>);
     }
+    // A refresh of this key finished while our cache read was pending: read again rather than fetch a second time.
+    if (!req.force && (this.finishedAt.get(req.key) ?? -1) > readAt) return this.get(req);
     let denial: Exclude<GateResult, { ok: true }> | undefined;
     const p = (async (): Promise<FetchOutcome<T> | typeof DENIED> => {
       // Charge the client first so an over-quota client cannot spend shared RIR tokens...
@@ -153,7 +159,12 @@ export class CachedFetcher {
         return entry ? fromEntry(entry, 'stale', req.rir) : rateLimited(req.rir, permit.retryAfterS);
       }
       return this.refresh(req, entry);
-    })().finally(() => this.inflight.delete(req.key));
+    })().finally(() => {
+      this.inflight.delete(req.key);
+      this.finishedAt.set(req.key, ++this.finished);
+      // Only recent completions matter; keep the map small.
+      if (this.finishedAt.size > 1_000) this.finishedAt.clear();
+    });
     this.inflight.set(req.key, p);
     const out = await p;
     if (out !== DENIED) return out;
