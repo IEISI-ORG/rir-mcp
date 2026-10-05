@@ -79,6 +79,8 @@ Rules from the user:
 
 | — | 2026-10-06 | instruction | Q13 answered "enable them": private vulnerability reporting, secret scanning + push protection, Dependabot alerts + security updates enabled on IEISI-ORG/rir-mcp; `main` protected against force-push and deletion only. Verified by reading the settings back and by the following push. | — |
 
-**Next iteration:** 34 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions (after 2026-10-07).
+| 34 | 2026-10-06 | review | Worker checked against Cloudflare's Workers best practices. Found and fixed: the edge gate was cached per env at module level, so a rotated API_KEY could keep working while Cloudflare reused an isolate after a binding-only change (documented platform behaviour; test showed the old key accepted). Traces off and the single DO kept as recorded exceptions. Docs: key rotation. 660 root + 66 worker tests pass. | — |
+
+**Next iteration:** 35 — code review (fresh reviewer) of iterations 31–34, plus the daily audit if the date has turned to 2026-10-07; then remove the four minimumReleaseAge exclusions (after 2026-10-07).
 **Next code review:** iteration 35.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.

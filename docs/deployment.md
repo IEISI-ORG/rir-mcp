@@ -207,6 +207,8 @@ printf '%s' "$KEY" | npx wrangler secret put API_KEY
 echo "$KEY"
 ```
 
+To rotate the single key, put a new value with `wrangler secret put API_KEY`; the old key stops working on the next request.
+
 Per-user keys (`KEYS_MODE` set to `kv`): each key's record lives in the `API_KEYS` namespace under the key's SHA-256. The `API_KEY` secret is ignored in this mode.
 
 ```bash

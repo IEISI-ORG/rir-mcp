@@ -11,6 +11,14 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Workers best-practices review (2026-10-06, iteration 34)
+
+Checked packages/worker against Cloudflare's Workers best practices (skill + docs). Clean: no Math.random, no `any`, no forced casts in sources, no passThroughOnException, no destructured ctx methods, no unawaited promises; DO extends the platform base class; generated binding types; compatibility date current (2026-10-01).
+
+- **Fixed:** the edge gate was cached per `env` at module level; a rotated API_KEY could stay valid while an isolate was reused after a binding-only change. Now built per request (`a22e674`).
+- **Deliberate exceptions (recorded):** traces stay off (they record outbound URLs containing queried values; the skill recommends them on); one global Durable Object (Q9, for exact worldwide limits).
+- **Open, low:** StateDO builds its User-Agent from OPERATOR once per instance; after a binding-only change an instance could send the old operator contact until it restarts. Read OPERATOR per request (cheap) if this matters.
+
 ## Daily security audit 2026-10-06 (snapshot 7286016) and code review, iteration 30 — results
 
 Audit: 0 Critical/High/Medium, 3 Low, 4 Info. Review: 0 Critical, 1 Important, 7 Minor. Fixed the same day:
