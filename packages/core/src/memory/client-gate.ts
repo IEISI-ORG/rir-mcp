@@ -41,7 +41,15 @@ export class MemoryClientGate implements ClientGate {
 
   constructor(clock: Clock, opts: ClientGateOptions = {}) {
     this.clock = clock;
-    this.opts = { scanThreshold: SCAN_THRESHOLD, suspendMs: SUSPEND_MS, callsPerMinute: CALLS_PER_MINUTE, callBurst: CALL_BURST, ...opts };
+    // An option that is not a finite number of at least 1 (undefined, NaN, 0) keeps its default: fail closed.
+    const pick = (v: number | undefined, d: number): number => (v !== undefined && Number.isFinite(v) && v >= 1 ? v : d);
+    this.opts = {
+      ...opts,
+      scanThreshold: pick(opts.scanThreshold, SCAN_THRESHOLD),
+      suspendMs: pick(opts.suspendMs, SUSPEND_MS),
+      callsPerMinute: pick(opts.callsPerMinute, CALLS_PER_MINUTE),
+      callBurst: pick(opts.callBurst, CALL_BURST),
+    };
     this.state = opts.state ?? new Map();
     this.salt = opts.salt ?? crypto.getRandomValues(new Uint8Array(16)).join('.');
   }
@@ -100,7 +108,7 @@ export class MemoryClientGate implements ClientGate {
     b.tokens = Math.min(this.opts.callBurst, b.tokens + (now - b.updatedAt) * perMs);
     b.updatedAt = now;
     this.calls.set(clientId, b);
-    if (b.tokens < 1) return { ok: false, reason: 'rate', retryAfterS: Math.max(1, Math.ceil((1 - b.tokens) / perMs / 1000)) };
+    if (!(b.tokens >= 1)) return { ok: false, reason: 'rate', retryAfterS: Math.max(1, Math.ceil((1 - b.tokens) / perMs / 1000)) };
     b.tokens -= 1;
     return null;
   }

@@ -59,7 +59,8 @@ export class MemoryRateLimiter implements RateLimiter {
     const s = this.refill(name, profile, now);
     s.tokens = 0;
     s.penaltyUntil = now + PENALTY_MS;
-    if (retryAfterS !== undefined && Number.isFinite(retryAfterS) && retryAfterS > 0) {
+    // An absurd value (even Infinity) is capped, not ignored; NaN fails the comparison and is ignored.
+    if (retryAfterS !== undefined && retryAfterS > 0) {
       // The registry asked us to stop: do so until then (keeping any later deadline), not just slow down.
       s.blockedUntil = Math.max(s.blockedUntil ?? 0, now + Math.min(retryAfterS * 1000, MAX_BLOCK_MS));
     }

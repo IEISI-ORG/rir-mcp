@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpiredUnits, MemoryClientGate, type ClientState } from '../../src/memory/client-gate';
+import { clearExpiredUnits, MemoryClientGate, type ClientGateOptions, type ClientState } from '../../src/memory/client-gate';
 import { FakeClock } from '../support/fake-clock';
 
 const alpha = { clientId: 'alpha', quotaPerHour: 10 };
@@ -187,5 +187,27 @@ describe('MemoryClientGate call rate (audit 2026-10-05 F1)', () => {
     expect(writes).toBe(afterFirst);
     await g.observe(alpha, 'as:2');
     expect(writes).toBe(afterFirst + 1);
+  });
+});
+
+describe('MemoryClientGate options fail closed (audit 2026-10-06 I1)', () => {
+  it.each([
+    ['callsPerMinute undefined', { callsPerMinute: undefined }],
+    ['callBurst NaN', { callBurst: NaN }],
+    ['callBurst 0', { callBurst: 0 }],
+  ])('%s keeps the default call limit', async (_name, opts) => {
+    const g = new MemoryClientGate(new FakeClock(), opts as ClientGateOptions);
+    let ok = 0;
+    for (let i = 0; i < 300; i++) if ((await g.observe(alpha, 'as:1')).ok) ok++;
+    expect(ok).toBe(60);
+  });
+
+  it('suspendMs undefined keeps the 24 h suspension', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock, { scanThreshold: 1, suspendMs: undefined } as ClientGateOptions);
+    await g.observe(alpha, 'as:1');
+    expect((await g.observe(alpha, 'as:2')).ok).toBe(false);
+    clock.advance(3_600_000);
+    expect((await g.charge(alpha, 1)).ok).toBe(false);
   });
 });

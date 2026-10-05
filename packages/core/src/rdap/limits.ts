@@ -26,10 +26,11 @@ export function clampProfile(requested: Partial<LimitProfile>, max: LimitProfile
   const profile: { ratePerS: number; burst: number; hourlyCap?: number } = {
     ratePerS: Math.min(usable(requested.ratePerS) ?? max.ratePerS, max.ratePerS),
     // A burst below 1 would make each call cost a fraction of a token (more calls than the rate allows).
-    burst: Math.min((usable(requested.burst) ?? 0) >= 1 ? requested.burst! : max.burst, max.burst),
+    burst: Math.min(Math.max(1, usable(requested.burst) ?? max.burst), max.burst),
   };
   // An hourly cap is a whole number of requests; anything else falls back to the published maximum.
-  const cap = Number.isInteger(requested.hourlyCap) && (requested.hourlyCap as number) >= 1 ? requested.hourlyCap : max.hourlyCap;
+  const h = requested.hourlyCap;
+  const cap = h !== undefined && Number.isFinite(h) && h >= 1 ? Math.floor(h) : max.hourlyCap;
   if (cap !== undefined) profile.hourlyCap = max.hourlyCap !== undefined ? Math.min(cap, max.hourlyCap) : cap;
   return profile;
 }

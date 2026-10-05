@@ -66,6 +66,14 @@ describe('MemoryRateLimiter', () => {
     expect(await lim.acquire('arin', 1)).toEqual({ ok: true });
   });
 
+  it('caps an absurdly large Retry-After instead of ignoring it (audit 2026-10-06 I4)', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    await lim.penalise('apnic', Infinity);
+    clock.advance(30 * 60_000);
+    expect((await lim.acquire('apnic', 1)).ok).toBe(false); // still blocked: capped at an hour, not dropped
+  });
+
   it('keeps the later of two Retry-After deadlines', async () => {
     const clock = new FakeClock();
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
@@ -75,7 +83,12 @@ describe('MemoryRateLimiter', () => {
     expect((await lim.acquire('apnic', 1)).ok).toBe(false);
   });
 
-  it.each([NaN, 0, -1, Infinity, 0.5])('clampProfile never lets an operator value (%s) loosen or disable a limit', async (bad) => {
+  it('clampProfile falls back to the nearest strict value, not the loosest (iteration-30 review Minor 4)', () => {
+    expect(clampProfile({ burst: 0.5 }, DEFAULT_LIMITS.apnic).burst).toBe(1);
+    expect(clampProfile({ hourlyCap: 500.5 }, DEFAULT_LIMITS.apnic).hourlyCap).toBe(500);
+  });
+
+  it.each([NaN, 0, -1, Infinity])('clampProfile never lets an operator value (%s) loosen or disable a limit', async (bad) => {
     const p = clampProfile({ ratePerS: bad, burst: bad, hourlyCap: bad }, DEFAULT_LIMITS.lacnic);
     expect(p).toEqual(DEFAULT_LIMITS.lacnic);
     const clock = new FakeClock();

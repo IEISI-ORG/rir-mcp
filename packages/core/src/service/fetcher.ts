@@ -169,9 +169,9 @@ export class CachedFetcher {
       return this.refresh(req, entry);
     })().finally(() => {
       this.inflight.delete(req.key);
+      // Only recent completions matter; keep the map small. Clear before recording, so this completion survives.
+      if (this.finishedAt.size >= 1_000) this.finishedAt.clear();
       this.finishedAt.set(req.key, ++this.finished);
-      // Only recent completions matter; keep the map small.
-      if (this.finishedAt.size > 1_000) this.finishedAt.clear();
     });
     this.inflight.set(req.key, p);
     const out = await p;
