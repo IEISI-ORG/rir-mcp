@@ -11,12 +11,18 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Code review, iteration 25 (2026-10-05, 2a39f48..068ee83) — deferred Minor
+
+Fixed in the iteration: history quota capped per request (Important 1), quotas below 1 deny (2), fractional burst/hourly cap (3), GET with a body (4), edge log reasons (5), backward clock step (6), pre-1970 dates (7); plus a background commit review's finding that the first quotaWeight let an exhausted quota-1 key fetch history free (`56e8197`).
+
+- A holder rename that keeps its handle renders as "(none) (New Name)", which reads as "holder removed": render "renamed holder to New Name" when only holderName changed.
+
 ## Code review, iteration 20 (2026-10-05, df94156..6849036) — deferred Minors
 
 Fixed in the iteration: sanitiser bypasses via character references, backslash escapes and `www.` after `_`/`-`/`.` (C1), with renderer-based tests; post-staleUntil IANA refetch storm (I1); entity-cap test (M1); strikethrough/bold (M2); marker without `//` (M4); docs wording (M7); comment (M8).
 
 - ~~History header~~ Done 2026-10-05 (`9441938`, header starts "history of"). Was: History timeline lines start with a registry-controlled key (`render/history.ts:90`): a handle like `# X` or `1. X` would render as a heading or list item. Prefix the line or strip a leading `#`/list marker.
-- ~~Heavy call on a small quota~~ Done 2026-10-05 (`e571479`, charge capped at the quota). Was: A weight above the client's quota (history = 5 for a quota of 1–4) is refused forever but told to retry: return a distinct message or cap the weight at the quota.
+- ~~Heavy call on a small quota~~ Done 2026-10-05 — first attempt (`e571479`, per-charge cap) was incomplete and let quotas ≤0 through; fixed properly in iteration 25 (request-level quotaWeight with a metered companion, `56e8197`; quotas below 1 deny). Was: A weight above the client's quota (history = 5 for a quota of 1–4) is refused forever but told to retry: return a distinct message or cap the weight at the quota.
 - ~~Call-rate docs~~ Done 2026-10-05. Was: `docs/deployment.md` says every tool call counts against the call rate; special-use and invalid inputs never reach it, and an IP/ASN history can take two tokens (and fall through to `history_unavailable` at the burst edge).
 
 ## Daily security audit 2026-10-05 (snapshot 731beb3) — results
@@ -114,7 +120,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - ~~**Task 4**: refill applies one rate across a span straddling penaltyUntil; no test for rate restoration after 5 min.~~ (done 2026-10-05, `3252afe`)
 - **Task 4**: cost=min(weight,burst) undocumented/untested (LACNIC history would drain 3 not 5; history is APNIC-only so moot today).
 - **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
-- **Task 4**: no clamp for backward clock step (fails safe); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
+- **Task 4**: backward clock step (fails safe; since 2026-10-05 the bucket clock never moves back); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
 - **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
 - **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
 - **Task 5**: reader lock not released on mid-read error; stream-error test setTimeout not cleaned.

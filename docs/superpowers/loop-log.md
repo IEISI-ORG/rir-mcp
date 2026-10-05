@@ -59,6 +59,8 @@ Rules from the user:
 
 | 24 | 2026-10-05 | follow-ups | No new answers. Limiter refill split at the end of a penalty (a bucket emptied by an upstream error came back early: 310 tokens instead of 160). Tests: IPv6/equal prefixContains, penalty rate restoration, seven bad-input cases at the MCP boundary. 620 root + 62 worker tests pass. | `3252afe`, `488ece5` |
 
-**Next iteration:** 25 — code review (fresh reviewer) of `2a39f48..HEAD` (iterations 21–24); daily security audit too if the date has turned to 2026-10-06.
-**Next code review:** iteration 25.
+| 25 | 2026-10-05 | code review | Fresh reviewer (Opus) on `2a39f48..068ee83`: 0 Critical, 3 Important, 6 Minor. My iteration-21 heavy-call fix was incomplete (entity/reverse-DNS history still refused on quotas 1–4) and let quotas ≤0 through: replaced by a request-level quotaWeight; then a background commit review found that version let an exhausted quota-1 key fetch history free — fixed by metering the companion's real cost. Fractional burst/hourly cap can't loosen limits; GET-with-body crash, log reasons, backward clock step, pre-1970 dates fixed. 1 Minor deferred. 631 root + 63 worker tests pass. | `56e8197`, `d58b90d` |
+
+**Next iteration:** 26 — daily security audit (due 2026-10-06) if the date has turned; otherwise the holder-rename display and any new follow-ups.
+**Next code review:** iteration 30.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
