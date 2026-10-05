@@ -67,6 +67,16 @@ describe('reduceHistory (synthetic)', () => {
     for (const line of text.split('\n')) expect(line, line).not.toMatch(/^\s{0,3}(#|[-+*>]|\d+[.)])(\s|$)/);
   });
 
+  it('renders a holder that renamed itself (same handle) as a rename, not as removed', () => {
+    const renamed = reduceHistory({ records: [
+      rec('2017-01-01', '2018-01-01', { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') }] }),
+      rec('2018-01-01', null, { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Group') }] }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    const text = renderHistory(renamed, meta, { detail: 'summary' });
+    expect(text).toContain('2018-01-01  holder     renamed to Example Group');
+    expect(text).not.toContain('(none) (Example Group)');
+  });
+
   it('renders a removed holder as "(none)", not "(none) ((none))"', () => {
     const cleared = reduceHistory({ records: [
       rec('2017-01-01', '2018-01-01', { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') }] }),
