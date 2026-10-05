@@ -88,7 +88,8 @@ export function parseIpOrCidr(raw: string): IpPrefix {
   const bits = BITS[family];
   let length = bits;
   if (len !== undefined) {
-    if (!/^\d{1,3}$/.test(len) || Number(len) > bits) {
+    // Canonical digits only: /024 is refused rather than silently read as /24.
+    if (!/^(0|[1-9]\d{0,2})$/.test(len) || Number(len) > bits) {
       throw new InputError(`Invalid prefix length "/${len}" for IPv${family}`, IP_HINT);
     }
     length = Number(len);

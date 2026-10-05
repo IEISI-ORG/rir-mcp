@@ -48,6 +48,28 @@ describe('prefixContains', () => {
   });
 });
 
+describe('prefix length spelling', () => {
+  it.each(['1.1.1.0/024', '2001:db8::/032', '1.1.1.0/00'])('refuses a non-canonical length with leading zeros (%s)', (v) => {
+    expect(() => parseIpOrCidr(v)).toThrow(/prefix length/);
+  });
+
+  it('still accepts /0 and ordinary lengths', () => {
+    expect(formatPrefix(parseIpOrCidr('0.0.0.0/0'))).toBe('0.0.0.0/0');
+    expect(formatPrefix(parseIpOrCidr('2001:db8::/32'))).toBe('2001:db8::/32');
+  });
+});
+
+describe('rangeToCidrs edge cases', () => {
+  it('handles a single address, an IPv6 range, and an inverted range', () => {
+    const a = parseIpOrCidr('192.0.2.7');
+    expect(rangeToCidrs(4, a.value, a.value).map(formatCidr)).toEqual(['192.0.2.7/32']);
+    const s6 = parseIpOrCidr('2001:db8::');
+    const e6 = parseIpOrCidr('2001:db8::1:ffff');
+    expect(rangeToCidrs(6, s6.value, e6.value).map(formatCidr)).toEqual(['2001:db8::/111']); // exactly one /111
+    expect(rangeToCidrs(4, a.value + 1n, a.value)).toEqual([]);
+  });
+});
+
 describe('rangeToCidrs', () => {
   it('returns the minimal CIDR cover', () => {
     const a = parseIpOrCidr('1.1.1.0'), b = parseIpOrCidr('1.1.1.255'), c = parseIpOrCidr('1.1.2.127');
