@@ -105,11 +105,11 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 
 ## Deferred minors by task
 
-- **Task 1**: rangeToCidrs lacks IPv6/single-address/start>end tests; prefixContains lacks IPv6/equal cases.
-- **Task 1**: `1.1.1.1/024` accepted as /24 (non-canonical length digits) — untested.
+- **Task 1**: ~~rangeToCidrs lacks IPv6/single-address/start>end tests~~ (done 2026-10-05); prefixContains lacks IPv6/equal cases.
+- ~~**Task 1**: `1.1.1.1/024` accepted as /24~~ (done 2026-10-05, refused).
 - ~~**Task 2**: toUpperCase maps non-ASCII (ß→SS, ı→I) into valid handles; reject non-ASCII before upper-casing.~~ (done earlier, `input/handle.ts`)
 - **Task 2**: inferRirFromHandle expects parseHandle output (no normalisation/doc).
-- **Task 2**: no tests for 64-char handle boundary, handle hint, IPv6 /30 /50 /96, IPv4 /24 /16 zones; `4608.0` parses as asdot silently; error messages echo raw input unbounded.
+- **Task 2**: no tests for 64-char handle boundary, handle hint, IPv6 /30 /50 /96, IPv4 /24 /16 zones; `4608.0` parses as asdot silently; error messages echo raw input (bounded: the tool schemas cap inputs at 64 characters, so not a risk).
 - **Task 3**: tests cover 10/27 IP rows; no table-driven drift guard; longest-prefix branch unexercised (no overlapping rows).
 - **Task 4**: refill applies one rate across a span straddling penaltyUntil; no test for rate restoration after 5 min.
 - **Task 4**: cost=min(weight,burst) undocumented/untested (LACNIC history would drain 3 not 5; history is APNIC-only so moot today).
@@ -127,7 +127,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 8**: clean tests don't cover C1/isolates/BOM/boundaries; truncation may split surrogate pair; snapshot stores undefined keys.
 - **Task 9**: STALE text says "<RIR> RDAP is unreachable now" but stale is also served when the local limiter is exhausted or upstream sent a challenge page — use neutral wording ("could not refresh").
 - **Task 9**: personal-contact render test has no negative leak assertion; LACNIC snapshot pointer uses APNIC test URL; budget test doesn't cover stale suffix/many prefixes/nameservers; age() doesn't clamp; render cast in budget loop; LACNIC autnum shows "AS28000  28000".
-- **Task 10**: holder cleared renders "(none) ((none))"; same-timestamp tie-break / malformed null-until shadowing / collapse spans gaps; localeCompare on ISO strings; keyOf handle fallback could show a person handle for entity histories (Task 11 refuses personal entities first); at/since validated only by Task 12 schema; untested paths (full detail render, truncation line, renderAt not-covered/withdrawn, personal registrant, non-IP keys); redundant prev==null.
+- **Task 10**: ~~holder cleared renders "(none) ((none))"~~ (done 2026-10-05); same-timestamp tie-break / malformed null-until shadowing / collapse spans gaps; localeCompare on ISO strings; keyOf handle fallback could show a person handle for entity histories (Task 11 refuses personal entities first); at/since validated only by Task 12 schema; untested paths (full detail render, truncation line, renderAt not-covered/withdrawn, personal registrant, non-IP keys); redundant prev==null.
 - **Task 10**: cap() counts UTF-16 units not bytes — non-ASCII covering names (≤120 chars after clean) could exceed 1500 in theory; header uncapped (bounded by key).
 - **Task 11**: coalescing window between cache.get and inflight check can start a second call after a just-finished refresh; reducer TypeError/cache.put failure propagate without penalise; dead `?? 'apnic'` in entity history path; too_large doesn't penalise; no cache-content assertion for personal entities; no redirect allow-list wiring test.
 - **Task 11**: cold ip/asn history stores no validatedFor, so one extra refetch can occur on the first later call with changed > latestFrom (bounded, once).

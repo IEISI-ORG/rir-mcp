@@ -55,6 +55,8 @@ Rules from the user:
 
 | 22 | 2026-10-05 | follow-ups | No new answers. Supply chain: pnpm `minimumReleaseAge` 3 days (it immediately flagged 4 recent dev-tool versions, excluded exactly until 2026-10-07). `clampProfile` ignored NaN/0/negative operator limits (a NaN profile let 100/100 LACNIC requests through — latent, no caller yet). History dates must be real calendar dates. 604 root + 62 worker tests pass. First automatic push. | `e84218c`, `a4f7bca` |
 
-**Next iteration:** 23 — daily security audit if the date has turned to 2026-10-06; otherwise remaining Plan 1 task minors (render '(none) ((none))', bounded input echo in errors, test gaps).
+| 23 | 2026-10-05 | follow-ups | No new answers. A removed holder renders "(none)" instead of "(none) ((none))"; prefix lengths with leading zeros (`/024`) refused; rangeToCidrs edge-case tests; input echo in errors confirmed bounded by the 64-char schemas. 610 root + 62 worker tests pass. | `802a981` |
+
+**Next iteration:** 24 — daily security audit if the date has turned to 2026-10-06; otherwise remaining Plan 1 test gaps (prefixContains IPv6, limiter penalty restoration, MCP-boundary bad-input cases).
 **Next code review:** iteration 25.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
