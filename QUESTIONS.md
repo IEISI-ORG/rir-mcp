@@ -143,3 +143,21 @@ Cloudflare's Vitest plugin (`@cloudflare/vitest-plugin` 1.3.6) supports Vitest 4
 **Default:** `packages/worker` pins Vitest 4 with its own config and runs as `corepack pnpm test:worker`. `corepack pnpm test` stays on Vitest 5 for core and node. I'll unify the two when the plugin supports Vitest 5.
 
 **Answer:**  Approved.
+
+---
+
+## Q13 (2026-10-06, security audit) — GitHub security settings for IEISI-ORG/rir-mcp
+
+The repository is public, and loop iterations push to `main`. Checked on 2026-10-06 (read-only), all of these are **off**:
+
+- private vulnerability reporting (the new SECURITY.md tells reporters to use it, so it is needed for that file to work);
+- secret scanning and push protection;
+- Dependabot security updates;
+- branch protection on `main`.
+
+Changing them changes the organisation's configuration, so I have not. Options: you enable them in Settings → Code security (and Settings → Branches for `main`), or say "enable them" and I will use `gh api` for the first three. Branch protection needs a decision: protecting `main` against force-pushes and deletion is safe with the loop's push-after-each-iteration; requiring pull requests or reviews would stop those pushes.
+
+**Default:** leave as is; SECURITY.md is in place but only works once private vulnerability reporting is on.
+
+**Answer:**
+

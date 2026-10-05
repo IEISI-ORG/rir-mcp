@@ -11,6 +11,24 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Daily security audit 2026-10-06 (snapshot 7286016) and code review, iteration 30 — results
+
+Audit: 0 Critical/High/Medium, 3 Low, 4 Info. Review: 0 Critical, 1 Important, 7 Minor. Fixed the same day:
+- Audit L1 (re-graded Medium): a blocked registry cost three storage writes per refused call; now none (limiter `check()` before charging; refusals save nothing) (`7e551ee`).
+- Review I1: a refused history's retry time is for the whole request (`93a4033`).
+- Audit L2: reverse-DNS history uses only a zone computed from the address; history lines start with fixed text (`02f2b6f`).
+- Audit L3: single-underscore emphasis neutralised.
+- Audit I1, I4; review Minors 2, 4: gate options and infinite Retry-After fail closed; strict clamps; completion-map clear order (`83625ce`).
+- SECURITY.md added; GitHub security settings asked as Q13 (all off on 2026-10-06).
+
+Deferred:
+- Review Minor 3: the history limiter weight counts a companion as an upstream token even when none was spent (cached not_found, stale after refusal, joined in-flight), so APNIC is charged 4 instead of 5. Have FetchOutcome report whether it acquired a token.
+- Review Minors 5–7: test gaps (small-quota test asserts no gate state; end-to-end leak test lacks per-tool forbidden lists and history/ASN/rDNS cases; Worker GET-with-body not driven through workerd fetch; edge log reasons untested).
+- Review Minor 8: a holder that keeps its handle but loses its name renders "holder (none)".
+- Audit I2: rangeToCidrs computes every CIDR before the 64 cap (6.6 s CPU on a hostile 5,000-record IPv6 history); pass the limit in.
+- Audit I3 residuals: `host` exemption keeps every www. in a value that starts with one; combining marks (U+0336 overlay, Zalgo) pass.
+- Audit I4 remainder: Retry-After over 1 h is capped by design (one probe per hour) — document as a deliberate exception; Node keeps Retry-After blocks in memory only.
+
 ## Code review, iteration 25 (2026-10-05, 2a39f48..068ee83) — deferred Minor
 
 Fixed in the iteration: history quota capped per request (Important 1), quotas below 1 deny (2), fractional burst/hourly cap (3), GET with a body (4), edge log reasons (5), backward clock step (6), pre-1970 dates (7); plus a background commit review's finding that the first quotaWeight let an exhausted quota-1 key fetch history free (`56e8197`).

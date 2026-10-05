@@ -69,6 +69,8 @@ Rules from the user:
 
 | 29 | 2026-10-05 | follow-ups | No new answers; audit not yet due (still 2026-10-05). Follow-ups list cleaned: items already fixed verified against the code and struck. historyView requires meta (latent budget trap). Node: slow-body 408 test with injectable timeouts; timeout check every 5 s (a slow body could last up to 60 s). Copyable placeholder removed from fixtures-record usage. 637 root + 63 worker tests pass. | — |
 
-**Next iteration:** 30 — code review (fresh reviewer) of `068ee83..HEAD` (iterations 25–29), plus the daily security audit (due 2026-10-06) if the date has turned.
-**Next code review:** iteration 30.
-**Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
+| 30 | 2026-10-06 | review + audit | Code review (fresh Opus, `068ee83..7286016`): 0 Critical, 1 Important, 7 Minor. Daily audit (fresh Opus, snapshot `7286016`): 0 Critical/High/Medium, 3 Low, 4 Info. Fixed: a blocked registry no longer costs three storage writes per refused call (re-graded Medium); refused history gives a whole-request retry time; reverse-DNS history uses only computed zones; underscore emphasis; gate options / infinite Retry-After fail closed; strict clamps; counter clear order. SECURITY.md added; GitHub security settings (all off) asked as Q13. 657 root + 63 worker tests pass. | `7e551ee`, `93a4033`, `02f2b6f`, `83625ce` |
+
+**Next iteration:** 31 — deferred items from iteration 30 (rangeToCidrs early stop, limiter weight accounting, test gaps); after 2026-10-07 remove the four minimumReleaseAge exclusions.
+**Next code review:** iteration 35.
+**Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
