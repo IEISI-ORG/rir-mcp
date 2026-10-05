@@ -167,3 +167,44 @@ describe('MCP server', () => {
     expect(onError).toHaveBeenCalledWith(err);
   });
 });
+
+describe('personal data never reaches the client (end to end)', () => {
+  const person = (handle: string, roles: string[]) => ({
+    objectClassName: 'entity', handle, roles,
+    vcardArray: ['vcard', [
+      ['version', {}, 'text', '4.0'],
+      ['fn', {}, 'text', 'Zelda Quokkafeather'],
+      ['kind', {}, 'text', 'individual'],
+      ['email', {}, 'text', 'zelda.quokka@isp.example'],
+      ['tel', { type: 'voice' }, 'uri', 'tel:+61-7-5550-1234'],
+      ['adr', {}, 'text', ['', '', '42 Wallaby Way', 'Sydney', 'NSW', '2000', 'AU']],
+    ]],
+  });
+  const network = {
+    ...(loadFixture('rdap/apnic/ip/1.1.1.1.json') as Record<string, unknown>),
+    entities: [person('ZQ1-AP', ['abuse']), person('ZQ2-AP', ['technical', 'administrative']), person('ZQ3-AP', ['registrant'])],
+  };
+
+  it.each([
+    ['rdap_ip_lookup', { address: '1.1.1.1' }],
+    ['rdap_entity_lookup', { handle: 'ZQ1-AP' }],
+  ])('%s: no name, email, phone, address or person handle in text or structured output', async (name, args) => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      'https://rdap.apnic.net/ip/1.1.1.1': { body: network },
+      'https://rdap.apnic.net/entity/ZQ1-AP': { body: person('ZQ1-AP', ['abuse']) },
+    });
+    const service = new RirService({ fetch, clock, userAgent: 'test', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await createServer(service, {}).connect(serverT);
+    const c = new Client({ name: 'test', version: '0.0.0' }, { versionNegotiation: { mode: 'auto' } });
+    await c.connect(clientT);
+    const r = await c.callTool({ name, arguments: args });
+    const everything = JSON.stringify(r);
+    for (const secret of ['Zelda', 'Quokkafeather', 'zelda.quokka', '5550-1234', 'Wallaby', 'ZQ2-AP', 'ZQ3-AP']) {
+      expect(everything, `${name} leaked ${secret}`).not.toContain(secret);
+    }
+    await c.close();
+  });
+});
