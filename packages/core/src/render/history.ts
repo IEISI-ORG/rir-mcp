@@ -13,8 +13,20 @@ const MAX_CHANGES = 20;
 const MAX_COVERING = 3;
 const MAX_LINE = 160;
 const BUDGET_BYTES = 1500;
-const cap = (s: string): string => (s.length > MAX_LINE ? `${s.slice(0, MAX_LINE - 1)}…` : s);
 const byteLength = (s: string): number => new TextEncoder().encode(s).length;
+/** At most MAX_LINE bytes including the ellipsis, cut between characters (never inside a surrogate pair). */
+const cap = (s: string): string => {
+  if (byteLength(s) <= MAX_LINE) return s;
+  let out = '';
+  let bytes = 0;
+  for (const ch of s) {
+    const n = byteLength(ch);
+    if (bytes + n > MAX_LINE - 3) break; // 3 bytes for '…'
+    out += ch;
+    bytes += n;
+  }
+  return `${out}…`;
+};
 const row = (date: string, label: string, text: string): string => `${date}  ${label.padEnd(11)}${text}`.trimEnd();
 const holderLabel = (f: StateSummary): string => {
   if (f.holder === 'personal') return 'private individual';

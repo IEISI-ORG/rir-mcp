@@ -87,6 +87,16 @@ describe('reduceHistory (synthetic)', () => {
     expect(text).not.toContain('((none))');
   });
 
+  it('caps each line by bytes on character boundaries, so non-ASCII names cannot break the budget or a character', () => {
+    const wide = '😀'.repeat(120); // 120 characters after clean(), 480 bytes
+    const h2 = reduceHistory({ records: [rec('2010-01-01', null, { name: wide, ...live })] }, { rir: 'apnic', query: '192.0.2.1' });
+    const text = renderHistory(h2, meta, { detail: 'summary' });
+    for (const line of text.split('\n')) {
+      expect(new TextEncoder().encode(line).length, line).toBeLessThanOrEqual(160);
+      expect(line).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+    }
+  });
+
   it('renders the summary timeline', () => {
     expect(renderHistory(h, meta, { detail: 'summary' })).toBe([
       'history of 192.0.2.0/24  (APNIC RDAP, 7 records -> 5 changes)',
