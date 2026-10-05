@@ -114,6 +114,30 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect(w.reached()).toBe(false);
   });
 
+  it.each([
+    ['an oversized body', () => JSON.stringify({ pad: 'x'.repeat(70_000) }), 413, 'too_large'],
+    ['a body that breaks mid-read', () => new ReadableStream({ start(c) { c.enqueue(new Uint8Array(5)); c.error(new Error('reset 1.1.1.1')); } }), 400, 'bad_body'],
+  ])('logs %s at the edge by reason only', async (_name, body, status, reason) => {
+    const w = watchedEnv();
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    let lines: string[];
+    let res: Response;
+    try {
+      res = await call(new Request('https://mcp.example.net/mcp', {
+        method: 'POST',
+        headers: { host: 'mcp.example.net', 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...bearer(TEST_KEY) },
+        body: body() as BodyInit,
+      }), w.env);
+      lines = spy.mock.calls.map((a) => a.map(String).join(' '));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(res.status).toBe(status);
+    expect(lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toContainEqual(expect.objectContaining({ status, reason }));
+    expect(lines.join('\n')).not.toContain('1.1.1.1');
+    expect(w.reached()).toBe(false);
+  });
+
   it('answers 404 off the /mcp path', async () => {
     expect((await call(req(bearer(TEST_KEY), '/other'))).status).toBe(404);
   });
