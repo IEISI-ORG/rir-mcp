@@ -56,7 +56,7 @@ Fixed the same day: rDNS charged per zone, limiter refusal spent quota, NaN quot
 - ~~keys.ts stdin~~ Done 2026-10-04 (`9317265`). Was: `scripts/keys.ts hash <key>` puts the key in shell history and `ps`; read it from stdin when the argument is `-` or absent.
 - The `rir-mcp` bin only runs via tsx (extensionless imports; workspace core is TS source) — needs the Plan 4 build.
 - ~~Spec logged fields~~ Done 2026-10-04 (spec now says outcome code). Was: Spec §7 lists "upstream status" as a logged field; `CallLog` logs the outcome code. Update the spec or add the field.
-- 413 factory assertion done 2026-10-04 (`ef423d4`). Still open: no slow-body timeout test (`startHttp` hard-codes 30 s; needs an injectable timeout). Was: Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
+- 413 factory assertion done 2026-10-04 (`ef423d4`). ~~No slow-body timeout test~~ (done 2026-10-05: injectable timeouts; 408 test; timeout check every 5 s). Was: Tests: no slow-body timeout test; the 413 test should assert the per-request server factory never ran (spy on `service.forClient`).
 - ~~EADDRINUSE~~ Done 2026-10-04. Was: EADDRINUSE at startup surfaces as an unhandled rejection rather than a clean `rir-mcp:` message.
 
 ## Plan 2 Task 8 — deferred

@@ -67,6 +67,8 @@ Rules from the user:
 
 | 28 | 2026-10-05 | follow-ups | No new answers; audit not yet due (date still 2026-10-05). Coalescing race closed: a refresh finishing during another request's cache read no longer causes a second upstream fetch (latent with today's synchronous caches). 636 root + 63 worker tests pass. | — |
 
-**Next iteration:** 29 — daily security audit (due 2026-10-06; first iteration after midnight).
+| 29 | 2026-10-05 | follow-ups | No new answers; audit not yet due (still 2026-10-05). Follow-ups list cleaned: items already fixed verified against the code and struck. historyView requires meta (latent budget trap). Node: slow-body 408 test with injectable timeouts; timeout check every 5 s (a slow body could last up to 60 s). Copyable placeholder removed from fixtures-record usage. 637 root + 63 worker tests pass. | — |
+
+**Next iteration:** 30 — code review (fresh reviewer) of `068ee83..HEAD` (iterations 25–29), plus the daily security audit (due 2026-10-06) if the date has turned.
 **Next code review:** iteration 30.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
