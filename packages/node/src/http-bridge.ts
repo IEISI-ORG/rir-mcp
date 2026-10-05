@@ -48,8 +48,26 @@ export interface Listening {
   close(): Promise<void>;
 }
 
-export async function startHttp(opts: { readonly host: string; readonly port: number }, app: FetchApp, onError?: (err: unknown) => void): Promise<Listening> {
-  const server = createServer({ requestTimeout: 30_000, headersTimeout: 10_000, keepAliveTimeout: 5_000 }, (req, res) => {
+export interface HttpTimeouts {
+  /** Whole request, body included (a slow body gets 408). */
+  readonly requestMs?: number;
+  readonly headersMs?: number;
+  /** How often Node checks for timed-out requests. */
+  readonly checkEveryMs?: number;
+}
+
+export async function startHttp(
+  opts: { readonly host: string; readonly port: number; readonly timeouts?: HttpTimeouts },
+  app: FetchApp,
+  onError?: (err: unknown) => void,
+): Promise<Listening> {
+  const t = opts.timeouts ?? {};
+  const server = createServer({
+    requestTimeout: t.requestMs ?? 30_000,
+    headersTimeout: t.headersMs ?? 10_000,
+    connectionsCheckingInterval: t.checkEveryMs ?? 5_000,
+    keepAliveTimeout: 5_000,
+  }, (req, res) => {
     void (async () => {
       try {
         await sendWebResponse(res, await app.fetch(toWebRequest(req)));

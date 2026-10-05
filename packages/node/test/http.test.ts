@@ -1,3 +1,4 @@
+import { connect as tcpConnect } from 'node:net';
 import { DEFAULT_LIMITS, MemoryCache, MemoryClientGate, MemoryRateLimiter, RirService, SingleKeyStore } from '@ieisi/rir-mcp-core';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { CLIENT_CAPABILITIES_META_KEY, CLIENT_INFO_META_KEY, PROTOCOL_VERSION_META_KEY } from '@modelcontextprotocol/server';
@@ -176,5 +177,32 @@ describe('toWebRequest', () => {
   it.each(['/\\evil.example/mcp', '//evil.example/mcp', 'http://evil.example/mcp', '/mcp\\..\\x'])('never lets target %j choose the URL host', (target) => {
     const req = toWebRequest({ url: target, method: 'GET', headers: {} } as never);
     expect(new URL(req.url).host).toBe('rir-mcp.invalid');
+  });
+});
+
+describe('slow request bodies', () => {
+  it('answers 408 to a client that trickles its body past the request timeout', async () => {
+    const clock = new FakeClock();
+    const service = new RirService({ fetch: fakeFetch({}), clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const app = createHttpApp({
+      service, gate: new MemoryClientGate(clock), keyStore: new SingleKeyStore(KEY),
+      allowedHosts: ['127.0.0.1', 'localhost'], allowedOrigins: ['127.0.0.1', 'localhost'], log: () => {},
+    });
+    const server = await startHttp({ host: '127.0.0.1', port: 0, timeouts: { requestMs: 300, headersMs: 300, checkEveryMs: 50 } }, app);
+    try {
+      const reply = await new Promise<string>((resolve, reject) => {
+        const sock = tcpConnect(server.port, '127.0.0.1', () => {
+          sock.write(`POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer ${KEY}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{`);
+        });
+        let data = '';
+        sock.on('data', (d) => { data += d.toString(); });
+        sock.on('close', () => resolve(data));
+        sock.on('error', reject);
+        setTimeout(() => { sock.destroy(); resolve(data); }, 3_000);
+      });
+      expect(reply.split('\r\n')[0]).toContain('408');
+    } finally {
+      await server.close();
+    }
   });
 });
