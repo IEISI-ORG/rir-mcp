@@ -13,6 +13,8 @@ export interface BucketState {
 }
 
 const HOUR_MS = 3_600_000;
+/** Never below 1: a fractional burst would let a call cost less than one token. */
+const burstOf = (p: LimitProfile): number => Math.max(1, p.burst);
 /** An upstream Retry-After is honoured up to this long; a misconfigured huge value must not stop a RIR for days. */
 const MAX_BLOCK_MS = HOUR_MS;
 const EPSILON = 1e-9; // absorbs float error, e.g. 6 s x (10/60) = 0.9999999999999999
@@ -41,7 +43,7 @@ export class MemoryRateLimiter implements RateLimiter {
     if (profile.hourlyCap !== undefined && s.windowCount + weight > profile.hourlyCap) {
       return { ok: false, retryAfterS: Math.ceil((s.windowStart + HOUR_MS - now) / 1000) };
     }
-    const cost = Math.min(weight, profile.burst);
+    const cost = Math.min(weight, burstOf(profile));
     if (s.tokens + EPSILON < cost) {
       const rate = this.rate(profile, s, now);
       return { ok: false, retryAfterS: Math.max(1, Math.ceil((cost - s.tokens) / rate - EPSILON)) };
@@ -80,12 +82,12 @@ export class MemoryRateLimiter implements RateLimiter {
     const stored = this.state.get(name);
     const s: BucketState = stored
       ? { ...stored }
-      : { tokens: profile.burst, updatedAt: now, penaltyUntil: 0, windowStart: now, windowCount: 0 };
+      : { tokens: burstOf(profile), updatedAt: now, penaltyUntil: 0, windowStart: now, windowCount: 0 };
     // A span that straddles the end of a penalty refills at the reduced rate up to penaltyUntil, full rate after.
     const penalised = Math.max(0, Math.min(now, s.penaltyUntil) - s.updatedAt);
     const normal = Math.max(0, now - Math.max(s.updatedAt, s.penaltyUntil));
     const gained = (penalised * PENALTY_FACTOR + normal) / 1000 * profile.ratePerS;
-    s.tokens = Math.min(profile.burst, s.tokens + gained);
+    s.tokens = Math.min(burstOf(profile), s.tokens + gained);
     s.updatedAt = now;
     if (now - s.windowStart >= HOUR_MS) {
       s.windowStart = now;
