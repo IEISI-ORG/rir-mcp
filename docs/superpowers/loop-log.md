@@ -65,6 +65,8 @@ Rules from the user:
 
 | 27 | 2026-10-05 | follow-ups | No new answers. End-to-end test that personal data (name, email, phone, address, handle of a real-looking person in raw RDAP) never reaches the MCP client, mutation-checked. History lines capped by bytes between characters (non-ASCII could exceed the budget or split a surrogate pair). 635 root + 63 worker tests pass. | — |
 
-**Next iteration:** 28 — daily security audit (due 2026-10-06; first iteration after midnight). Otherwise little actionable remains without user input (Q2, Q3, Q6, Q11, Plan 4/APNIC).
+| 28 | 2026-10-05 | follow-ups | No new answers; audit not yet due (date still 2026-10-05). Coalescing race closed: a refresh finishing during another request's cache read no longer causes a second upstream fetch (latent with today's synchronous caches). 636 root + 63 worker tests pass. | — |
+
+**Next iteration:** 29 — daily security audit (due 2026-10-06; first iteration after midnight).
 **Next code review:** iteration 30.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
