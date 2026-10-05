@@ -63,6 +63,8 @@ Rules from the user:
 
 | 26 | 2026-10-05 | follow-ups | No new answers. Holder rename renders "renamed to <name>". Fixture PII lint now requires a person's vCard to be exactly the scrubbed form (phone/address of a real person would have passed before); verified no real personal data is committed (people carry the scrubber's placeholder phone; other numbers are org/role); mutation-checked. 632 root + 63 worker tests pass. | — |
 
-**Next iteration:** 27 — daily security audit (due 2026-10-06) if the date has turned; otherwise remaining low-value Plan 1 notes, or idle if nothing actionable remains.
+| 27 | 2026-10-05 | follow-ups | No new answers. End-to-end test that personal data (name, email, phone, address, handle of a real-looking person in raw RDAP) never reaches the MCP client, mutation-checked. History lines capped by bytes between characters (non-ASCII could exceed the budget or split a surrogate pair). 635 root + 63 worker tests pass. | — |
+
+**Next iteration:** 28 — daily security audit (due 2026-10-06; first iteration after midnight). Otherwise little actionable remains without user input (Q2, Q3, Q6, Q11, Plan 4/APNIC).
 **Next code review:** iteration 30.
 **Security audit:** 2026-10-05 done (iteration 18, snapshot `731beb3`); next due 2026-10-06.
