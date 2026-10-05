@@ -9,17 +9,14 @@ const log = (line: Record<string, unknown>): void => console.log(JSON.stringify(
 const now = (): string => new Date().toISOString();
 
 type Gate = ReturnType<typeof edgeGate>;
-/** One gate per env object (stable per isolate), so the single key is hashed once, not per request. */
-const gates = new WeakMap<object, Gate | { error: string }>();
 
+/**
+ * Built from env on every request, never cached at module level: Cloudflare may keep running isolates when only
+ * bindings change, so a cached gate would keep accepting a rotated or revoked API_KEY. The cost is one SHA-256.
+ */
 function gateFor(env: WorkerEnv): Gate | { error: string } {
-  let g = gates.get(env);
-  if (!g) {
-    const config = loadWorkerConfig(env);
-    g = 'error' in config ? config : edgeGate({ ...config, log });
-    gates.set(env, g);
-  }
-  return g;
+  const config = loadWorkerConfig(env);
+  return 'error' in config ? config : edgeGate({ ...config, log });
 }
 
 /** Edge Worker (spec §6, Q9): path → Host → Origin → key here, then one RPC to the single StateDO. */

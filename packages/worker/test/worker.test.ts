@@ -138,6 +138,16 @@ describe('Worker entry: edge checks before the DO (Review Focus 1)', () => {
     expect(w.reached()).toBe(false);
   });
 
+  it('a rotated API_KEY takes effect at once, even if the runtime reuses the same env object', async () => {
+    // Cloudflare may keep running isolates when only bindings change: nothing derived from env may be cached.
+    const e = { ...(env as TestEnv) } as TestEnv & { API_KEY: string };
+    expect((await call(req(bearer(TEST_KEY)), e)).status).toBe(200);
+    const rotated = `rirmcp_${'R'.repeat(43)}`;
+    e.API_KEY = rotated; // same object, new secret
+    expect((await call(req(bearer(TEST_KEY)), e)).status).toBe(401); // the old key is revoked
+    expect((await call(req(bearer(rotated)), e)).status).toBe(200);
+  });
+
   it('answers 404 off the /mcp path', async () => {
     expect((await call(req(bearer(TEST_KEY), '/other'))).status).toBe(404);
   });
