@@ -31,6 +31,11 @@ describe('committed RDAP fixtures hold no real personal data', () => {
       expect(vcardValue(p, 'fn')).toMatch(/^Example Person \d+$/);
       for (const email of vcardValues(p, 'email')) expect(email).toMatch(/^person-\d+@example\.net$/);
       expect((p as { handle?: string }).handle).toMatch(/^EXAMPLE-PERSON-\d+$/);
+      // The scrubber replaces a person's whole vCard: nothing else (address, birthday, photo...) may remain, and the
+      // phone is its fixed placeholder.
+      const props = (((p as { vcardArray?: unknown[] }).vcardArray?.[1] ?? []) as unknown[][]).map((x) => x[0]);
+      for (const name of props) expect(['version', 'fn', 'kind', 'email', 'tel'], `${rel} person vCard has ${String(name)}`).toContain(name);
+      for (const tel of vcardValues(p, 'tel')) expect(tel).toBe('tel:+00-0000-0000');
     }
     for (const list of notes) {
       for (const note of list) expect((note as { description?: unknown }).description).toEqual(['[scrubbed]']);
