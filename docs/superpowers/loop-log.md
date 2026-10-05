@@ -77,6 +77,8 @@ Rules from the user:
 
 | 33 | 2026-10-06 | follow-ups | No new answers. End-to-end personal-data test extended to AS, reverse-DNS and history (full and at-date) tools, each required to answer; mutation fails five of six. 660 root + 65 worker tests pass. | — |
 
+| — | 2026-10-06 | instruction | Q13 answered "enable them": private vulnerability reporting, secret scanning + push protection, Dependabot alerts + security updates enabled on IEISI-ORG/rir-mcp; `main` protected against force-push and deletion only. Verified by reading the settings back and by the following push. | — |
+
 **Next iteration:** 34 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions (after 2026-10-07).
 **Next code review:** iteration 35.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.

@@ -159,5 +159,7 @@ Changing them changes the organisation's configuration, so I have not. Options: 
 
 **Default:** leave as is; SECURITY.md is in place but only works once private vulnerability reporting is on.
 
-**Answer:**
+**Answer:** (2026-10-06) "enable them".
+
+**Reply (2026-10-06):** Done with `gh api` and verified: private vulnerability reporting on (SECURITY.md now works); secret scanning and push protection on; Dependabot alerts and security updates on; branch protection on `main` blocks force-pushes and deletion only (no required pull requests, reviews or status checks, admins not restricted), so the loop's push after each iteration still works.
 
