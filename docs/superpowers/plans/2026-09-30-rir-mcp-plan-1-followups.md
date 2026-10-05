@@ -72,7 +72,7 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 - ~~Suspension and hourly-window eviction tests~~ Done 2026-10-04 (`0b2270c`). Still open:  `SqlCache` run through the `MemoryCache` cases; a history lookup through the DO.
 - ~~`authInfo` is built in both `core/src/http/edge.ts` and `handler.ts`: extract `authInfoFor(client)`.~~ Done 2026-10-04 (`c3aa169`).
 - ~~README says raw RDAP JSON is "4–250 KB"; the fixtures go up to 370 KB (history). Reword.~~ Done 2026-10-04.
-- Task 8 docs: describe Worker persistence accurately (suspensions survive restarts; salted digests persist for up to an hour), and check whether Workers Logs records request headers such as `Authorization` before deploying.
+- ~~Task 8 docs~~ (done 2026-10-04/05: persistence described; invocation logs and traces off). Was: describe Worker persistence accurately (suspensions survive restarts; salted digests persist for up to an hour), and check whether Workers Logs records request headers such as `Authorization` before deploying.
 
 ## Plan 3 (Cloudflare Worker) — open items after Task 8
 
@@ -104,10 +104,10 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 ## Parked at final review
 
 - history names bootstrap RIR when the redirect-detecting current lookup fails (real, minor; the user still gets a correct refusal or can retry)
-- sanitiser misses variation selectors U+FE00–FE0F / U+E0100–E01EF (Mn) and blank Lo fillers (U+3164, U+115F, U+1160, U+2800) (real, deferred to a follow-up hardening item (hidden-payload channel similar to tag chars; low likelihood in RIR data))
+- ~~sanitiser misses variation selectors~~ (verified 2026-10-05: stripped). Was: sanitiser misses variation selectors U+FE00–FE0F / U+E0100–E01EF (Mn) and blank Lo fillers (U+3164, U+115F, U+1160, U+2800) (real, deferred to a follow-up hardening item (hidden-payload channel similar to tag chars; low likelihood in RIR data))
 - ZWJ/ZWNJ become spaces (acceptable, not a regression)
 - operator contact may end with backslash (RFC 9110 comment quoted-pair) (grammar-only, no injection)
-- redirect test doesn't assert weight; scripts/fixtures-record.ts usage comment still says you@example.net (cosmetic, follow-up)
+- redirect test doesn't assert weight; ~~scripts/fixtures-record.ts usage comment still says you@example.net~~ (fixed 2026-10-05)
 
 ## Deferred minors by task
 
@@ -123,15 +123,15 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 4**: backward clock step (fails safe; since 2026-10-05 the bucket clock never moves back); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
 - **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
 - **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
-- **Task 5**: reader lock not released on mid-read error; stream-error test setTimeout not cleaned.
+- **Task 5**: ~~reader lock not released on mid-read error~~ (verified 2026-10-05: released in finally); stream-error test setTimeout not cleaned.
 - **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; no negative caching during IANA outage (3 fetches per lookup after 24h); ASN '' → 0 accepted; bases last-write-wins.
 - **Task 6**: rejected payload leaves this.parsed set (harmless); Service type/asRawFile narrower than runtime checks.
 - **Task 7**: remarks/notices titles and redacted[].description not scrubbed or linted (currently boilerplate only); ~~lint lacks no-adr assertions for people~~ (done 2026-10-05: a person's vCard must be exactly the scrubbed form); arin-contact@google.com / network-abuse@google.com are role mailboxes (kept).
 - **Task 7**: PERSON_KEY is a name heuristic (keys like *_holder/*_admin would not match) — rescan key inventory when adding fixtures; scrubber passes object values under PERSON_KEY (lint fails closed); unused k in lint loop.
-- **Task 8**: sanitize.ts / reducers.test.ts contain raw invisible chars (U+200B.., U+202E) instead of \u escapes — fragile; rewrite as escapes.
-- **Task 8**: clean() does not strip U+E0000–E007F tag characters (known prompt-injection channel), U+061C, U+00AD, U+180E.
+- ~~**Task 8**: raw invisible chars in sources~~ (verified 2026-10-05: none remain). Was: sanitize.ts / reducers.test.ts contain raw invisible chars (U+200B.., U+202E) instead of \u escapes — fragile; rewrite as escapes.
+- ~~**Task 8**: tag characters etc.~~ (verified 2026-10-05: all stripped by UNSAFE). Was: clean() does not strip U+E0000–E007F tag characters (known prompt-injection channel), U+061C, U+00AD, U+180E.
 - **Task 8**: clean tests don't cover C1/isolates/BOM/boundaries; truncation may split surrogate pair; snapshot stores undefined keys.
-- **Task 9**: STALE text says "<RIR> RDAP is unreachable now" but stale is also served when the local limiter is exhausted or upstream sent a challenge page — use neutral wording ("could not refresh").
+- ~~**Task 9**: STALE wording~~ (verified 2026-10-05: "could not refresh"). Was: STALE text says "<RIR> RDAP is unreachable now" but stale is also served when the local limiter is exhausted or upstream sent a challenge page — use neutral wording ("could not refresh").
 - **Task 9**: ~~personal-contact render test has no negative leak assertion~~ (done 2026-10-05: end-to-end MCP test with a real-looking person, mutation-checked); LACNIC snapshot pointer uses APNIC test URL; budget test doesn't cover stale suffix/many prefixes/nameservers; age() doesn't clamp; render cast in budget loop; LACNIC autnum shows "AS28000  28000".
 - **Task 10**: ~~holder cleared renders "(none) ((none))"~~ (done 2026-10-05); same-timestamp tie-break / malformed null-until shadowing / collapse spans gaps; localeCompare on ISO strings; keyOf handle fallback could show a person handle for entity histories (Task 11 refuses personal entities first); at/since validated only by Task 12 schema; untested paths (full detail render, truncation line, renderAt not-covered/withdrawn, personal registrant, non-IP keys); redundant prev==null.
 - ~~**Task 10**: cap() counts UTF-16 units not bytes~~ (done 2026-10-05: byte cap between characters). Was: cap() counts UTF-16 units not bytes — non-ASCII covering names (≤120 chars after clean) could exceed 1500 in theory; header uncapped (bounded by key).

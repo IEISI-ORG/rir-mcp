@@ -75,10 +75,10 @@ export type HistoryView =
   | { mode: 'at'; query: string; at: string; key?: string; from?: string; until?: string; state: StateSummary | null; covered: boolean }
   | { mode: 'timeline'; key: string; rawRecords: number; totalChanges: number; omitted: number; changes: Change[]; covering: Covering[]; since?: string };
 
-const sourceLine = (meta?: Meta): string => (meta ? lines([['source', sourceText(meta)]]) : '');
+const sourceLine = (meta: Meta): string => lines([['source', sourceText(meta)]]);
 
 /** The single view shared by the text renderer and structured output; never exposes raw states. */
-export function historyView(rec: HistoryRecord, opts: HistoryViewOpts, meta?: Meta): HistoryView {
+export function historyView(rec: HistoryRecord, opts: HistoryViewOpts, meta: Meta): HistoryView {
   if (opts.at) {
     const hit = stateAt(rec, opts.at);
     if (!hit) return { mode: 'at', query: rec.query, at: opts.at, state: null, covered: false };
@@ -106,7 +106,7 @@ export function historyView(rec: HistoryRecord, opts: HistoryViewOpts, meta?: Me
 
 type TimelineView = Extract<HistoryView, { mode: 'timeline' }>;
 
-function renderTimeline(v: TimelineView, rec: HistoryRecord, meta?: Meta): string {
+function renderTimeline(v: TimelineView, rec: HistoryRecord, meta: Meta): string {
   // Fixed text first: the key is registry-controlled, and at the start of a line "# X" would render as a heading.
   const header = `history of ${v.key}  (${RIR_LABEL[rec.rir]} RDAP, ${v.rawRecords} records -> ${v.totalChanges} changes${v.since ? ` since ${v.since}` : ''})`;
   const note = v.omitted > 0 ? [`... ${v.omitted} earlier changes omitted; narrow with since=YYYY-MM-DD`] : [];

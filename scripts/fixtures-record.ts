@@ -1,6 +1,6 @@
 /**
  * Records RDAP fixtures from the live RIRs, scrubbing personal data before writing.
- * Usage: RIR_MCP_OPERATOR=you@example.net pnpm fixtures:record
+ * Usage: RIR_MCP_OPERATOR='<operator contact>' corepack pnpm fixtures:record
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
