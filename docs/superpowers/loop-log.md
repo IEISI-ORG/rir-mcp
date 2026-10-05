@@ -75,6 +75,8 @@ Rules from the user:
 
 | 32 | 2026-10-06 | follow-ups | No new answers. Worker edge log reasons tested (413 too_large, broken body bad_body; mutation-checked). deployment.md documents Retry-After handling (honoured up to 1 h, one probe per hour, quota not used while paused, Node keeps the pause in memory only). 660 root + 65 worker tests pass. | — |
 
-**Next iteration:** 33 — daily security audit when 2026-10-07 arrives; after 2026-10-07 remove the four minimumReleaseAge exclusions; history/ASN/rDNS leak test cases.
+| 33 | 2026-10-06 | follow-ups | No new answers. End-to-end personal-data test extended to AS, reverse-DNS and history (full and at-date) tools, each required to answer; mutation fails five of six. 660 root + 65 worker tests pass. | — |
+
+**Next iteration:** 34 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions (after 2026-10-07).
 **Next code review:** iteration 35.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
