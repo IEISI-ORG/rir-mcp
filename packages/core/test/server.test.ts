@@ -45,6 +45,13 @@ describe('MCP server', () => {
     expect(r.structuredContent).toMatchObject({ answer: 'record', rir: 'apnic', cache: 'miss' });
   });
 
+  it('accepts an early date such as since=1960-01-01 (meaning: everything)', async () => {
+    const c = await connect();
+    const r = await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1', since: '1960-01-01' } });
+    expect(r.isError).toBeFalsy();
+    await c.close();
+  });
+
   it.each(['2012-13-45', '2012-02-30', '0000-00-00'])('rejects an impossible history date %s', async (at) => {
     const c = await connect();
     const r = await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1', at } });

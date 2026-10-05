@@ -12,7 +12,7 @@ const RIR = z.enum(RIRS);
 /** A real calendar date: 2012-13-45 or 2012-02-30 would otherwise be silently normalised to another day. */
 const isRealDate = (d: string): boolean => {
   const t = Date.parse(`${d}T00:00:00Z`);
-  return Number.isFinite(t) && t >= Date.UTC(1970, 0, 1) && new Date(t).toISOString().slice(0, 10) === d;
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === d;
 };
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD').refine(isRealDate, 'Not a real date; use YYYY-MM-DD');
 const OUTPUT = z.object({
