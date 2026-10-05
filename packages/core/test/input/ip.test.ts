@@ -59,6 +59,16 @@ describe('prefixContains, IPv6 and equal prefixes', () => {
   });
 });
 
+describe('rangeToCidrs limit (audit 2026-10-06 I2)', () => {
+  it('stops at the limit instead of computing every block of a worst-case IPv6 range', () => {
+    const start = parseIpOrCidr('::1').value;
+    const end = parseIpOrCidr('ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe').value; // about 254 blocks
+    const t = performance.now();
+    for (let i = 0; i < 2000; i++) expect(rangeToCidrs(6, start, end, 4)).toHaveLength(4);
+    expect(performance.now() - t).toBeLessThan(500);
+  });
+});
+
 describe('prefix length spelling', () => {
   it.each(['1.1.1.0/024', '2001:db8::/032', '1.1.1.0/00'])('refuses a non-canonical length with leading zeros (%s)', (v) => {
     expect(() => parseIpOrCidr(v)).toThrow(/prefix length/);

@@ -135,11 +135,12 @@ export function prefixContains(outer: IpPrefix, inner: IpPrefix): boolean {
 }
 
 /** Minimal list of CIDR blocks covering [start, end] inclusive. */
-export function rangeToCidrs(family: IpFamily, start: bigint, end: bigint): IpPrefix[] {
+/** The minimal CIDR cover of start..end, stopping after `limit` blocks (callers cap the result anyway). */
+export function rangeToCidrs(family: IpFamily, start: bigint, end: bigint, limit = Infinity): IpPrefix[] {
   const bits = BITS[family];
   const out: IpPrefix[] = [];
   let cur = start;
-  while (cur <= end) {
+  while (cur <= end && out.length < limit) {
     let size = 0;
     while (size < bits) {
       const blockMask = (1n << BigInt(size + 1)) - 1n;

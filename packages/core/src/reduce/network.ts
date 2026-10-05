@@ -24,7 +24,7 @@ export function prefixesOf(o: Obj): string[] {
     try {
       const a = parseIpOrCidr(o.startAddress);
       const b = parseIpOrCidr(o.endAddress);
-      if (a.family === b.family && a.value <= b.value) return rangeToCidrs(a.family, a.value, b.value).slice(0, LIMITS.prefixes).map((p) => formatCidr(p));
+      if (a.family === b.family && a.value <= b.value) return rangeToCidrs(a.family, a.value, b.value, LIMITS.prefixes).map((p) => formatCidr(p));
     } catch {
       // Malformed range: no prefixes.
     }
