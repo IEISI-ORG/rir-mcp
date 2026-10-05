@@ -84,6 +84,26 @@ describe('MemoryRateLimiter', () => {
     expect((await lim.acquire('lacnic', 1)).ok).toBe(false);
   });
 
+  it('does not over-refill across the end of a penalty', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter({ x: { ratePerS: 1, burst: 1000 } }, clock);
+    for (let i = 0; i < 1000; i++) await lim.acquire('x', 1);
+    await lim.penalise('x');
+    clock.advance(310_000); // 300 s at 0.5/s = 150, then 10 s at 1/s = 10: 160 tokens, not 310
+    expect((await lim.acquire('x', 160)).ok).toBe(true);
+    expect((await lim.acquire('x', 1)).ok).toBe(false);
+  });
+
+  it('restores the full rate after the penalty', async () => {
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock);
+    await lim.penalise('apnic');
+    clock.advance(300_000);
+    for (let i = 0; i < 5; i++) await lim.acquire('apnic', 1);
+    clock.advance(1_000);
+    expect((await lim.acquire('apnic', 1)).ok).toBe(true); // 1/s again
+  });
+
   it('throws for an unknown bucket', async () => {
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
     await expect(lim.acquire('nope', 1)).rejects.toThrow('No rate-limit profile');

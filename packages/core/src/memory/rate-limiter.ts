@@ -81,7 +81,11 @@ export class MemoryRateLimiter implements RateLimiter {
     const s: BucketState = stored
       ? { ...stored }
       : { tokens: profile.burst, updatedAt: now, penaltyUntil: 0, windowStart: now, windowCount: 0 };
-    s.tokens = Math.min(profile.burst, s.tokens + ((now - s.updatedAt) / 1000) * this.rate(profile, s, now));
+    // A span that straddles the end of a penalty refills at the reduced rate up to penaltyUntil, full rate after.
+    const penalised = Math.max(0, Math.min(now, s.penaltyUntil) - s.updatedAt);
+    const normal = Math.max(0, now - Math.max(s.updatedAt, s.penaltyUntil));
+    const gained = (penalised * PENALTY_FACTOR + normal) / 1000 * profile.ratePerS;
+    s.tokens = Math.min(profile.burst, s.tokens + gained);
     s.updatedAt = now;
     if (now - s.windowStart >= HOUR_MS) {
       s.windowStart = now;
