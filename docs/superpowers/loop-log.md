@@ -73,6 +73,8 @@ Rules from the user:
 
 | 31 | 2026-10-06 | follow-ups | No new answers. rangeToCidrs stops at the prefix limit (hostile IPv6 history: 6.6 s CPU before); a nameless holder renders "name removed"; combining overlays dropped and mark stacks capped; small-quota and per-tool leak tests tightened. Ruling: history limiter weight under-count not fixed (registry rate still respected; exact fix needs token metering). 660 root + 63 worker tests pass. | — |
 
-**Next iteration:** 32 — remove the four minimumReleaseAge exclusions if after 2026-10-07 (else wait); remaining test gaps (Worker GET-body through workerd, edge log reasons); daily audit when 2026-10-07 arrives.
+| 32 | 2026-10-06 | follow-ups | No new answers. Worker edge log reasons tested (413 too_large, broken body bad_body; mutation-checked). deployment.md documents Retry-After handling (honoured up to 1 h, one probe per hour, quota not used while paused, Node keeps the pause in memory only). 660 root + 65 worker tests pass. | — |
+
+**Next iteration:** 33 — daily security audit when 2026-10-07 arrives; after 2026-10-07 remove the four minimumReleaseAge exclusions; history/ASN/rDNS leak test cases.
 **Next code review:** iteration 35.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.

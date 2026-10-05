@@ -23,11 +23,11 @@ Audit: 0 Critical/High/Medium, 3 Low, 4 Info. Review: 0 Critical, 1 Important, 7
 
 Deferred:
 - Review Minor 3 — **Ruling (2026-10-06): not fixed now.** Every upstream request still takes at least one token, so the registry's real rate is respected; only the self-imposed weight is understated in rare cases. An exact fix needs token metering through the fetcher; charging a fixed 5 would make histories with an uncached companion fail APNIC's burst of 5. Was: the history limiter weight counts a companion as an upstream token even when none was spent (cached not_found, stale after refusal, joined in-flight), so APNIC is charged 4 instead of 5. Have FetchOutcome report whether it acquired a token.
-- Review Minors 5–6 done 2026-10-06 (small-quota gate assertion; per-tool leak lists). Still open, Minor 7 and the rest of 6: Worker GET-with-body through workerd fetch; edge log-reason test; history/ASN/rDNS leak cases. Was: Review Minors 5–7: test gaps (small-quota test asserts no gate state; end-to-end leak test lacks per-tool forbidden lists and history/ASN/rDNS cases; Worker GET-with-body not driven through workerd fetch; edge log reasons untested).
+- Review Minors 5–6 done 2026-10-06 (small-quota gate assertion; per-tool leak lists). Edge log-reason tests done 2026-10-06. Still open: history/ASN/rDNS leak cases. (Worker GET-with-body cannot be built through fetch() in workerd; its unit test stands.) Was: Review Minors 5–7: test gaps (small-quota test asserts no gate state; end-to-end leak test lacks per-tool forbidden lists and history/ASN/rDNS cases; Worker GET-with-body not driven through workerd fetch; edge log reasons untested).
 - ~~Review Minor 8: a holder that keeps its handle but loses its name renders "holder (none)".~~ Done 2026-10-06 ("name removed").
 - ~~Audit I2: rangeToCidrs computes every CIDR before the 64 cap~~ Done 2026-10-06 (stops at the limit). Was (6.6 s CPU on a hostile 5,000-record IPv6 history); pass the limit in.
 - Audit I3 residuals: `host` exemption keeps every www. in a value that starts with one; ~~combining marks (U+0336 overlay, Zalgo) pass~~ (done 2026-10-06: overlays dropped, stacks capped at 3).
-- Audit I4 remainder: Retry-After over 1 h is capped by design (one probe per hour) — document as a deliberate exception; Node keeps Retry-After blocks in memory only.
+- ~~Audit I4 remainder~~ Done 2026-10-06: deployment.md documents the 1 h cap (one probe per hour) and that Node keeps the pause in memory only.
 
 ## Code review, iteration 25 (2026-10-05, 2a39f48..068ee83) — deferred Minor
 
