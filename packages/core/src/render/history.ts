@@ -43,8 +43,9 @@ function changeLine(c: Change): string {
   const keys = Object.keys(c.fields) as Array<keyof StateSummary>;
   if (keys.length === 1 && keys[0] === 'name') return row(c.date, 'renamed', c.fields.name ?? '(none)');
   // Same handle, new name: the diff holds only holderName, and holderLabel would print "(none) (New Name)".
-  if (keys.length === 1 && keys[0] === 'holderName' && c.fields.holderName !== '(none)') {
-    return row(c.date, 'holder', `renamed to ${c.fields.holderName}`);
+  if (keys.length === 1 && keys[0] === 'holderName') {
+    // Same handle: the name changed or went away; the holder itself did not.
+    return row(c.date, 'holder', c.fields.holderName === '(none)' ? 'name removed' : `renamed to ${c.fields.holderName}`);
   }
   if (keys.every((k) => k === 'holder' || k === 'holderName')) return row(c.date, 'holder', holderLabel(c.fields));
   return row(c.date, 'changed', keys.map((k) => `${k}=${c.fields[k]}`).join('; '));

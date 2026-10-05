@@ -77,6 +77,15 @@ describe('reduceHistory (synthetic)', () => {
     expect(text).not.toContain('(none) (Example Group)');
   });
 
+  it('renders a holder that keeps its handle but loses its name as "name removed", not "(none)"', () => {
+    const lost = reduceHistory({ records: [
+      rec('2017-01-01', '2018-01-01', { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') }] }),
+      rec('2018-01-01', null, { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: ['vcard', [['version', {}, 'text', '4.0'], ['kind', {}, 'text', 'org']]] }] }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    const text = renderHistory(lost, meta, { detail: 'summary' });
+    expect(text).toContain('2018-01-01  holder     name removed');
+  });
+
   it('renders a removed holder as "(none)", not "(none) ((none))"', () => {
     const cleared = reduceHistory({ records: [
       rec('2017-01-01', '2018-01-01', { name: 'BETA', ...live, entities: [{ handle: 'ORG-X-AP', roles: ['registrant'], vcardArray: vc('org', 'Example Org') }] }),

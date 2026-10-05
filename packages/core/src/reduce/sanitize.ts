@@ -38,9 +38,15 @@ function defang(s: string, host: boolean): string {
 }
 
 /** Registry text is data, never instructions: strip unsafe characters, defang markup, and cap length. */
+// Combining overlays and underlines (U+0332-U+0338) fake strike-through or underline; long stacks of combining marks
+// ("Zalgo") overflow lines. Real diacritics use at most two or three marks per letter.
+const OVERLAYS = /[\u0332-\u0338]/g;
+const MARK_STACK = /(\p{M}{3})\p{M}+/gu;
+
 export function clean(value: unknown, max = 120, opts: { readonly host?: boolean } = {}): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const s = defang(value.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim(), opts.host === true);
+  const marks = value.replace(OVERLAYS, '').replace(MARK_STACK, '$1');
+  const s = defang(marks.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim(), opts.host === true);
   if (s === '') return undefined;
   const cps = Array.from(s);
   return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : s;

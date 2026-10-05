@@ -96,6 +96,13 @@ describe('cleaned registry text through real Markdown renderers', () => {
     for (const l of links(html)) expect(l.href.replace(/^(https?:|mailto:)\/*/, ''), html).toBe(l.text.replace(/^(https?:|mailto:)\/*/, ''));
   });
 
+  it('caps stacks of combining marks and drops strike-through overlays (audit 2026-10-06 I3)', () => {
+    const zalgo = clean('E' + '\u0301\u0302\u0303\u0304\u0305\u0306\u0307\u0308'.repeat(4) + 'vil') ?? '';
+    expect(zalgo.match(/\p{M}+/gu)?.every((run) => [...run].length <= 3)).toBe(true);
+    expect(clean('A\u0336C\u0336M\u0336E')).toBe('ACME');
+    expect(clean('Công ty Viễn thông')).toBe('Công ty Viễn thông'); // real diacritics stay
+  });
+
   it('keeps ordinary names, handles and emails readable', () => {
     for (const v of ['APNIC Research and Development', 'AT&T Services, Inc.', 'Smith & Sons (Pty) Ltd', 'abuse_team@example.net', 'abuse@www.example.net', 'ORG-ARAD1-AP']) {
       expect(clean(v)).toBe(v);
