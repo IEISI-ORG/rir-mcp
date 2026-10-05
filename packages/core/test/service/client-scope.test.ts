@@ -103,9 +103,12 @@ describe('history on small quotas (iteration-25 review)', () => {
       'https://rdap.apnic.net/history/entity/ORG-ARAD1-AP': { body: { records: [] } },
     });
     const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
-    const scoped = base.forClient({ client: { clientId: 'small', quotaPerHour: q }, gate: new MemoryClientGate(clock) });
+    const gate = new MemoryClientGate(clock);
+    const client = { clientId: 'small', quotaPerHour: q };
+    const scoped = base.forClient({ client, gate });
     const out = await scoped.history({ resource: 'ORG-ARAD1-AP', type: 'entity' });
     expect(out.kind === 'error' ? out.code : out.kind).not.toBe('quota_exceeded');
+    expect((await gate.charge(client, 1)).ok).toBe(false); // the request used exactly the whole quota, no more
   });
 });
 

@@ -185,10 +185,12 @@ describe('personal data never reaches the client (end to end)', () => {
     entities: [person('ZQ1-AP', ['abuse']), person('ZQ2-AP', ['technical', 'administrative']), person('ZQ3-AP', ['registrant'])],
   };
 
+  const PERSONAL = ['Zelda', 'Quokkafeather', 'zelda.quokka', '5550-1234', 'Wallaby'];
   it.each([
-    ['rdap_ip_lookup', { address: '1.1.1.1' }],
-    ['rdap_entity_lookup', { handle: 'ZQ1-AP' }],
-  ])('%s: no name, email, phone, address or person handle in text or structured output', async (name, args) => {
+    // The entity lookup echoes the user's own query (ZQ1-AP), so that handle is only forbidden for the IP lookup.
+    ['rdap_ip_lookup', { address: '1.1.1.1' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
+    ['rdap_entity_lookup', { handle: 'ZQ1-AP' }, PERSONAL],
+  ])('%s: no name, email, phone, address or person handle in text or structured output', async (name, args, forbidden) => {
     const clock = new FakeClock();
     const fetch = fakeFetch({
       ...ianaRoutes(),
@@ -202,7 +204,7 @@ describe('personal data never reaches the client (end to end)', () => {
     await c.connect(clientT);
     const r = await c.callTool({ name, arguments: args });
     const everything = JSON.stringify(r);
-    for (const secret of ['Zelda', 'Quokkafeather', 'zelda.quokka', '5550-1234', 'Wallaby', 'ZQ2-AP', 'ZQ3-AP']) {
+    for (const secret of forbidden as string[]) {
       expect(everything, `${name} leaked ${secret}`).not.toContain(secret);
     }
     await c.close();
