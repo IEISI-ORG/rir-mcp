@@ -115,9 +115,10 @@ function renderTimeline(v: TimelineView, rec: HistoryRecord, meta: Meta): string
 
 export function renderHistory(rec: HistoryRecord, meta: Meta, opts: HistoryViewOpts): string {
   const v = historyView(rec, opts, meta);
-  if (v.mode === 'empty') return `${v.query}  no registration history found\n${sourceLine(meta)}`;
+  // Fixed text first on every line that names the query: it can come from registry data (a reverse zone).
+  if (v.mode === 'empty') return `history of ${v.query}: no registration history found\n${sourceLine(meta)}`;
   if (v.mode === 'timeline') return renderTimeline(v, rec, meta);
-  const header = `${v.query} on ${v.at} (${RIR_LABEL[rec.rir]} RDAP history)`;
+  const header = `history of ${v.query} on ${v.at} (${RIR_LABEL[rec.rir]} RDAP history)`;
   if (!v.covered) return `${header}\nno registration record covers that date\n${sourceLine(meta)}`;
   const s = v.state;
   return `${header}\n${lines([

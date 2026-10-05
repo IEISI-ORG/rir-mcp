@@ -97,6 +97,14 @@ describe('reduceHistory (synthetic)', () => {
     }
   });
 
+  it('no history line starts with registry text, in empty and at modes too (audit 2026-10-06 L2)', () => {
+    const empty = reduceHistory({ records: [] }, { rir: 'apnic', query: '# Verified' });
+    const hostile = { ...h, query: '# Verified' };
+    for (const text of [renderHistory(empty, meta, { detail: 'summary' }), renderHistory(hostile, meta, { detail: 'summary', at: '2012-01-01' }), renderHistory(hostile, meta, { detail: 'summary', at: '1999-01-01' })]) {
+      for (const line of text.split('\n')) expect(line, line).not.toMatch(/^\s{0,3}(#|[-+*>]|\d+[.)])(\s|$)/);
+    }
+  });
+
   it('renders the summary timeline', () => {
     expect(renderHistory(h, meta, { detail: 'summary' })).toBe([
       'history of 192.0.2.0/24  (APNIC RDAP, 7 records -> 5 changes)',

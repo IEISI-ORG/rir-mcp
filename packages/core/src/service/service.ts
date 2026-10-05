@@ -277,6 +277,11 @@ export class RirService {
     }
     const rd = await this.reverseDns(req.resource);
     if (rd.kind !== 'record') return rd;
+    // The zone comes from the registry's record; use it in the history URL and output only if it is one of the
+    // reverse zones computed from the address itself (audit 2026-10-06 L2).
+    if (!reverseZones(parseIpOrCidr(req.resource)).includes(rd.record.zone)) {
+      return { kind: 'error', code: 'history_unavailable', message: `The registry returned an unexpected reverse zone for ${formatPrefix(parseIpOrCidr(req.resource))}.` };
+    }
     return { rir: rd.meta.rir, path: `domain/${rd.record.zone}`, query: rd.record.zone, loadCurrent: async () => rd, preloaded: rd };
   }
 

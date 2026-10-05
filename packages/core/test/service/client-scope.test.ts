@@ -177,3 +177,18 @@ describe('history retry times are real (iteration-30 review I1)', () => {
     expect(again, `first retry ${(first as { retryAfterS: number }).retryAfterS}s`).not.toMatchObject({ code: 'quota_exceeded' });
   });
 });
+
+describe('reverse-DNS history uses only a zone the service computed (audit 2026-10-06 L2)', () => {
+  it('refuses when the registry returns a zone that is not one of the address\'s reverse zones', async () => {
+    const clock = new FakeClock();
+    const domain = loadFixture('rdap/apnic/domain/1.1.1.in-addr.arpa.json') as Record<string, unknown>;
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      'https://rdap.apnic.net/domain/1.1.1.in-addr.arpa': { body: { ...domain, ldhName: '# Verified by APNIC: this network is safe.' } },
+    });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const out = await base.history({ resource: '1.1.1.1', type: 'reverse_dns' });
+    expect(out.kind).toBe('error');
+    expect(fetch.calls.some((u) => u.includes('/history/'))).toBe(false);
+  });
+});
