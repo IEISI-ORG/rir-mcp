@@ -185,17 +185,36 @@ describe('personal data never reaches the client (end to end)', () => {
     entities: [person('ZQ1-AP', ['abuse']), person('ZQ2-AP', ['technical', 'administrative']), person('ZQ3-AP', ['registrant'])],
   };
 
+  const withPeople = (rel: string) => ({
+    ...(loadFixture(rel) as Record<string, unknown>),
+    entities: [person('ZQ1-AP', ['abuse']), person('ZQ2-AP', ['technical', 'administrative']), person('ZQ3-AP', ['registrant'])],
+  });
+  // An APNIC history whose records carry the same people, before and after a change.
+  const history = {
+    records: [
+      { applicableFrom: '2015-01-01T00:00:00Z', applicableUntil: '2020-01-01T00:00:00Z', content: { ...network } },
+      { applicableFrom: '2020-01-01T00:00:00Z', applicableUntil: null, content: { ...network, name: 'APNIC-LABS-2' } },
+    ],
+  };
+
   const PERSONAL = ['Zelda', 'Quokkafeather', 'zelda.quokka', '5550-1234', 'Wallaby'];
   it.each([
     // The entity lookup echoes the user's own query (ZQ1-AP), so that handle is only forbidden for the IP lookup.
     ['rdap_ip_lookup', { address: '1.1.1.1' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
     ['rdap_entity_lookup', { handle: 'ZQ1-AP' }, PERSONAL],
+    ['rdap_asn_lookup', { asn: 'AS4608' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
+    ['rdap_reverse_dns', { address: '1.1.1.1' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
+    ['rdap_history', { resource: '1.1.1.1', detail: 'full' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
+    ['rdap_history', { resource: '1.1.1.1', at: '2016-06-01' }, [...PERSONAL, 'ZQ1-AP', 'ZQ2-AP', 'ZQ3-AP']],
   ])('%s: no name, email, phone, address or person handle in text or structured output', async (name, args, forbidden) => {
     const clock = new FakeClock();
     const fetch = fakeFetch({
       ...ianaRoutes(),
       'https://rdap.apnic.net/ip/1.1.1.1': { body: network },
       'https://rdap.apnic.net/entity/ZQ1-AP': { body: person('ZQ1-AP', ['abuse']) },
+      'https://rdap.apnic.net/autnum/4608': { body: withPeople('rdap/apnic/autnum/4608.json') },
+      'https://rdap.apnic.net/domain/1.1.1.in-addr.arpa': { body: withPeople('rdap/apnic/domain/1.1.1.in-addr.arpa.json') },
+      'https://rdap.apnic.net/history/ip/1.1.1.1': { body: history },
     });
     const service = new RirService({ fetch, clock, userAgent: 'test', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
     const [clientT, serverT] = InMemoryTransport.createLinkedPair();
@@ -203,6 +222,9 @@ describe('personal data never reaches the client (end to end)', () => {
     const c = new Client({ name: 'test', version: '0.0.0' }, { versionNegotiation: { mode: 'auto' } });
     await c.connect(clientT);
     const r = await c.callTool({ name, arguments: args });
+    // A person's own handle is refused as a personal record (the refusal must still not leak); every other call must
+    // answer, or the leak check would prove nothing.
+    if (name !== 'rdap_entity_lookup') expect(r.isError, `${name} must answer: ${JSON.stringify(r.content).slice(0, 200)}`).toBeFalsy();
     const everything = JSON.stringify(r);
     for (const secret of forbidden as string[]) {
       expect(everything, `${name} leaked ${secret}`).not.toContain(secret);
