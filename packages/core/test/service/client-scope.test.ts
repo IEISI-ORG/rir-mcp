@@ -195,3 +195,30 @@ describe('reverse-DNS history uses only a zone the service computed (audit 2026-
     expect(fetch.calls.some((u) => u.includes('/history/'))).toBe(false);
   });
 });
+
+describe('history retry time when the companion lookup is refused (iteration-35 review I1)', () => {
+  it.each([
+    ['entity', 'ORG-ARAD1-AP'],
+    ['reverse_dns', '1.1.1.1'],
+  ] as const)('%s history: the retry time is for the whole request, so retrying then succeeds', async (type, resource) => {
+    const clock = new FakeClock();
+    const fetch = fakeFetch({
+      ...ianaRoutes(),
+      [IP]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
+      'https://rdap.apnic.net/entity/ORG-ARAD1-AP': { body: loadFixture('rdap/apnic/entity/ORG-ARAD1-AP.json') },
+      'https://rdap.apnic.net/history/entity/ORG-ARAD1-AP': { body: { records: [] } },
+      'https://rdap.apnic.net/domain/1.1.1.in-addr.arpa': { body: loadFixture('rdap/apnic/domain/1.1.1.in-addr.arpa.json') },
+      'https://rdap.apnic.net/history/domain/1.1.1.in-addr.arpa': { body: { records: [] } },
+    });
+    const base = new RirService({ fetch, clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const gate = new MemoryClientGate(clock);
+    const client = { clientId: 'k', quotaPerHour: 10 };
+    const scoped = base.forClient({ client, gate });
+    await gate.charge(client, 10); // quota fully used
+    const first = await scoped.history({ resource, type });
+    expect(first).toMatchObject({ kind: 'error', code: 'quota_exceeded' });
+    clock.advance((first as { retryAfterS: number }).retryAfterS * 1000);
+    const again = await scoped.history({ resource, type });
+    expect(again).not.toMatchObject({ code: 'quota_exceeded' });
+  });
+});

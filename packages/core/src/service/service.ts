@@ -201,8 +201,11 @@ export class RirService {
       // The companion lookups run through a gate that counts the quota units they really cost (net of refunds), so
       // the history charge below is exact. Guessing from cache status let an exhausted key fetch history for free.
       const meter = { units: 0 };
+      // The whole request costs at most the client's quota; a history is 5. NaN quotas stay NaN and deny.
+      const quotaCap = this.scope ? Math.min(WEIGHT.history, this.scope.client.quotaPerHour) : WEIGHT.history;
+      // Every charge inside this request (companion lookups included) reports a retry time for the whole request.
       const self = this.scope
-        ? new RirService(this.deps, { bootstrap: this.bootstrap, fetcher: this.fetcher }, { ...this.scope, gate: metered(this.scope.gate, meter) })
+        ? new RirService(this.deps, { bootstrap: this.bootstrap, fetcher: this.fetcher }, { ...this.scope, gate: metered(this.scope.gate, meter, quotaCap) })
         : this;
       const target = await self.historyTarget(req.type ?? inferHistoryType(req.resource), req);
       if ('kind' in target) return target;
@@ -228,7 +231,6 @@ export class RirService {
       const validatedFor = companion?.kind === 'record' ? companion.record.changed : undefined;
       // The whole request costs the client at most its quota (a history is 5; a key with a quota of 1-4 can still
       // ask, using its full hour). The RIR limiter is still charged the full weight. NaN quotas stay NaN and deny.
-      const quotaCap = this.scope ? Math.min(WEIGHT.history, this.scope.client.quotaPerHour) : WEIGHT.history;
       const out = await this.get({
         key, rir: 'apnic', url, weight: Math.max(1, WEIGHT.history - misses), quotaWeight: Math.max(0, quotaCap - meter.units),
         // If refused, the retry time is for the whole request: next time the companion is usually cached, so the
@@ -320,10 +322,10 @@ export class RirService {
 }
 
 /** A gate that passes everything through and counts the quota units a request really spent (charges minus refunds). */
-function metered(gate: ClientGate, meter: { units: number }): ClientGate {
+function metered(gate: ClientGate, meter: { units: number }, retryAtLeast: number): ClientGate {
   return {
     charge: async (client, weight, retryWeight) => {
-      const g = await gate.charge(client, weight, retryWeight);
+      const g = await gate.charge(client, weight, Math.max(retryWeight ?? weight, retryAtLeast));
       if (g.ok) meter.units += weight;
       return g;
     },
