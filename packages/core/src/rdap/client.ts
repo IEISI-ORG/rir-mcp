@@ -38,7 +38,8 @@ export async function fetchJson(url: string, opts: FetchJsonOptions, deps: HttpD
         await opts.onRedirect?.(new URL(target).hostname);
         continue;
       }
-      if (res.status === 404) throw new RdapError('not_found', `Not found: ${target}`, { status: 404 });
+      // 410 Gone: the object was deleted, which for a lookup is the same answer as never registered.
+      if (res.status === 404 || res.status === 410) throw new RdapError('not_found', `Not found: ${target}`, { status: res.status });
       if (res.status === 429) {
         throw new RdapError('rate_limited', 'Upstream rate limit (HTTP 429)', {
           status: 429,

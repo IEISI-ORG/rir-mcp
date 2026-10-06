@@ -109,14 +109,17 @@ const rateLimited = (rir: Rir, retryAfterS: number): FetchOutcome<never> => ({
 
 /**
  * Failures that mean the registry wants less traffic: rate limits, server errors, timeouts, a firewall's 403 or 408,
- * or a 200 that is not JSON (a challenge page). A 400, 410 or 422 rejects one query and a blocked redirect is our own
- * policy: penalising those would let one client halve a registry's rate for everyone (audit 2026-10-07 I2).
+ * or a 200 that is not JSON (a challenge page). A 400 or 422 rejects one query, well-formed JSON of the wrong kind is
+ * a content problem, and a blocked redirect is our own policy: penalising those would let one client halve a registry's rate for everyone (audit 2026-10-07 I2).
  */
 function slowsRegistryDown(err: RdapError): boolean {
   if (err.code === 'redirect_blocked') return false;
   if (err.code !== 'bad_response') return true;
+  // No status: the body was JSON but the wrong kind (a reducer refused it), a content problem rather than load
+  // (code review 2026-10-07 M3). A non-JSON body carries status 200 and still counts.
   const s = err.status;
-  return s === undefined || s === 403 || s === 408 || s < 400 || s >= 500;
+  if (s === undefined) return false;
+  return s === 403 || s === 408 || s < 400 || s >= 500;
 }
 
 /** In-flight result for a request its originator's client gate refused: per-client, never shared. */

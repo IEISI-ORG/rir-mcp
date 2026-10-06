@@ -110,6 +110,22 @@ describe('which upstream failures slow a registry down (audit 2026-10-07 I2)', (
     expect(await msg({ status: 503, text: '' })).toContain('unavailable right now');
   });
 
+  it.each([
+    ['a timeout', () => { throw new DOMException('The operation timed out.', 'TimeoutError'); }, true],
+    ['a well-formed JSON 200 of the wrong kind (a content problem, not load)', () => ({ body: { objectClassName: 'autnum', startAutnum: 1 } }), false],
+  ] as const)('%s → penalised: %s (code review 2026-10-07 M2, M3)', async (_name, route, penalise) => {
+    const penalised: string[] = [];
+    const spy: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
+    const { service } = setup({ [IP_URL]: route as () => FakeRoute }, spy);
+    expect((await service.ip('1.1.1.1')).kind).toBe('error');
+    expect(penalised).toEqual(penalise ? ['apnic'] : []);
+  });
+
+  it('reads 410 Gone as not registered, not as a rejected query (code review 2026-10-07 M4)', async () => {
+    const a = await setup({ [IP_URL]: { status: 410, text: '' } }).service.ip('1.1.1.1');
+    expect(a).toMatchObject({ kind: 'error', code: 'not_found' });
+  });
+
   it('does not penalise a registry for a redirect our own policy blocks', async () => {
     const penalised: string[] = [];
     const spy: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
