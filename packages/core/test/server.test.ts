@@ -152,6 +152,27 @@ describe('MCP server', () => {
     for (const leak of ['validatedFor', 'latestFrom', 'states']) expect(json).not.toContain(leak);
   });
 
+  it('gives rdap_history timeline output that matches the text: the same changes, the omitted count, the since filter', async () => {
+    type Timeline = { mode: string; key: string; totalChanges: number; omitted: number; since?: string; changes: Array<{ date: string }> };
+    const c = await connect();
+    for (const since of [undefined, '2015-01-01']) {
+      const r = await c.callTool({ name: 'rdap_history', arguments: { resource: '1.1.1.1', ...(since ? { since } : {}) } });
+      const data = (r.structuredContent as { data: Timeline }).data;
+      expect(data.mode).toBe('timeline');
+      expect(data.key).toBe('1.1.1.0/24');
+      expect(data.changes.length).toBeGreaterThan(0);
+      expect(data.changes.length + data.omitted).toBe(data.totalChanges);
+      // Every structured change is one the text shows, and nothing before `since`.
+      for (const ch of data.changes) expect(text(r)).toContain(ch.date);
+      if (since) {
+        expect(data.since).toBe(since);
+        expect(data.changes.every((ch) => ch.date >= since)).toBe(true);
+      }
+      const json = JSON.stringify(r.structuredContent);
+      for (const leak of ['validatedFor', 'latestFrom', 'states']) expect(json).not.toContain(leak);
+    }
+  });
+
   it('never leaks internal errors and reports them to the hook', async () => {
     const err = new Error('secret path /x');
     const stub = { ip: () => Promise.reject(err) } as unknown as RirService;

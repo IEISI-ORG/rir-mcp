@@ -113,7 +113,8 @@ describe('cleaned registry text through real Markdown renderers', () => {
     expect(longestRun(clean('E' + '\u0301\u20DD'.repeat(20)) ?? '')).toBeLessThanOrEqual(3);
     expect(clean('A\u20D2C\u20D2M\u20D2E')).toBe('ACME'); // vertical-line overlay
     // Every listed overlay, one by one (code review 2026-10-06 M2: only U+20D2 was tested).
-    for (const cp of [0x0332, 0x0333, 0x0334, 0x0335, 0x0336, 0x0337, 0x0338, 0x20D2, 0x20D3, 0x20D8, 0x20D9, 0x20DA, 0x20E5, 0x20E6, 0x20EA, 0x20EB]) {
+    // Overlines too (code review 2026-10-06 M4): no orthography uses them, and a run of them reads as a rule over text.
+    for (const cp of [0x0305, 0x033F, 0x0332, 0x0333, 0x0334, 0x0335, 0x0336, 0x0337, 0x0338, 0x20D2, 0x20D3, 0x20D8, 0x20D9, 0x20DA, 0x20E5, 0x20E6, 0x20EA, 0x20EB]) {
       expect(clean(`A${String.fromCodePoint(cp)}B`), cp.toString(16)).toBe('AB');
     }
     expect(clean('Công ty Viễn thông')).toBe('Công ty Viễn thông'); // real diacritics stay

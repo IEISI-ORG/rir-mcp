@@ -21,7 +21,7 @@ Fresh reviewer (Opus): 0 Critical, 2 Important, 5 Minor.
 - **M1 (accepted, reverted):** the StateDO rebuild on OPERATOR change could never run (see the StateDO entry above).
 - **M2 (fixed):** every overlay code point tested; the input cap tested; the timing case now reaches the www. path. All mutation-checked.
 - **M3 (fixed):** an invalid QUOTA_PER_HOUR with per-user keys is tested.
-- **M4 (deferred):** overline and low-line look-alikes (U+0305, U+033F, U+0331, U+0320) are not dropped.
+- **M4 (done in iteration 41 for overlines):** U+0305 and U+033F are dropped. Ruling: U+0331 (macron below) and U+0320 (minus below) stay: transliteration and IPA use them, and an underline does not change what a name says.
 - **M5 (deferred):** a non-APNIC history refused on its redirect companion reports a retry time for 5 units though it would cost 1 (conservative).
 
 ## Code review, iteration 35 (2026-10-06, 7286016..0b1f6da)
@@ -164,7 +164,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 4**: cost=min(weight,burst) undocumented/untested (LACNIC history would drain 3 not 5; history is APNIC-only so moot today).
 - **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
 - **Task 4**: backward clock step (fails safe; since 2026-10-05 the bucket clock never moves back); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
-- **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
+- ~~**Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases~~ (verified 2026-10-06: overwrites are tested; an expired entry is never touched, so LRU evicts it before live ones).
 - **Task 5**: ~~redirect allowlist ignores port/userinfo~~ (done 2026-10-03); ~~buildUserAgent allows NUL/control/non-Latin-1~~ (verified 2026-10-06: printable ASCII only); missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
 - **Task 5**: ~~reader lock not released on mid-read error~~ (verified 2026-10-05: released in finally); stream-error test setTimeout not cleaned.
 - **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; ~~no negative caching during IANA outage~~ (verified 2026-10-06: 5-min retry and 30-s cold back-off); ~~ASN '' → 0 accepted~~ (done 2026-10-06: ranges must be digits, start ≤ end); bases last-write-wins.
@@ -182,7 +182,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 11**: cold ip/asn history stores no validatedFor, so one extra refetch can occur on the first later call with changed > latestFrom (bounded, once).
 - **Task 11**: companion failing with upstream/too_large and no stale fallback is not counted → total 6; only during an upstream failure (limiter already penalised → history served stale), non-blocking.
 - **Task 12**: ~~Review Focus 2 at MCP boundary only tests AS-FOO~~ (done 2026-10-05); ~~DATE regex allows 2012-13-45~~ (done 2026-10-05); no test that since/detail change output; purity regex false-positive prone; outputSchema rir/cache are plain strings; resource test shallow.
-- **Task 12**: ~~historyView without meta ignores source line~~ (done 2026-10-05: meta required); no test for timeline-mode structured output.
+- **Task 12**: ~~historyView without meta ignores source line~~ (done 2026-10-05: meta required); ~~no test for timeline-mode structured output~~ (done 2026-10-06: MCP-level and trimmed-view tests, mutation-checked).
 - **Task 13**: README docs reference not a markdown link; TERMS_OF_USE link dead until Plan 4; placeholder contacts `you@example.net` / `github.com/you/...` look copyable — use `<operator contact>`; live.test.ts comment omits corepack.
 - **Task 13**: stderr also carries config-error line/Node warnings; history cost described as 5 (≈5); Claude Desktop PATH/nvm note; no test that onError logs type only ~~or that stdout has only protocol frames~~ (done 2026-10-06: stdio process test, mutation-checked); "listening" logged before connection.
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { historyChanges, reduceHistory, stateAt } from '../../src/reduce/history';
-import { renderHistory } from '../../src/render/history';
+import { historyView, renderHistory } from '../../src/render/history';
 import type { Meta } from '../../src/service/answer';
 import { loadFixture } from '../support/fixtures';
 
@@ -171,6 +171,19 @@ describe('latestFrom and byte budget (synthetic)', () => {
     expect(text.split('\n')[0]).toContain('history of 192.0.2.0/24  (APNIC RDAP, 45 records');
     expect(text).toContain('source    APNIC RDAP, fetched just now');
     expect(text.split('\n').filter((l) => l.startsWith('covering')).length).toBeLessThanOrEqual(3);
+  });
+
+  it('gives structured output exactly the changes the trimmed text shows', () => {
+    const records: unknown[] = [];
+    for (let i = 0; i < 40; i++) records.push(rec(`2010-01-${String(i + 1).padStart(2, '0')}`, null, { name: `${'N'.repeat(97)}${String(i).padStart(3, '0')}`, ...live }));
+    const h = reduceHistory({ records }, { rir: 'apnic', query: '192.0.2.1' });
+    const view = historyView(h, { detail: 'summary' }, meta);
+    const text = renderHistory(h, meta, { detail: 'summary' });
+    if (view.mode !== 'timeline') throw new Error(view.mode);
+    expect(view.omitted).toBeGreaterThan(0);
+    expect(view.changes.length + view.omitted).toBe(view.totalChanges);
+    for (const ch of view.changes) expect(text).toContain(ch.fields.name!);
+    expect(text).not.toContain(`${'N'.repeat(97)}000`); // the earliest change was trimmed from both
   });
 });
 
