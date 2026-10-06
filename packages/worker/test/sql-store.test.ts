@@ -48,6 +48,22 @@ describe('SqlStateMap', () => {
 });
 
 describe('SqlCache', () => {
+  it('purges every expired row, keeping totals exact, and reports the next expiry (audit 2026-10-07 L4)', async () => {
+    await inDo('cache-purge', async (sql) => {
+      const clock = new FakeClock();
+      const cache = new SqlCache(sql, clock);
+      await cache.put('ip:198.51.100.23', entry('old', clock.t, 1_000, 5_000));
+      await cache.put('ip:203.0.113.77', entry('new', clock.t, 1_000, 50_000));
+      clock.t += 10_000;
+      expect(cache.purgeExpired()).toBe(1_000_000 + 50_000);
+      expect(sql.exec<{ key: string }>('SELECT key FROM cache').toArray().map((r) => r.key)).toEqual(['ip:203.0.113.77']);
+      expect(cache.totals()).toEqual({ entries: 1, bytes: 5 });
+      clock.t += 100_000;
+      expect(cache.purgeExpired()).toBeNull();
+      expect(cache.totals()).toEqual({ entries: 0, bytes: 0 });
+    });
+  });
+
   it('round-trips an entry and returns null once stale', async () => {
     await inDo('cache-expiry', async (sql) => {
       const clock = new FakeClock();

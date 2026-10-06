@@ -61,4 +61,18 @@ describe('MemoryCache', () => {
     await cache.get('k');
     expect(cache.totals()).toEqual({ entries: 1, bytes: 3 });
   });
+
+  it('purges every expired entry, keeping totals exact, and reports the next expiry (audit 2026-10-07 L4)', async () => {
+    const clock = new FakeClock();
+    const cache = new MemoryCache(clock);
+    await cache.put('ip:198.51.100.23', entry(clock, 'old'));
+    clock.advance(4_000);
+    await cache.put('ip:203.0.113.77', entry(clock, 'new'));
+    clock.advance(1_000); // the first is now past staleUntil, the second is not
+    expect(cache.purgeExpired()).toBe(clock.now() + 4_000);
+    expect(cache.totals()).toEqual({ entries: 1, bytes: 5 });
+    clock.advance(4_000);
+    expect(cache.purgeExpired()).toBeNull();
+    expect(cache.totals()).toEqual({ entries: 0, bytes: 0 });
+  });
 });

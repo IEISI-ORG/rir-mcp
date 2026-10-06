@@ -26,6 +26,7 @@ export class StateDO extends DurableObject<Env> {
   /** Outbound fetch for RDAP and IANA. Tests replace it: the Vitest plugin has no outbound fetch mocking. */
   upstream: FetchLike = (url, init) => fetch(url, init);
   private readonly handler: McpHandler;
+  private readonly cache: SqlCache;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -38,9 +39,10 @@ export class StateDO extends DurableObject<Env> {
       salt = randomSalt();
       meta.set('salt', salt);
     }
+    this.cache = new SqlCache(sql, systemClock);
     const service = new RirService({
       fetch: (url, init) => this.upstream(url, init),
-      cache: new SqlCache(sql, systemClock),
+      cache: this.cache,
       limiter: new MemoryRateLimiter(DEFAULT_LIMITS, systemClock, new SqlStateMap<BucketState>(sql, 'limiter')),
       clock: systemClock,
       // Read once: a changed OPERATOR is a new Worker version, and a Durable Object is reset when it moves to a new version.
@@ -57,7 +59,7 @@ export class StateDO extends DurableObject<Env> {
   /** RPC from the edge Worker, only after `edgeGate` admitted the request: `client` is trusted here. */
   async serve(request: Request, client: ClientInfo): Promise<Response> {
     const res = await this.handler.fetch(request, client);
-    // Make sure scan digests get purged even if no further request ever arrives. A storage error here must not
+    // Make sure scan digests and expired cache rows get purged even if no further request ever arrives. A storage error here must not
     // lose an answer the client has already been charged for; the next request re-arms.
     try {
       if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
@@ -67,9 +69,10 @@ export class StateDO extends DurableObject<Env> {
     return res;
   }
 
-  /** Purges scan digests of ended windows; re-arms only while some remain. */
+  /** Purges scan digests of ended windows and expired cache rows; re-arms for the next expiry while any remain. */
   override async alarm(): Promise<void> {
-    const next = purgeExpiredScanUnits(this.ctx.storage.sql, Date.now());
-    if (next !== null) await this.ctx.storage.setAlarm(next);
+    const times = [purgeExpiredScanUnits(this.ctx.storage.sql, Date.now()), this.cache.purgeExpired()]
+      .filter((t): t is number => t !== null);
+    if (times.length > 0) await this.ctx.storage.setAlarm(Math.min(...times));
   }
 }

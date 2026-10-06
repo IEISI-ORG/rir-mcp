@@ -33,6 +33,20 @@ export class MemoryCache implements CacheStore {
     return { entries: this.map.size, bytes: this.bytes };
   }
 
+  /**
+   * Drops every entry past staleUntil, so queried values (keys hold them) leave memory on time even if never read
+   * again. Returns the earliest remaining staleUntil, or null when empty.
+   */
+  purgeExpired(): number | null {
+    const now = this.clock.now();
+    let next: number | null = null;
+    for (const [key, slot] of this.map) {
+      if (now >= slot.entry.staleUntil) this.remove(key);
+      else if (next === null || slot.entry.staleUntil < next) next = slot.entry.staleUntil;
+    }
+    return next;
+  }
+
   async get<T>(key: string): Promise<CacheEntry<T> | null> {
     const slot = this.map.get(key);
     if (!slot) return null;

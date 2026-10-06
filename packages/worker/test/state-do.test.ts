@@ -120,6 +120,18 @@ describe('StateDO.serve', () => {
     expect(units).toEqual([]);
   });
 
+  it('purges expired cache rows in its alarm: queried values do not stay in storage (audit 2026-10-07 L4)', async () => {
+    await inDo('do-cache-purge', async (d) => text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha)));
+    const keys = () => runInDurableObject(stub('do-cache-purge'), (_i, state) =>
+      state.storage.sql.exec<{ key: string }>('SELECT key FROM cache').toArray().map((r) => r.key));
+    expect(await keys()).toContain('ip:1.1.1.1');
+    await runInDurableObject(stub('do-cache-purge'), (_i, state) => {
+      state.storage.sql.exec('UPDATE cache SET stale_until = 1'); // long expired
+    });
+    expect(await runDurableObjectAlarm(stub('do-cache-purge'))).toBe(true);
+    expect(await keys()).toEqual([]);
+  });
+
   it('still returns the answer when arming the purge alarm fails', async () => {
     const out = await inDo('do-alarm-fail', async (d) => {
       const storage = (d as unknown as { ctx: DurableObjectState }).ctx.storage;

@@ -130,7 +130,18 @@ export class SqlCache implements CacheStore {
     }
   }
 
-  /** The only way rows leave the table, so the running totals stay exact. */
+  /**
+   * Deletes every row past staleUntil, so queried values (keys hold them) leave storage on time even if never read
+   * again (audit 2026-10-07 L4). Returns the earliest remaining staleUntil, or null when empty.
+   */
+  purgeExpired(): number | null {
+    const gone = this.sql.exec<{ bytes: number }>('DELETE FROM cache WHERE stale_until <= ? RETURNING bytes', this.clock.now()).toArray();
+    this.entries -= gone.length;
+    for (const g of gone) this.bytes -= g.bytes;
+    return this.sql.exec<{ s: number | null }>('SELECT min(stale_until) AS s FROM cache').one().s;
+  }
+
+  /** With purgeExpired, the only way rows leave the table, so the running totals stay exact. */
   private remove(key: string): void {
     const gone = this.sql.exec<{ bytes: number }>('DELETE FROM cache WHERE key = ? RETURNING bytes', key).toArray()[0];
     if (!gone) return;

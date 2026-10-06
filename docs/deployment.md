@@ -316,6 +316,7 @@ Set the variable (see the client sections above). An invalid value gives `rir-mc
 
 - Contacts of individual people are never returned or cached.
 - Queried values are never logged.
+- Queried values are kept only as cache keys, and only until the entry's stale lifetime ends (table above): expired entries are purged hourly (HTTP mode, Cloudflare), whether or not anyone asks again. stdio mode keeps its cache in memory for the session only.
 - Shared servers: an answer says whether it came from the cache and how old it is (`cached 5m ago`), so one key can tell whether anyone queried a resource recently. Answers hold public registry data only; the call rate and scan detection bound such probing.
 - stdio mode: stderr carries only the startup line and `internal error (<type>)` lines.
 - HTTP mode: stderr carries the startup line and the JSON log lines described under *Logs*; API keys are stored only as SHA-256 hashes.

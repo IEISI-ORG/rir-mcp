@@ -25,17 +25,22 @@ try {
   process.exit(1);
 }
 
+const cache = new MemoryCache(systemClock);
 const service = new RirService({
   fetch: (url, init) => fetch(url, init),
-  cache: new MemoryCache(systemClock),
+  cache,
   limiter: new MemoryRateLimiter(DEFAULT_LIMITS, systemClock),
   clock: systemClock,
   userAgent: config.userAgent,
 });
 
-// Scan digests of a client that stops querying are cleared hourly, not kept until its next request or a restart.
+// Scan digests of a client that stops querying, and expired cache entries (their keys are queried values), are
+// cleared hourly, not kept until a later request or a restart.
 const gateState = new Map<string, ClientState>();
-setInterval(() => clearExpiredUnits(gateState, systemClock.now()), 3_600_000).unref();
+setInterval(() => {
+  clearExpiredUnits(gateState, systemClock.now());
+  cache.purgeExpired();
+}, 3_600_000).unref();
 
 const app = createHttpApp({
   service,
