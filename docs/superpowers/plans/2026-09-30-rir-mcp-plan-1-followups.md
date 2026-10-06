@@ -12,6 +12,18 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Code review, iteration 40 (2026-10-06, 0b1f6da..655ced7)
+
+Fresh reviewer (Opus): 0 Critical, 2 Important, 5 Minor.
+
+- **I1 (fixed):** `www.` kept after "@" when our email grammar matched still became an http link in the remark-gfm tree where GFM's stricter grammar saw no email (`%@www.evil.com`, `x/a@www.evil.com`, `noc_@www.evil.com`, domains ending in a digit or "-"). The email exemption is removed: `www.` after "@" is always defanged. New evidence on the "_@" ruling: the ‗ also exposed the www.
+- **I2 (fixed):** a JSON-number `QUOTA_PER_HOUR` threw a TypeError on every request instead of the 503. Vars are read as text (numbers as digits; other types invalid) and the config load is guarded.
+- **M1 (accepted, reverted):** the StateDO rebuild on OPERATOR change could never run (see the StateDO entry above).
+- **M2 (fixed):** every overlay code point tested; the input cap tested; the timing case now reaches the www. path. All mutation-checked.
+- **M3 (fixed):** an invalid QUOTA_PER_HOUR with per-user keys is tested.
+- **M4 (deferred):** overline and low-line look-alikes (U+0305, U+033F, U+0331, U+0320) are not dropped.
+- **M5 (deferred):** a non-APNIC history refused on its redirect companion reports a retry time for 5 units though it would cost 1 (conservative).
+
 ## Code review, iteration 35 (2026-10-06, 7286016..0b1f6da)
 
 0 Critical, 1 Important, 7 Minor; all fixed in the iteration except Minor 7's email part (an email ending in "_" before "@" keeps the guillemet: an underscore before "@" can close emphasis, and such addresses are rare). Important: a refused companion lookup in entity/reverse-DNS history gave a one-unit retry time — every charge in a history request now reports the whole request's retry time.
@@ -22,7 +34,7 @@ Checked packages/worker against Cloudflare's Workers best practices (skill + doc
 
 - **Fixed:** the edge gate was cached per `env` at module level; a rotated API_KEY could stay valid while an isolate was reused after a binding-only change. Now built per request (`a22e674`).
 - **Deliberate exceptions (recorded):** traces stay off (they record outbound URLs containing queried values; the skill recommends them on); one global Durable Object (Q9, for exact worldwide limits).
-- ~~StateDO builds its User-Agent from OPERATOR once per instance~~ — done 2026-10-06 (iteration 37): `serve` rebuilds the handler when OPERATOR differs from the value it was built with (all state is in SQLite; only per-key call-rate buckets and the IANA memo restart). Cloudflare documents a Durable Object reset for code updates only.
+- ~~StateDO builds its User-Agent from OPERATOR once per instance~~ — not a defect (closed 2026-10-06, iteration 40): every code or configuration change, vars included, creates a new Worker version, and a Durable Object is reset when it is assigned a new version, so the constructor always sees the current OPERATOR. The iteration-37 rebuild could never run and was reverted.
 
 ## Daily security audit 2026-10-06 (snapshot 7286016) and code review, iteration 30 — results
 

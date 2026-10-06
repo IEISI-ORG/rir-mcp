@@ -112,6 +112,10 @@ describe('cleaned registry text through real Markdown renderers', () => {
     expect(longestRun(clean('E' + '\u20DD\u20DE\u20DF\u20E0'.repeat(10) + 'vil') ?? '')).toBeLessThanOrEqual(3);
     expect(longestRun(clean('E' + '\u0301\u20DD'.repeat(20)) ?? '')).toBeLessThanOrEqual(3);
     expect(clean('A\u20D2C\u20D2M\u20D2E')).toBe('ACME'); // vertical-line overlay
+    // Every listed overlay, one by one (code review 2026-10-06 M2: only U+20D2 was tested).
+    for (const cp of [0x0332, 0x0333, 0x0334, 0x0335, 0x0336, 0x0337, 0x0338, 0x20D2, 0x20D3, 0x20D8, 0x20D9, 0x20DA, 0x20E5, 0x20E6, 0x20EA, 0x20EB]) {
+      expect(clean(`A${String.fromCodePoint(cp)}B`), cp.toString(16)).toBe('AB');
+    }
     expect(clean('Công ty Viễn thông')).toBe('Công ty Viễn thông'); // real diacritics stay
     expect(clean('\u1000\u103B\u1031\u102C\u103A')).toBe('\u1000\u103B\u1031\u102C\u103A'); // Burmese "Kyaw": spacing marks are letters' parts
     expect(clean('cafe\u0301_team@example.net')).toBe('cafe\u0301_team@example.net'); // NFD accent before an inner underscore
@@ -127,9 +131,15 @@ describe('cleaned registry text through real Markdown renderers', () => {
 });
 
 describe('sanitiser cost is linear (background commit review: algorithmic complexity)', () => {
+  it('reads at most 16 times its output cap (a registry field could be megabytes)', () => {
+    // 2,000 spaces then text: past 16 × 120 characters, so only blanks are read and nothing is left.
+    expect(clean(' '.repeat(2_000) + 'Acme')).toBeUndefined();
+    expect(clean(' '.repeat(1_000) + 'Acme')).toBe('Acme');
+  });
+
   it.each([
     ['many www. after @', 'a@www.'.repeat(20_000)],
-    ['email-like domain', 'a@' + 'a.'.repeat(25_000) + '!'],
+    ['www. email with a long domain', ('a@www.' + 'a.'.repeat(5_000)).repeat(5)],
     ['a megabyte of text', 'x'.repeat(1_000_000)],
   ])('%s cleans in well under a second', (_name, input) => {
     const t = performance.now();

@@ -194,7 +194,7 @@ Edit `wrangler.jsonc`:
 - `vars.ALLOWED_HOSTS`: the hostname clients connect to, for example `rir-mcp.<your-subdomain>.workers.dev` or your custom domain. Bare hostnames only, comma-separated.
 - `vars.ALLOWED_ORIGINS`: leave empty. Non-browser clients such as Claude Code send no `Origin` and are unaffected; browser-based clients are not supported yet (no CORS headers).
 - `vars.KEYS_MODE`: empty for a single key, `kv` for per-user keys (quota per record).
-- `vars.QUOTA_PER_HOUR`: the single key's hourly lookup quota, an integer from 1 to 1,000,000; empty means 60. Per-user keys ignore it, but it must still be empty or valid.
+- `vars.QUOTA_PER_HOUR`: the single key's hourly lookup quota, an integer from 1 to 1,000,000 (`"500"` or `500`); empty means 60. Per-user keys ignore it, but it must still be empty or valid.
 
 If any of `OPERATOR`, `ALLOWED_HOSTS`, `QUOTA_PER_HOUR` or the key source is missing or invalid, the Worker answers **503** `{"error":"not_configured"}` to every request and logs which setting is wrong (never its value).
 
