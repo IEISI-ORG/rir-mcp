@@ -12,33 +12,15 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * - No square brackets: every Markdown link or image (inline, reference, lenient "[x] (url)") starts with "[".
  * - No angle brackets: no raw HTML (<a href=//…>, <img>) and no <https://…> autolinks.
  * - Schemes become "x(:)(/)(/)" (no "//" left for protocol-relative linkifiers), and "www." after anything but a
- *   letter or digit becomes "www(.)" (remark-gfm also autolinks after "_", "-", "." and even "@"). A complete
- *   email address keeps its "www." (it renders as a mailto link); DNS-name fields pass { host: true } and keep a
- *   leading "www.".
+ *   letter or digit becomes "www(.)" (remark-gfm also autolinks after "_", "-", "." and even "@"). Emails get it too
+ *   (abuse@www(.)example.net): keeping it for "complete" emails meant matching three renderers' email grammars, and
+ *   every mismatch left a live link (code review 2026-10-06). DNS-name fields pass { host: true } and keep a leading
+ *   "www.".
  * - "~" (GFM strikes through even single tildes), "*" (bold and italics), "_" at a word edge (emphasis), and
  *   backticks (code) are neutralised; "_" inside a word (abuse_team@) is kept.
  * Accepted residual: linkifiers with fuzzy matching (markdown-it, Slack) link a bare domain such as "evil.com", but
  * such a link shows exactly where it goes. Protocol-relative "//host" is closed: "//" never survives.
  */
-const LOCAL_CHAR = /[A-Za-z0-9._%+-]/;
-const DOMAIN_CHAR = /[A-Za-z0-9.-]/;
-const DOMAIN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
-
-/**
- * Is the "www." at `at` the domain of a complete email address? Its "www." stays, as GFM shows an email as a mailto
- * link. Scans only the token around this "@" (tokens between "@"s never overlap), so the total work is linear.
- */
-function insideEmail(text: string, at: number): boolean {
-  if (text[at - 1] !== '@') return false;
-  let start = at - 1;
-  while (start > 0 && LOCAL_CHAR.test(text[start - 1]!)) start--;
-  if (start === at - 1) return false; // no local part
-  let end = at;
-  while (end < text.length && DOMAIN_CHAR.test(text[end]!)) end++;
-  if (text[end] === '@') return false;
-  return DOMAIN.test(text.slice(at, end));
-}
-
 function defang(s: string, host: boolean): string {
   return s
     .replace(/\\/g, '∖')
@@ -52,8 +34,7 @@ function defang(s: string, host: boolean): string {
     // Any other "//" too: linkifiers turn a protocol-relative "//host" into a link (and IDN hosts make its target
     // differ from its text). Names, handles and emails never contain one.
     .replace(/\/{2,}/g, (m) => '(/)'.repeat(m.length))
-    .replace(/(?<![\p{L}\p{N}])www\./giu, (m, at: number, whole: string) =>
-      (host && at === 0) || insideEmail(whole, at) ? m : `${m.slice(0, 3)}(.)`)
+    .replace(/(?<![\p{L}\p{N}])www\./giu, (m, at: number) => (host && at === 0 ? m : `${m.slice(0, 3)}(.)`))
     .replace(/~/g, '∼')
     .replace(/\*/g, '∗')
     .replace(/_{2,}/g, '_')

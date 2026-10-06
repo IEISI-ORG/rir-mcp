@@ -51,7 +51,7 @@ describe('clean', () => {
   });
 
   it('leaves ordinary names, handles and emails unchanged', () => {
-    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net', 'abuse@www.example.net']) {
+    for (const v of ['APNIC Research and Development', 'ORG-ARAD1-AP', 'abuse_team@example.net', 'Smith & Sons (Pty) Ltd', 'ns1.example.net']) {
       expect(clean(v)).toBe(v);
     }
   });

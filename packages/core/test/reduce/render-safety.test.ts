@@ -46,6 +46,13 @@ const HOSTILE = [
   '~~EXAMPLE-NET',
   '~struck~ text',
   '`run this`',
+  // www. after an "@" that GFM does not read as an email (code review 2026-10-06 I1)
+  '%@www.evil.com',
+  'x/a@www.evil.com',
+  'noc_@www.evil.com',
+  'a@www.evil.com1',
+  'a@www.evil.c0',
+  'a@www.evil.com-',
   // Single-underscore emphasis (audit 2026-10-06 L3)
   '_Verified by APNIC_',
   '__init__ Corp',
@@ -111,9 +118,11 @@ describe('cleaned registry text through real Markdown renderers', () => {
   });
 
   it('keeps ordinary names, handles and emails readable', () => {
-    for (const v of ['APNIC Research and Development', 'AT&T Services, Inc.', 'Smith & Sons (Pty) Ltd', 'abuse_team@example.net', 'abuse@www.example.net', 'ORG-ARAD1-AP']) {
+    for (const v of ['APNIC Research and Development', 'AT&T Services, Inc.', 'Smith & Sons (Pty) Ltd', 'abuse_team@example.net', 'ORG-ARAD1-AP']) {
       expect(clean(v)).toBe(v);
     }
+    // An email at a www. domain stays readable but is never a link.
+    expect(clean('abuse@www.example.net')).toBe('abuse@www(.)example.net');
   });
 });
 
