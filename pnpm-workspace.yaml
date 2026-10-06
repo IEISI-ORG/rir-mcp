@@ -6,7 +6,3 @@ allowBuilds:
 # Supply-chain hygiene (audit 2026-10-05): never install a package version published less than 3 days ago, so a
 # compromised release is likely caught and pulled before it can reach this repository.
 minimumReleaseAge: 4320
-# Already installed before the policy was added (published 2026-10-03T16:05Z). Remove this exclusion once it is
-# 3 days old (after 2026-10-06T16:05Z); any other or newer version still waits 3 days.
-minimumReleaseAgeExclude:
-  - mdast-util-to-markdown@2.2.0
