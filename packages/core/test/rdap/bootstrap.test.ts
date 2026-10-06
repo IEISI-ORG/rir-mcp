@@ -251,6 +251,22 @@ describe('Bootstrap', () => {
     await expect(boot.routeAsn(4608)).rejects.toBeInstanceOf(RdapError);
   });
 
+  it('ignores malformed ASN ranges instead of reading them as numbers (Number("") is 0)', async () => {
+    const route = (body: unknown) => (): FakeRoute => ({ body });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route({ services: [[['1.0.0.0/8'], ['https://rdap.apnic.net/']]] }),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route({ services: [] }),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route({ services: [
+        [['', '-5', '1e3', ' 20 ', '0x10', '400-300', '7-'], ['https://rdap.arin.net/registry/']],
+        [['4608-4865'], ['https://rdap.apnic.net/']],
+      ] }),
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    expect((await boot.routeAsn(4608))?.rir).toBe('apnic');
+    for (const n of [0, 3, 1000, 20, 16, 350, 7]) expect(await boot.routeAsn(n), `AS${n}`).toBeNull();
+  });
+
   it('skips malformed services and never crashes on unparseable URLs', async () => {
     const route = (body: unknown) => (): FakeRoute => ({ body });
     const fetch = fakeFetch({

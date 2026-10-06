@@ -182,11 +182,12 @@ export class Bootstrap {
       const route = routeOf(urls);
       if (!route) continue;
       for (const r of ranges) {
-        if (typeof r !== 'string') continue;
-        const [a, b] = r.split('-');
-        const start = Number(a);
-        const end = Number(b ?? a);
-        if (Number.isInteger(start) && Number.isInteger(end)) index.asn.push({ start, end, route });
+        // Digits only: Number() would read "" as 0, "1e3" as 1000 and " 20 " as 20.
+        const m = typeof r === 'string' ? /^(\d{1,10})(?:-(\d{1,10}))?$/.exec(r) : null;
+        if (!m) continue;
+        const start = Number(m[1]);
+        const end = Number(m[2] ?? m[1]);
+        if (start <= end) index.asn.push({ start, end, route });
       }
     }
     this.parsed = { fetchedAt, index, validUntil, staleUntil };

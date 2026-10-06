@@ -153,15 +153,15 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 4**: hourly window is fixed not rolling (≤2× cap across boundary; unreachable for LACNIC at 10/min).
 - **Task 4**: backward clock step (fails safe; since 2026-10-05 the bucket clock never moves back); ~~clampProfile accepts 0/negative/NaN~~ (done 2026-10-05; NaN disabled the limiter); penalise ignores unknown bucket while acquire throws.
 - **Task 4**: cache tests lack put-overwrite and expired-vs-capacity cases.
-- **Task 5**: redirect allowlist ignores port/userinfo (SSRF hardening); buildUserAgent allows NUL/control/non-Latin-1; missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
+- **Task 5**: ~~redirect allowlist ignores port/userinfo~~ (done 2026-10-03); ~~buildUserAgent allows NUL/control/non-Latin-1~~ (verified 2026-10-06: printable ASCII only); missing tests (chained redirect, no Location, redirect→404/HTML, headers on 2nd hop, real AbortSignal); ~~HTTP-date Retry-After dropped~~ (done 2026-10-05, `6335b23`); unreachable 'Too many redirects' throw; timeout per hop (2× worst case).
 - **Task 5**: ~~reader lock not released on mid-read error~~ (verified 2026-10-05: released in finally); stream-error test setTimeout not cleaned.
-- **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; no negative caching during IANA outage (3 fetches per lookup after 24h); ASN '' → 0 accepted; bases last-write-wins.
+- **Task 6**: longest-match branch untested (no overlapping fixture prefixes); no tests for http-only service, >7d stale, malformed ranges; ~~no negative caching during IANA outage~~ (verified 2026-10-06: 5-min retry and 30-s cold back-off); ~~ASN '' → 0 accepted~~ (done 2026-10-06: ranges must be digits, start ≤ end); bases last-write-wins.
 - **Task 6**: rejected payload leaves this.parsed set (harmless); Service type/asRawFile narrower than runtime checks.
 - **Task 7**: remarks/notices titles and redacted[].description not scrubbed or linted (currently boilerplate only); ~~lint lacks no-adr assertions for people~~ (done 2026-10-05: a person's vCard must be exactly the scrubbed form); arin-contact@google.com / network-abuse@google.com are role mailboxes (kept).
 - **Task 7**: PERSON_KEY is a name heuristic (keys like *_holder/*_admin would not match) — rescan key inventory when adding fixtures; scrubber passes object values under PERSON_KEY (lint fails closed); unused k in lint loop.
 - ~~**Task 8**: raw invisible chars in sources~~ (verified 2026-10-05: none remain). Was: sanitize.ts / reducers.test.ts contain raw invisible chars (U+200B.., U+202E) instead of \u escapes — fragile; rewrite as escapes.
 - ~~**Task 8**: tag characters etc.~~ (verified 2026-10-05: all stripped by UNSAFE). Was: clean() does not strip U+E0000–E007F tag characters (known prompt-injection channel), U+061C, U+00AD, U+180E.
-- **Task 8**: clean tests don't cover C1/isolates/BOM/boundaries; truncation may split surrogate pair; snapshot stores undefined keys.
+- **Task 8**: clean tests don't cover C1/isolates/BOM/boundaries; ~~truncation may split surrogate pair~~ (verified 2026-10-06: truncates by code point); snapshot stores undefined keys.
 - ~~**Task 9**: STALE wording~~ (verified 2026-10-05: "could not refresh"). Was: STALE text says "<RIR> RDAP is unreachable now" but stale is also served when the local limiter is exhausted or upstream sent a challenge page — use neutral wording ("could not refresh").
 - **Task 9**: ~~personal-contact render test has no negative leak assertion~~ (done 2026-10-05: end-to-end MCP test with a real-looking person, mutation-checked); LACNIC snapshot pointer uses APNIC test URL; budget test doesn't cover stale suffix/many prefixes/nameservers; age() doesn't clamp; render cast in budget loop; LACNIC autnum shows "AS28000  28000".
 - **Task 10**: ~~holder cleared renders "(none) ((none))"~~ (done 2026-10-05); same-timestamp tie-break / malformed null-until shadowing / collapse spans gaps; localeCompare on ISO strings; keyOf handle fallback could show a person handle for entity histories (Task 11 refuses personal entities first); at/since validated only by Task 12 schema; untested paths (full detail render, truncation line, renderAt not-covered/withdrawn, personal registrant, non-IP keys); redundant prev==null.
@@ -170,9 +170,9 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - **Task 11**: cold ip/asn history stores no validatedFor, so one extra refetch can occur on the first later call with changed > latestFrom (bounded, once).
 - **Task 11**: companion failing with upstream/too_large and no stale fallback is not counted → total 6; only during an upstream failure (limiter already penalised → history served stale), non-blocking.
 - **Task 12**: ~~Review Focus 2 at MCP boundary only tests AS-FOO~~ (done 2026-10-05); ~~DATE regex allows 2012-13-45~~ (done 2026-10-05); no test that since/detail change output; purity regex false-positive prone; outputSchema rir/cache are plain strings; resource test shallow.
-- **Task 12**: historyView without meta ignores source line in byte budget (latent trap); no test for timeline-mode structured output.
+- **Task 12**: ~~historyView without meta ignores source line~~ (done 2026-10-05: meta required); no test for timeline-mode structured output.
 - **Task 13**: README docs reference not a markdown link; TERMS_OF_USE link dead until Plan 4; placeholder contacts `you@example.net` / `github.com/you/...` look copyable — use `<operator contact>`; live.test.ts comment omits corepack.
-- **Task 13**: stderr also carries config-error line/Node warnings; history cost described as 5 (≈5); Claude Desktop PATH/nvm note; no test that onError logs type only or that stdout has only protocol frames; "listening" logged before connection.
+- **Task 13**: stderr also carries config-error line/Node warnings; history cost described as 5 (≈5); Claude Desktop PATH/nvm note; no test that onError logs type only ~~or that stdout has only protocol frames~~ (done 2026-10-06: stdio process test, mutation-checked); "listening" logged before connection.
 
 ## TODO: migrate the repo to IEISI-ORG (owner: Terry, added 2026-10-04)
 
@@ -182,12 +182,12 @@ the User-Agent sent to every RIR (`REPO_URL` in `packages/core/src/rdap/user-age
 - [x] (done 2026-10-04) Transfer the repo to `IEISI-ORG` **and rename it to `rir-mcp`** (Settings → Transfer, or `gh api repos/tcsweetser/apnic-mcp/transfer -f new_owner=IEISI-ORG -f new_name=rir-mcp`). Keeping the name `apnic-mcp` would leave every URL above broken.
 - [x] (done 2026-10-04) Point the local clone at the new home: `git remote set-url origin git@github.com:IEISI-ORG/rir-mcp.git`.
 - [x] (resolved 2026-10-04) git access was briefly refused as "disabled" right after the transfer; a later `git fetch` from `IEISI-ORG/rir-mcp` succeeded.
-- [ ] Check that the description, Issues (needed for the operator contact URL) and branch protection on `main` survived the transfer.
+- [x] (verified 2026-10-06) Description, Issues and branch protection on `main` (force-push and deletion blocked, no PR requirement) survived the transfer.
 - [ ] Don't create a new `tcsweetser/apnic-mcp` afterwards: that breaks GitHub's redirect from the old URL.
-- [ ] Re-run `corepack pnpm test:live` once, so the User-Agent link the RIRs see resolves.
+- [x] (done 2026-10-06) `corepack pnpm test:live` re-run with the IEISI-ORG User-Agent: 5/5 RIRs pass.
 
 ## Before the repo goes public (spec §12)
 
 - Plan 4: LICENSE (OpenRAIL-S), TERMS_OF_USE.md, SECURITY.md, CONTRIBUTING.md, CI (tests, weekly live drift, Dependabot, CodeQL, secret scanning) — after APNIC Legal Counsel review.
-- Extend `test:live` to assert holders are non-personal and `meta.rir` is the expected RIR (catches AFRINIC's jCard sunset and redirect mislabelling).
+- ~~Extend `test:live` to assert holders are non-personal and `meta.rir` is the expected RIR~~ — done 2026-10-06 (holder present and not personal; `meta.rir` was already checked).
 - Confirm LACNIC limits with LACNIC; create the npm org `ieisi` before publishing.

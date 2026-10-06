@@ -34,6 +34,27 @@ describe('rir-mcp CLI', () => {
     }
   });
 
+  it('writes only JSON-RPC messages to stdout in stdio mode: anything else would corrupt the protocol', () => {
+    const rpc = (id: number | undefined, method: string, params?: unknown) => JSON.stringify({ jsonrpc: '2.0', ...(id === undefined ? {} : { id }), method, ...(params === undefined ? {} : { params }) });
+    const input = [
+      rpc(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '0' } }),
+      rpc(undefined, 'notifications/initialized'),
+      rpc(2, 'tools/list'),
+      // Special-purpose space: answered with no network call.
+      rpc(3, 'tools/call', { name: 'rdap_ip_lookup', arguments: { address: '10.1.2.3' } }),
+      rpc(4, 'tools/call', { name: 'rdap_ip_lookup', arguments: { address: 'not an address' } }),
+    ].join('\n') + '\n';
+    const r = spawnSync(TSX, [join(ROOT, 'packages/node/src/cli.ts')], {
+      encoding: 'utf8', input, timeout: 30_000, env: { PATH: process.env.PATH ?? '', RIR_MCP_OPERATOR: 'noc@example.net' },
+    });
+    expect(r.status).toBe(0); // exits when stdin closes
+    const lines = r.stdout.split('\n').filter((l) => l !== '');
+    const messages = lines.map((l) => JSON.parse(l) as { jsonrpc?: string; id?: number });
+    expect(messages.every((m) => m.jsonrpc === '2.0')).toBe(true);
+    expect(messages.map((m) => m.id).sort()).toEqual([1, 2, 3, 4]); // responses may arrive in any order
+    expect(r.stderr).toContain('listening on stdio');
+  });
+
   it('dispatches --http to the HTTP entry (which refuses to start without a key)', () => {
     const r = run('packages/node/src/cli.ts', ['--http'], { RIR_MCP_OPERATOR: 'noc@example.net' });
     expect(r.status).toBe(1);

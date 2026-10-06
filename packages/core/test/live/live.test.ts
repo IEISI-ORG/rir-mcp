@@ -1,6 +1,7 @@
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildUserAgent, DEFAULT_LIMITS, MemoryCache, MemoryRateLimiter, RirService, systemClock } from '../../src/index';
+import { isPersonal } from '../../src/reduce/types';
 import { renderNetwork } from '../../src/render/text';
 
 // Node's 250 ms Happy Eyeballs default times out on high-latency RIRs (e.g. LACNIC, AFRINIC from Australia).
@@ -27,6 +28,10 @@ describe.skipIf(process.env.RIR_MCP_LIVE !== '1')('live RDAP drift check', () =>
     if (a.kind !== 'record') return;
     expect(a.meta.rir).toBe(rir);
     expect(a.record.prefixes.length).toBeGreaterThan(0);
+    // Every queried block is held by an organisation: a personal or missing holder means the reducer no longer reads
+    // this registry's entities (e.g. AFRINIC's jCard sunset).
+    expect(a.record.holder).toBeDefined();
+    expect(isPersonal(a.record.holder)).toBe(false);
     expect(new TextEncoder().encode(renderNetwork(a.record, a.meta)).length).toBeLessThan(600);
   }, 30_000);
 });
