@@ -132,6 +132,33 @@ describe('StateDO.serve', () => {
     expect(await keys()).toEqual([]);
   });
 
+  it('keeps its alarm within the hour, so digests and expired rows never wait for a far-off expiry (code review 2026-10-07 C1)', async () => {
+    const HOUR = 3_600_000;
+    const alarmAt = () => runInDurableObject(stub('do-alarm-hour'), (_i, state) => state.storage.getAlarm());
+    await inDo('do-alarm-hour', async (d) => text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha)));
+    // alpha's window ends; the alarm then finds only cache rows that expire in a day or more.
+    await runInDurableObject(stub('do-alarm-hour'), (_i, state) => {
+      state.storage.sql.exec("UPDATE gate SET value = json_set(value, '$.windowStart', 0)");
+    });
+    expect(await runDurableObjectAlarm(stub('do-alarm-hour'))).toBe(true);
+    expect(await alarmAt()).toBeLessThanOrEqual(Date.now() + HOUR);
+    // An alarm armed far ahead (by older code, or any other path) is brought forward by the next request.
+    await runInDurableObject(stub('do-alarm-hour'), (_i, state) => state.storage.setAlarm(Date.now() + 7 * 24 * HOUR));
+    await inDo('do-alarm-hour', async (d) => text(await d.serve(call('rdap_asn_lookup', { asn: 'AS4608' }), { clientId: 'beta', quotaPerHour: 60 })));
+    expect(await alarmAt()).toBeLessThanOrEqual(Date.now() + HOUR);
+  });
+
+  it('waits at least 5 minutes between alarms, not one alarm per cache expiry (code review 2026-10-07 I1)', async () => {
+    await inDo('do-alarm-gap', async (d) => text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha)));
+    await runInDurableObject(stub('do-alarm-gap'), (_i, state) => {
+      state.storage.sql.exec('UPDATE cache SET stale_until = ?', Date.now() + 1_000); // expires in a second
+    });
+    const before = Date.now();
+    expect(await runDurableObjectAlarm(stub('do-alarm-gap'))).toBe(true);
+    const at = await runInDurableObject(stub('do-alarm-gap'), (_i, state) => state.storage.getAlarm());
+    expect(at).toBeGreaterThanOrEqual(before + 5 * 60_000);
+  });
+
   it('still returns the answer when arming the purge alarm fails', async () => {
     const out = await inDo('do-alarm-fail', async (d) => {
       const storage = (d as unknown as { ctx: DurableObjectState }).ctx.storage;

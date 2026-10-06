@@ -11,6 +11,7 @@ const log = (line: Record<string, unknown>): void => console.log(JSON.stringify(
 const onError = (err: unknown): void => log({ t: new Date().toISOString(), error: err instanceof Error ? err.name : typeof err });
 
 const HOUR_MS = 3_600_000;
+const MIN_ALARM_GAP_MS = 5 * 60_000;
 
 function randomSalt(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -59,20 +60,28 @@ export class StateDO extends DurableObject<Env> {
   /** RPC from the edge Worker, only after `edgeGate` admitted the request: `client` is trusted here. */
   async serve(request: Request, client: ClientInfo): Promise<Response> {
     const res = await this.handler.fetch(request, client);
-    // Make sure scan digests and expired cache rows get purged even if no further request ever arrives. A storage error here must not
-    // lose an answer the client has already been charged for; the next request re-arms.
+    // Make sure scan digests and expired cache rows get purged within the hour even if no further request arrives:
+    // arm the alarm, or bring a later one forward. A storage error here must not lose an answer the client has
+    // already been charged for; the next request re-arms.
     try {
-      if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
+      const due = Date.now() + HOUR_MS;
+      const at = await this.ctx.storage.getAlarm();
+      if (at === null || at > due) await this.ctx.storage.setAlarm(due);
     } catch (err) {
       onError(err);
     }
     return res;
   }
 
-  /** Purges scan digests of ended windows and expired cache rows; re-arms for the next expiry while any remain. */
+  /**
+   * Purges scan digests of ended windows and expired cache rows, then re-arms for the next expiry while any remain:
+   * no later than an hour (the documented retention), no sooner than 5 minutes (each run scans the cache table, so
+   * not one run per expiry) (code review 2026-10-07 C1, I1).
+   */
   override async alarm(): Promise<void> {
-    const times = [purgeExpiredScanUnits(this.ctx.storage.sql, Date.now()), this.cache.purgeExpired()]
+    const now = Date.now();
+    const times = [purgeExpiredScanUnits(this.ctx.storage.sql, now), this.cache.purgeExpired()]
       .filter((t): t is number => t !== null);
-    if (times.length > 0) await this.ctx.storage.setAlarm(Math.min(...times));
+    if (times.length > 0) await this.ctx.storage.setAlarm(Math.min(Math.max(Math.min(...times), now + MIN_ALARM_GAP_MS), now + HOUR_MS));
   }
 }
