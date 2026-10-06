@@ -32,6 +32,32 @@ describe('reduceHistory size bound (audit 2026-10-03 #4)', () => {
   });
 });
 
+describe('history detail and since change what is shown (Task 12 follow-up)', () => {
+  const tech = (handle: string) => ({ entities: [{ handle, roles: ['technical'], vcardArray: vc('org', `${handle} NOC`) }] });
+  const h = reduceHistory({ records: [
+    rec('2010-01-01', '2012-01-01', { name: 'ALPHA', ...live, ...tech('ORG-T1') }),
+    rec('2012-01-01', '2014-01-01', { name: 'ALPHA', ...live, ...tech('ORG-T2') }),
+    rec('2014-01-01', null, { name: 'BETA', ...live, ...tech('ORG-T2') }),
+  ] }, { rir: 'apnic', query: '192.0.2.1' });
+
+  it('shows a technical-contact change only in full detail', () => {
+    const summary = historyChanges(h.objects[0]!, 'summary').map((c) => c.date);
+    const full = historyChanges(h.objects[0]!, 'full');
+    expect(summary).toEqual(['2010-01-01', '2014-01-01']);
+    expect(full.map((c) => c.date)).toEqual(['2010-01-01', '2012-01-01', '2014-01-01']);
+    expect(full[1]).toMatchObject({ kind: 'changed', fields: { tech: 'ORG-T2' } });
+    expect(renderHistory(h, meta, { detail: 'full' })).toContain('ORG-T2');
+    expect(renderHistory(h, meta, { detail: 'summary' })).not.toContain('ORG-T2');
+  });
+
+  it('drops changes before since, in both views', () => {
+    expect(historyChanges(h.objects[0]!, 'full', '2013-01-01').map((c) => c.date)).toEqual(['2014-01-01']);
+    const text = renderHistory(h, meta, { detail: 'full', since: '2013-01-01' });
+    expect(text).toContain('2014-01-01');
+    expect(text).not.toContain('2010-01-01');
+  });
+});
+
 describe('reduceHistory with gaps and open-ended rows (Task 10 follow-ups)', () => {
   it('merges a superseded row with no end date into an equal successor (treated as running up to it)', () => {
     const h = reduceHistory({ records: [
