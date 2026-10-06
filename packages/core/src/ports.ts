@@ -55,3 +55,8 @@ export interface ClientGate {
   /** Return a charge that reached no upstream (e.g. the shared RIR limiter refused). Never goes below zero. */
   refund(client: ClientInfo, weight: number): Promise<void>;
 }
+
+/** Admits each authenticated HTTP request, whatever its method: a key's requests are bounded, not only its lookups. */
+export interface RequestGate {
+  admit(client: ClientInfo): Promise<GateResult>;
+}

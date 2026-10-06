@@ -180,6 +180,39 @@ describe('toWebRequest', () => {
   });
 });
 
+describe('per-key request limit (audit 2026-10-07 L3)', () => {
+  it('refuses requests past the burst with 429 and Retry-After, whatever the method, before building a server', async () => {
+    const clock = new FakeClock();
+    const service = new RirService({ fetch: fakeFetch({}), clock, userAgent: 't', cache: new MemoryCache(clock), limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock) });
+    const lines: Array<Record<string, unknown>> = [];
+    const app = createHttpApp({
+      service, gate: new MemoryClientGate(clock, { requestsPerMinute: 60, requestBurst: 4 }), keyStore: new SingleKeyStore(KEY),
+      allowedHosts: ['127.0.0.1', 'localhost'], allowedOrigins: ['127.0.0.1', 'localhost'], log: (l) => lines.push(l),
+    });
+    const server = await startHttp({ host: '127.0.0.1', port: 0 }, app);
+    try {
+      const statuses: number[] = [];
+      let retryAfter: string | null = null;
+      for (let i = 0; i < 8; i++) {
+        const method = ['tools/list', 'ping', 'resources/list'][i % 3]!;
+        const res = await fetch(`http://127.0.0.1:${server.port}/mcp`, {
+          method: 'POST', headers: { ...POST_HEADERS, authorization: `Bearer ${KEY}`, 'mcp-protocol-version': '2025-11-25' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: i, method }),
+        });
+        statuses.push(res.status);
+        if (res.status === 429) retryAfter = res.headers.get('retry-after');
+        await res.text();
+      }
+      expect(statuses.slice(0, 4).every((s) => s === 200)).toBe(true);
+      expect(statuses.slice(4)).toEqual([429, 429, 429, 429]);
+      expect(Number(retryAfter)).toBeGreaterThanOrEqual(1);
+      expect(lines).toContainEqual(expect.objectContaining({ status: 429, reason: 'rate', client: 'default' }));
+    } finally {
+      await server.close();
+    }
+  });
+});
+
 describe('slow request bodies', () => {
   it('answers 408 to a client that trickles its body past the request timeout', async () => {
     const clock = new FakeClock();

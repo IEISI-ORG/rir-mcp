@@ -1,4 +1,4 @@
-import type { ClientGate, ClientInfo, Clock, GateResult } from '../ports';
+import type { ClientGate, ClientInfo, Clock, GateResult, RequestGate } from '../ports';
 import type { StateMap } from './state-map';
 
 export const SCAN_THRESHOLD = 200;
@@ -6,6 +6,9 @@ export const SUSPEND_MS = 86_400_000;
 /** Every scoped call, cached ones included: cache hits are free of quota, not of cost (audit 2026-10-05 F1). */
 export const CALLS_PER_MINUTE = 120;
 export const CALL_BURST = 60;
+/** Every HTTP request, any method (audit 2026-10-07 L3): twice the lookup rate, so a normal client never meets it. */
+export const REQUESTS_PER_MINUTE = 240;
+export const REQUEST_BURST = 120;
 const HOUR_MS = 3_600_000;
 const OK: GateResult = { ok: true };
 
@@ -29,15 +32,18 @@ export interface ClientGateOptions {
   readonly salt?: string;
   readonly callsPerMinute?: number;
   readonly callBurst?: number;
+  readonly requestsPerMinute?: number;
+  readonly requestBurst?: number;
 }
 
-export class MemoryClientGate implements ClientGate {
+export class MemoryClientGate implements ClientGate, RequestGate {
   private readonly state: StateMap<ClientState>;
   private readonly clock: Clock;
-  private readonly opts: Required<Pick<ClientGateOptions, 'scanThreshold' | 'suspendMs' | 'callsPerMinute' | 'callBurst'>> & ClientGateOptions;
+  private readonly opts: Required<Pick<ClientGateOptions, 'scanThreshold' | 'suspendMs' | 'callsPerMinute' | 'callBurst' | 'requestsPerMinute' | 'requestBurst'>> & ClientGateOptions;
   private readonly salt: string;
   /** Per-client call buckets, kept in memory on purpose: the check must cost no storage write. */
   private readonly calls = new Map<string, { tokens: number; updatedAt: number }>();
+  private readonly requests = new Map<string, { tokens: number; updatedAt: number }>();
 
   constructor(clock: Clock, opts: ClientGateOptions = {}) {
     this.clock = clock;
@@ -49,6 +55,8 @@ export class MemoryClientGate implements ClientGate {
       suspendMs: pick(opts.suspendMs, SUSPEND_MS),
       callsPerMinute: pick(opts.callsPerMinute, CALLS_PER_MINUTE),
       callBurst: pick(opts.callBurst, CALL_BURST),
+      requestsPerMinute: pick(opts.requestsPerMinute, REQUESTS_PER_MINUTE),
+      requestBurst: pick(opts.requestBurst, REQUEST_BURST),
     };
     this.state = opts.state ?? new Map();
     this.salt = opts.salt ?? crypto.getRandomValues(new Uint8Array(16)).join('.');
@@ -102,12 +110,21 @@ export class MemoryClientGate implements ClientGate {
     return this.suspended(s, now);
   }
 
+  async admit(client: ClientInfo): Promise<GateResult> {
+    return this.take(this.requests, client.clientId, this.clock.now(), this.opts.requestsPerMinute, this.opts.requestBurst) ?? OK;
+  }
+
   private takeCall(clientId: string, now: number): GateResult | null {
-    const perMs = this.opts.callsPerMinute / 60_000;
-    const b = this.calls.get(clientId) ?? { tokens: this.opts.callBurst, updatedAt: now };
-    b.tokens = Math.min(this.opts.callBurst, b.tokens + (now - b.updatedAt) * perMs);
+    return this.take(this.calls, clientId, now, this.opts.callsPerMinute, this.opts.callBurst);
+  }
+
+  /** One token from a per-client bucket in memory; null when taken, a 'rate' refusal when empty. */
+  private take(buckets: Map<string, { tokens: number; updatedAt: number }>, clientId: string, now: number, perMinute: number, burst: number): GateResult | null {
+    const perMs = perMinute / 60_000;
+    const b = buckets.get(clientId) ?? { tokens: burst, updatedAt: now };
+    b.tokens = Math.min(burst, b.tokens + (now - b.updatedAt) * perMs);
     b.updatedAt = now;
-    this.calls.set(clientId, b);
+    buckets.set(clientId, b);
     if (!(b.tokens >= 1)) return { ok: false, reason: 'rate', retryAfterS: Math.max(1, Math.ceil((1 - b.tokens) / perMs / 1000)) };
     b.tokens -= 1;
     return null;

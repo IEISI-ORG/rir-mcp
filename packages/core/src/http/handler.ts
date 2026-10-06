@@ -1,12 +1,13 @@
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { authInfoFor } from './auth-info';
-import type { ClientGate, ClientInfo } from '../ports';
+import type { ClientGate, ClientInfo, RequestGate } from '../ports';
 import { createServer } from '../server';
 import type { RirService } from '../service/service';
 
 export interface McpHandlerOptions {
   readonly service: RirService;
-  readonly gate: ClientGate;
+  /** Limits lookups (ClientGate) and admits each HTTP request (RequestGate). */
+  readonly gate: ClientGate & RequestGate;
   /** One structured line per call. Never handed header values, keys or query values. */
   readonly log: (line: Record<string, unknown>) => void;
   readonly onError?: (err: unknown) => void;
@@ -36,7 +37,16 @@ export function mcpHandler(o: McpHandlerOptions): McpHandler {
   }, { maxRequestBodySize: MAX_BODY_BYTES, maxSubscriptions: 0, responseMode: 'json', onerror: (err) => o.onError?.(err) });
 
   return {
-    fetch: (req, client) => handler.fetch(req, { authInfo: authInfoFor(client) }),
+    fetch: async (req, client) => {
+      // Every request, whatever its method, before an MCP server is built for it: tools/list, ping and resources
+      // floods are bounded per key too, not only lookups (audit 2026-10-07 L3). In memory, so no storage write.
+      const admitted = await o.gate.admit(client);
+      if (!admitted.ok) {
+        o.log({ t: new Date().toISOString(), status: 429, reason: admitted.reason, client: client.clientId });
+        return Response.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': String(admitted.retryAfterS) } });
+      }
+      return handler.fetch(req, { authInfo: authInfoFor(client) });
+    },
     close: () => handler.close(),
   };
 }

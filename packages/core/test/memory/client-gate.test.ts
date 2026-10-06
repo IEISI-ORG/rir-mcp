@@ -211,3 +211,23 @@ describe('MemoryClientGate options fail closed (audit 2026-10-06 I1)', () => {
     expect((await g.charge(alpha, 1)).ok).toBe(false);
   });
 });
+
+describe('MemoryClientGate request admission (audit 2026-10-07 L3)', () => {
+  it('limits every request per key, separately from lookups, and refills over time', async () => {
+    const clock = new FakeClock();
+    const g = new MemoryClientGate(clock, { requestsPerMinute: 60, requestBurst: 3 });
+    for (let i = 0; i < 3; i++) expect(await g.admit(alpha)).toEqual({ ok: true });
+    expect(await g.admit(alpha)).toEqual({ ok: false, reason: 'rate', retryAfterS: 1 });
+    expect(await g.admit(beta)).toEqual({ ok: true }); // per key
+    expect((await g.observe(alpha, 'ip:192.0.2.0/24')).ok).toBe(true); // the lookup limit is separate
+    clock.advance(1_000);
+    expect(await g.admit(alpha)).toEqual({ ok: true });
+  });
+
+  it('keeps its defaults (240 a minute, bursts of 120) for options that are not a finite number of at least 1', async () => {
+    const g = new MemoryClientGate(new FakeClock(), { requestsPerMinute: NaN, requestBurst: 0 });
+    let admitted = 0;
+    while ((await g.admit(alpha)).ok && admitted < 1_000) admitted++;
+    expect(admitted).toBe(120);
+  });
+});

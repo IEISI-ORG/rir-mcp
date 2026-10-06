@@ -1,9 +1,9 @@
-import { edgeGate, mcpHandler, type ClientGate, type KeyStore, type RirService } from '@ieisi/rir-mcp-core';
+import { edgeGate, mcpHandler, type ClientGate, type KeyStore, type RequestGate, type RirService } from '@ieisi/rir-mcp-core';
 import type { FetchApp } from './http-bridge';
 
 export interface HttpAppOptions {
   readonly service: RirService;
-  readonly gate: ClientGate;
+  readonly gate: ClientGate & RequestGate;
   readonly keyStore: KeyStore;
   readonly allowedHosts: string[];
   readonly allowedOrigins: string[];
