@@ -13,6 +13,18 @@ describe('MemoryRateLimiter', () => {
     expect(await lim.acquire('apnic', 1)).toEqual({ ok: true });
   });
 
+  it('lets a request heavier than the burst through on a full bucket, draining it, and counts its full weight hourly', async () => {
+    // LACNIC's burst is 3: a weight-5 request could otherwise never be sent. It takes the whole bucket, and the hourly
+    // cap sees all 5 (Task 4 follow-up: cost = min(weight, burst)).
+    const clock = new FakeClock();
+    const lim = new MemoryRateLimiter({ lacnic: { ratePerS: 10 / 60, burst: 3, hourlyCap: 7 } }, clock);
+    expect(await lim.acquire('lacnic', 5)).toEqual({ ok: true });
+    expect(await lim.acquire('lacnic', 1)).toMatchObject({ ok: false }); // bucket drained
+    clock.advance(60_000); // bucket full again
+    expect(await lim.acquire('lacnic', 3)).toMatchObject({ ok: false }); // 5 + 3 > 7 per hour
+    expect(await lim.acquire('lacnic', 2)).toEqual({ ok: true });
+  });
+
   it('charges history lookups weight 5', async () => {
     const lim = new MemoryRateLimiter(DEFAULT_LIMITS, new FakeClock());
     expect(await lim.acquire('apnic', 5)).toEqual({ ok: true });
