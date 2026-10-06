@@ -72,6 +72,9 @@ describe('clean', () => {
     ['variation selector', '\ufe0f'], ['supplementary variation selector', '\u{e0100}'],
     ['Hangul filler', '\u3164'], ['Hangul choseong filler', '\u115f'], ['Hangul jungseong filler', '\u1160'],
     ['halfwidth Hangul filler', '\uffa0'], ['blank Braille pattern', '\u2800'], ['lone surrogate', '\ud800'],
+    // Default-ignorable and unassigned code points (audit 2026-10-07 L2): invisible, so a hidden payload channel.
+    ['combining grapheme joiner', '\u034f'], ['Khmer inherent vowel', '\u17b4'], ['reserved default-ignorable', '\u2065'],
+    ['unassigned specials', '\ufff0'], ['unassigned tag-block code point', '\u{e0080}'], ['unassigned plane-14 code point', '\u{e01f0}'],
   ])('replaces %s with a space', (_name, ch) => {
     expect(clean(`A${ch}B`)).toBe('A B');
   });

@@ -1,6 +1,9 @@
-// Control (Cc), format (Cf: zero-width, bidi, BOM, soft hyphen, tag characters), private-use (Co),
-// lone surrogates (Cs), variation selectors, and letters that render blank (Hangul fillers, empty Braille).
-const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u2800\u3164\uFFA0]/gu;
+// Control (Cc), format (Cf: zero-width, bidi, BOM, soft hyphen, tag characters), private-use (Co), lone surrogates
+// (Cs), unassigned (Cn), and everything Unicode marks default-ignorable (variation selectors, Hangul fillers, the
+// combining grapheme joiner, reserved invisible ranges): none of it is visible, so it could carry a hidden payload.
+// The empty Braille pattern renders blank too. Mongolian free variation selectors become spaces (accepted: rare in
+// registry data, which uses Cyrillic for Mongolian).
+const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Cn}\p{Default_Ignorable_Code_Point}\u2800]/gu;
 
 /**
  * Registry text is shown to an LLM and on to people through Markdown renderers, so nothing in it may render as a
