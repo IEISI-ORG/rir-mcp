@@ -148,7 +148,9 @@ export function reduceHistory(raw: unknown, ctx: { rir: Rir; query: string }): H
       const states: StateRow[] = [];
       for (const { from, until, s } of sorted) {
         const last = states.at(-1);
-        if (last && same(last.s, s)) states[states.length - 1] = { ...last, until };
+        // Equal states merge only when contiguous: across a gap the object did not exist, so a merged row would claim
+        // it did. A row with no end date (malformed when superseded) is treated as running up to the next.
+        if (last && same(last.s, s) && (last.until === undefined || last.until === from)) states[states.length - 1] = { ...last, until };
         else states.push({ from, until, s });
       }
       return { key, prefixLength: g.prefixLength, states };
@@ -196,7 +198,8 @@ export function historyChanges(obj: ObjectHistory, detail: Detail, since?: strin
 /** The registration state on a date: the most specific object first, then covering objects. */
 export function stateAt(rec: HistoryRecord, date: string): { object: ObjectHistory; row: StateRow } | null {
   for (const object of rec.objects) {
-    const row = object.states.find((r) => r.from <= date && (r.until === undefined || date < r.until));
+    // The last match (rows are in date order): a superseded row with no end date must not shadow the later states.
+    const row = object.states.findLast((r) => r.from <= date && (r.until === undefined || date < r.until));
     if (row) return { object, row };
   }
   return null;

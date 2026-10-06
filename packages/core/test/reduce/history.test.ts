@@ -32,6 +32,26 @@ describe('reduceHistory size bound (audit 2026-10-03 #4)', () => {
   });
 });
 
+describe('reduceHistory with gaps and open-ended rows (Task 10 follow-ups)', () => {
+  it('does not merge equal states across a gap: the object did not exist in between', () => {
+    const h = reduceHistory({ records: [
+      rec('2010-01-01', '2011-01-01', { name: 'ALPHA', ...live }),
+      rec('2013-01-01', null, { name: 'ALPHA', ...live }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    expect(h.objects[0]?.states.map((r) => [r.from, r.until])).toEqual([['2010-01-01', '2011-01-01'], ['2013-01-01', undefined]]);
+    expect(stateAt(h, '2012-01-01')).toBeNull();
+  });
+
+  it('answers a date with the latest state that began by then, even when an older row has no end date', () => {
+    const h = reduceHistory({ records: [
+      rec('2010-01-01', null, { name: 'ALPHA', ...live }), // malformed: no applicableUntil though superseded
+      rec('2015-01-01', null, { name: 'BETA', ...live }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    expect(stateAt(h, '2016-01-01')?.row.s?.name).toBe('BETA');
+    expect(stateAt(h, '2012-01-01')?.row.s?.name).toBe('ALPHA');
+  });
+});
+
 describe('reduceHistory (synthetic)', () => {
   const h = reduceHistory(synthetic, { rir: 'apnic', query: '192.0.2.1' });
 
