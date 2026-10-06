@@ -40,9 +40,11 @@ function defang(s: string, host: boolean): string {
 /** Registry text is data, never instructions: strip unsafe characters, defang markup, and cap length. */
 // Combining overlays and underlines (U+0332-U+0338) fake strike-through or underline; long stacks of combining marks
 // ("Zalgo") overflow lines. Real diacritics use at most two or three marks per letter.
-const OVERLAYS = /[\u0332-\u0338]/g;
-// Only non-spacing marks (Mn) stack visually; spacing marks (Mc, e.g. Burmese vowel signs) are parts of letters.
-const MARK_STACK = /(\p{Mn}{3})\p{Mn}+/gu;
+// Overlays and underlines that fake strike-through or underline: U+0332-U+0338 and the combining-symbol overlays.
+const OVERLAYS = /[\u0332-\u0338\u20D2\u20D3\u20D8-\u20DA\u20E5\u20E6\u20EA\u20EB]/g;
+// Non-spacing (Mn) and enclosing (Me) marks stack visually, alone or mixed; spacing marks (Mc, e.g. Burmese vowel
+// signs) are parts of letters and do not count.
+const MARK_STACK = /([\p{Mn}\p{Me}]{3})[\p{Mn}\p{Me}]+/gu;
 
 export function clean(value: unknown, max = 120, opts: { readonly host?: boolean } = {}): string | undefined {
   if (typeof value !== 'string') return undefined;

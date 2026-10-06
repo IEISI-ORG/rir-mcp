@@ -100,6 +100,11 @@ describe('cleaned registry text through real Markdown renderers', () => {
     const zalgo = clean('E' + '\u0301\u0302\u0303\u0304\u0305\u0306\u0307\u0308'.repeat(4) + 'vil') ?? '';
     expect(zalgo.match(/\p{M}+/gu)?.every((run) => [...run].length <= 3)).toBe(true);
     expect(clean('A\u0336C\u0336M\u0336E')).toBe('ACME');
+    // Enclosing marks (Me) stack too, alone or alternating with Mn (background commit review, 2026-10-06).
+    const longestRun = (s: string) => Math.max(0, ...(s.match(/\p{M}+/gu) ?? []).map((r) => [...r].length));
+    expect(longestRun(clean('E' + '\u20DD\u20DE\u20DF\u20E0'.repeat(10) + 'vil') ?? '')).toBeLessThanOrEqual(3);
+    expect(longestRun(clean('E' + '\u0301\u20DD'.repeat(20)) ?? '')).toBeLessThanOrEqual(3);
+    expect(clean('A\u20D2C\u20D2M\u20D2E')).toBe('ACME'); // vertical-line overlay
     expect(clean('Công ty Viễn thông')).toBe('Công ty Viễn thông'); // real diacritics stay
     expect(clean('\u1000\u103B\u1031\u102C\u103A')).toBe('\u1000\u103B\u1031\u102C\u103A'); // Burmese "Kyaw": spacing marks are letters' parts
     expect(clean('cafe\u0301_team@example.net')).toBe('cafe\u0301_team@example.net'); // NFD accent before an inner underscore
