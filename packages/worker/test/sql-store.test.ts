@@ -58,7 +58,7 @@ describe('SqlCache', () => {
       expect(cache.purgeExpired()).toBe(1_000_000 + 50_000);
       expect(sql.exec<{ key: string }>('SELECT key FROM cache').toArray().map((r) => r.key)).toEqual(['ip:203.0.113.77']);
       expect(cache.totals()).toEqual({ entries: 1, bytes: 5 });
-      clock.t += 100_000;
+      clock.t = 1_000_000 + 50_000; // exactly staleUntil: expired, as get() treats it
       expect(cache.purgeExpired()).toBeNull();
       expect(cache.totals()).toEqual({ entries: 0, bytes: 0 });
     });

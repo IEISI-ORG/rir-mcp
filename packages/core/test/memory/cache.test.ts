@@ -71,7 +71,7 @@ describe('MemoryCache', () => {
     clock.advance(1_000); // the first is now past staleUntil, the second is not
     expect(cache.purgeExpired()).toBe(clock.now() + 4_000);
     expect(cache.totals()).toEqual({ entries: 1, bytes: 5 });
-    clock.advance(4_000);
+    clock.advance(4_000); // exactly staleUntil: expired, as get() treats it
     expect(cache.purgeExpired()).toBeNull();
     expect(cache.totals()).toEqual({ entries: 0, bytes: 0 });
   });

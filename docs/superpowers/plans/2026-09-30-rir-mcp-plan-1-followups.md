@@ -12,6 +12,18 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Code review, iteration 45 (2026-10-07, 655ced7..b9046af)
+
+Fresh reviewer (Opus): 1 Critical, 1 Important, 5 Minor. Real-data history output byte-identical before and after.
+
+- **C1 (fixed, `2aaf321`):** the StateDO alarm re-armed for the earliest cache expiry (up to 30 days) and `serve()` armed only when none was set, so later scan digests and short-lived rows outlived the documented hour. The alarm is now never more than an hour away; `serve()` brings a later one forward.
+- **I1 (fixed, `2aaf321`):** one alarm per cache expiry, each scanning the table twice; alarms are now at least 5 minutes apart.
+- **M1 (fixed, `5bfdd60`):** the timeline hid a gap the at-date view reported; it now shows withdrawn/re-created, and "covering since" stops at a gap.
+- **M2 (fixed):** tests now kill the surviving mutants: `\p{Cn}` (U+0378), the no-end-date merge branch, timeouts slowing the registry, the purge `<=` boundary (both caches). Rulings: the try/catch around `loadWorkerConfig` stays as unreachable defence in depth; the one-line Node hourly-sweep wiring stays untested.
+- **M3 (fixed, `0e88e15`):** well-formed JSON of the wrong kind no longer slows the registry down.
+- **M4 (fixed, `0e88e15`):** 410 Gone is answered as not registered.
+- **M5 (deferred):** no worker test drives 120+ requests through StateDO.serve to a 429; the handler is shared and the Node test covers it.
+
 ## Daily security audit 2026-10-07 (snapshot e32415b), iteration 42 — results
 
 Fresh auditor (Opus): 0 Critical, 0 High, 0 Medium, 4 Low, 3 Info. Since-last-audit changes all held.
