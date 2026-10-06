@@ -152,8 +152,11 @@ describe('a blocked registry costs no state writes (audit 2026-10-06 L1)', () =>
     const scoped = base.forClient({ client: { clientId: 'k', quotaPerHour: 60 }, gate });
     await scoped.ip('1.1.1.1'); // the first call may record the scan unit once
     const [lw, gw] = [limiterState.writes, gateState.writes];
-    for (let i = 2; i < 102; i++) {
-      expect(await scoped.ip(`1.1.1.${i}`)).toMatchObject({ kind: 'error', code: 'rate_limited' });
+    // 50 calls stay under the per-key call burst (60), so every refusal comes from the blocked registry itself.
+    for (let i = 2; i < 52; i++) {
+      const out = await scoped.ip(`1.1.1.${i}`);
+      expect(out).toMatchObject({ kind: 'error', code: 'rate_limited' });
+      expect((out as { message: string }).message).toContain('APNIC');
     }
     expect(limiterState.writes - lw).toBe(0);
     expect(gateState.writes - gw).toBe(0);

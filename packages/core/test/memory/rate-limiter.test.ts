@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MemoryRateLimiter } from '../../src/memory/rate-limiter';
+import { MemoryRateLimiter, type BucketState } from '../../src/memory/rate-limiter';
 import { clampProfile, DEFAULT_LIMITS } from '../../src/rdap/limits';
 import { FakeClock } from '../support/fake-clock';
 
@@ -138,6 +138,24 @@ describe('MemoryRateLimiter', () => {
     let ok = 0;
     while ((await lim.acquire('x', 1)).ok) ok++;
     expect(ok).toBeLessThanOrEqual(1);
+  });
+
+  it('saves nothing when acquire refuses, and check() never writes (audit 2026-10-06 L1)', async () => {
+    const clock = new FakeClock();
+    const inner = new Map<string, BucketState>();
+    let writes = 0;
+    const state = { get: (k: string) => inner.get(k), set: (k: string, v: BucketState) => { writes += 1; inner.set(k, v); } };
+    const lim = new MemoryRateLimiter(DEFAULT_LIMITS, clock, state);
+    await lim.penalise('apnic', 600);
+    const after = writes;
+    for (let i = 0; i < 10; i++) expect((await lim.acquire('apnic', 1)).ok).toBe(false);
+    expect(await lim.check('apnic', 1)).toMatchObject({ ok: false });
+    expect(writes).toBe(after);
+    clock.advance(600_000);
+    expect(await lim.check('apnic', 1)).toEqual({ ok: true });
+    expect(writes).toBe(after); // check() is read-only even when it would allow
+    expect((await lim.acquire('apnic', 1)).ok).toBe(true);
+    expect(writes).toBe(after + 1);
   });
 
   it('throws for an unknown bucket', async () => {

@@ -79,7 +79,7 @@ describe('cleaned registry text through real Markdown renderers', () => {
     const tree = fromMarkdown(out, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
     const bad: string[] = [];
     const walk = (n: { type: string; url?: string; children?: unknown[] }): void => {
-      if (['image', 'html', 'inlineCode', 'delete', 'strong', 'linkReference', 'imageReference', 'definition'].includes(n.type)) bad.push(n.type);
+      if (['image', 'html', 'inlineCode', 'delete', 'strong', 'emphasis', 'linkReference', 'imageReference', 'definition'].includes(n.type)) bad.push(n.type);
       if (n.type === 'link' && !n.url?.startsWith('mailto:')) bad.push(`link ${n.url}`);
       for (const c of n.children ?? []) walk(c as typeof n);
     };
@@ -101,6 +101,8 @@ describe('cleaned registry text through real Markdown renderers', () => {
     expect(zalgo.match(/\p{M}+/gu)?.every((run) => [...run].length <= 3)).toBe(true);
     expect(clean('A\u0336C\u0336M\u0336E')).toBe('ACME');
     expect(clean('Công ty Viễn thông')).toBe('Công ty Viễn thông'); // real diacritics stay
+    expect(clean('\u1000\u103B\u1031\u102C\u103A')).toBe('\u1000\u103B\u1031\u102C\u103A'); // Burmese "Kyaw": spacing marks are letters' parts
+    expect(clean('cafe\u0301_team@example.net')).toBe('cafe\u0301_team@example.net'); // NFD accent before an inner underscore
   });
 
   it('keeps ordinary names, handles and emails readable', () => {

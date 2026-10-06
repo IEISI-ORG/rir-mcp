@@ -33,7 +33,7 @@ function defang(s: string, host: boolean): string {
     .replace(/\*/g, '∗')
     .replace(/_{2,}/g, '_')
     // A single '_' at a word edge starts or ends emphasis; inside a word (abuse_team@) it is kept.
-    .replace(/(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, '‗')
+    .replace(/(?<![\p{L}\p{N}\p{M}])_|_(?![\p{L}\p{N}])/gu, '‗')
     .replace(/`/g, "'");
 }
 
@@ -41,7 +41,8 @@ function defang(s: string, host: boolean): string {
 // Combining overlays and underlines (U+0332-U+0338) fake strike-through or underline; long stacks of combining marks
 // ("Zalgo") overflow lines. Real diacritics use at most two or three marks per letter.
 const OVERLAYS = /[\u0332-\u0338]/g;
-const MARK_STACK = /(\p{M}{3})\p{M}+/gu;
+// Only non-spacing marks (Mn) stack visually; spacing marks (Mc, e.g. Burmese vowel signs) are parts of letters.
+const MARK_STACK = /(\p{Mn}{3})\p{Mn}+/gu;
 
 export function clean(value: unknown, max = 120, opts: { readonly host?: boolean } = {}): string | undefined {
   if (typeof value !== 'string') return undefined;

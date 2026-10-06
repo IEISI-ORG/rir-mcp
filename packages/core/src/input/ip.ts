@@ -134,7 +134,6 @@ export function prefixContains(outer: IpPrefix, inner: IpPrefix): boolean {
   );
 }
 
-/** Minimal list of CIDR blocks covering [start, end] inclusive. */
 /** The minimal CIDR cover of start..end, stopping after `limit` blocks (callers cap the result anyway). */
 export function rangeToCidrs(family: IpFamily, start: bigint, end: bigint, limit = Infinity): IpPrefix[] {
   const bits = BITS[family];

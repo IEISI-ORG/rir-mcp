@@ -273,7 +273,7 @@ Per-RIR rate limits (also the maximum):
 | AFRINIC | 1 req/s | 5 | none |
 | LACNIC | 10 req/min | 3 | 1,000 |
 
-Request weights: a current lookup costs 1, a history lookup costs 5. After an upstream 429, 5xx, timeout or bad response, the RIR's rate is halved for 5 minutes. If the registry sends `Retry-After` (seconds or a date), no request goes to it until then, up to an hour: a longer pause is cut to one hour, so at most one request per hour checks whether the registry is back. While a registry is paused, lookups are answered from cache (marked `STALE`) or refused with `rate_limited`, without using the client's quota. The Node server keeps this pause in memory, so a restart forgets it; the Cloudflare Durable Object keeps it across restarts.
+Request weights: a current lookup costs 1, a history lookup costs 5. After an upstream 429, 5xx, timeout or bad response, the RIR's rate is halved for 5 minutes. If the registry sends `Retry-After` (seconds or a date), no request goes to it until then, up to an hour: a longer pause is cut to one hour, so once an hour at most a burst of requests (up to 5, or 3 for LACNIC) checks whether the registry is back before a further refusal pauses it again. While a registry is paused, lookups are answered from cache (marked `STALE`) or refused with `rate_limited`, without using the client's quota. The Node server keeps this pause in memory, so a restart forgets it; the Cloudflare Durable Object keeps it across restarts.
 
 Cache lifetimes:
 
