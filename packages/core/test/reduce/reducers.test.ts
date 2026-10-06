@@ -45,8 +45,7 @@ describe('clean', () => {
     expect(clean(input) ?? '').not.toMatch(/[[\]]/);
   });
 
-  it('keeps a leading www. only for DNS-name fields (host option); in a name it is defanged', () => {
-    expect(clean('www.example.net', 253, { host: true })).toBe('www.example.net');
+  it('defangs a leading www. (DNS-name fields use dnsName, which accepts only LDH names)', () => {
     expect(clean('www.evil.com')).toBe('www(.)evil.com');
   });
 

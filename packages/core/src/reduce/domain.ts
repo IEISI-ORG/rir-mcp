@@ -1,8 +1,18 @@
-import { clean } from './sanitize';
 import type { DomainRecord, ReduceCtx } from './types';
 import { asObject, eventDate, LIMITS } from './util';
 
-export const dnsName = (v: unknown): string | undefined => clean(v, 253, { host: true })?.toLowerCase().replace(/\.$/, '');
+/** LDH labels (RFC 1123): RDAP's ldhName is exactly this, so a real name always passes and nothing in it needs defanging. */
+const LDH = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+
+/**
+ * A DNS name, or undefined when the value is not LDH. Anything else could be a disguised link: GFM links a leading
+ * "www." through to the next space, so "www.paypal.com:x@evil.example" would go to evil.example (audit 2026-10-07 L1).
+ */
+export function dnsName(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const name = v.trim().toLowerCase().replace(/\.$/, '');
+  return LDH.test(name) ? name : undefined;
+}
 
 export function reduceDomain(raw: unknown, ctx: ReduceCtx): DomainRecord {
   const o = asObject(raw);

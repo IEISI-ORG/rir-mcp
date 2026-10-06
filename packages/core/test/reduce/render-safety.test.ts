@@ -4,6 +4,7 @@ import { gfmFromMarkdown } from 'mdast-util-gfm';
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
 import { describe, expect, it } from 'vitest';
+import { dnsName } from '../../src/reduce/domain';
 import { clean } from '../../src/reduce/sanitize';
 
 /**
@@ -69,6 +70,19 @@ function badTags(html: string): string[] {
     .filter((t) => t !== 'p' && t !== 'a');
 }
 
+/** Nodes a cleaned value must never produce in the remark-gfm (mdast) tree; mailto links are honest. */
+function mdastBad(markdown: string): string[] {
+  const tree = fromMarkdown(markdown, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
+  const bad: string[] = [];
+  const walk = (n: { type: string; url?: string; children?: unknown[] }): void => {
+    if (['image', 'html', 'inlineCode', 'delete', 'strong', 'emphasis', 'linkReference', 'imageReference', 'definition'].includes(n.type)) bad.push(n.type);
+    if (n.type === 'link' && !n.url?.startsWith('mailto:')) bad.push(`link ${n.url}`);
+    for (const c of n.children ?? []) walk(c as typeof n);
+  };
+  walk(tree);
+  return bad;
+}
+
 function links(html: string): Array<{ href: string; text: string }> {
   return [...html.matchAll(/<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/gi)].map((m) => ({ href: m[1]!, text: m[2]! }));
 }
@@ -83,15 +97,14 @@ describe('cleaned registry text through real Markdown renderers', () => {
 
   it.each(HOSTILE)('the remark-gfm tree for %j has no link, image, HTML, code, strikethrough or bold node', (input) => {
     const out = clean(input) ?? '';
-    const tree = fromMarkdown(out, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
-    const bad: string[] = [];
-    const walk = (n: { type: string; url?: string; children?: unknown[] }): void => {
-      if (['image', 'html', 'inlineCode', 'delete', 'strong', 'emphasis', 'linkReference', 'imageReference', 'definition'].includes(n.type)) bad.push(n.type);
-      if (n.type === 'link' && !n.url?.startsWith('mailto:')) bad.push(`link ${n.url}`);
-      for (const c of n.children ?? []) walk(c as typeof n);
-    };
-    walk(tree);
-    expect(bad, out).toEqual([]);
+    expect(mdastBad(out), out).toEqual([]);
+  });
+
+  it.each(['www&period', 'www&colon', 'x&lt', 'a&ast'])('%j at the end of a field forms no reference with the "; " that follows it (audit 2026-10-07 I1)', (input) => {
+    // History "changed" lines join fields with "; ", completing a character reference the field left open.
+    const out = `changed name=${clean(input) ?? ''}; status=active`;
+    expect(mdastBad(out), out).toEqual([]);
+    expect(badTags(gfmRender(out)), out).toEqual([]);
   });
 
   it.each(HOSTILE)('markdown-it (html, linkify) renders %j with no HTML, image or disguised link', (input) => {
@@ -145,7 +158,6 @@ describe('sanitiser cost is linear (background commit review: algorithmic comple
   ])('%s cleans in well under a second', (_name, input) => {
     const t = performance.now();
     clean(input);
-    clean(input, 253, { host: true });
     // With no effective input cap: the sanitiser itself is linear, the cap is a second line of defence.
     clean(input, input.length);
     expect(performance.now() - t).toBeLessThan(500);
@@ -193,5 +205,19 @@ describe('sanitiser fuzz (seeded, reproducible)', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+});
+
+describe('DNS names (audit 2026-10-07 L1)', () => {
+  it('keeps real LDH names, lower-cased and without the root dot', () => {
+    expect(dnsName('NS1.Example.NET.')).toBe('ns1.example.net');
+    expect(dnsName('1.1.1.in-addr.arpa')).toBe('1.1.1.in-addr.arpa');
+    expect(dnsName('www.xn--bcher-kva.example')).toBe('www.xn--bcher-kva.example');
+  });
+
+  it('drops a name that is not LDH: host mode keeps its www., so GFM would link it to another host', () => {
+    for (const v of ['www.paypal.com:x@evil.example', 'www.apnic.net%2f@evil.example', 'www.a.example/path', 'ns1 .example.net', 'a..example', '-a.example', '']) {
+      expect(dnsName(v), v).toBeUndefined();
+    }
   });
 });

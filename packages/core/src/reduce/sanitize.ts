@@ -14,17 +14,18 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * - Schemes become "x(:)(/)(/)" (no "//" left for protocol-relative linkifiers), and "www." after anything but a
  *   letter or digit becomes "www(.)" (remark-gfm also autolinks after "_", "-", "." and even "@"). Emails get it too
  *   (abuse@www(.)example.net): keeping it for "complete" emails meant matching three renderers' email grammars, and
- *   every mismatch left a live link (code review 2026-10-06). DNS-name fields pass { host: true } and keep a leading
- *   "www.".
+ *   every mismatch left a live link (code review 2026-10-06). DNS-name fields do not come
+ *   here: dnsName accepts only LDH names.
  * - "~" (GFM strikes through even single tildes), "*" (bold and italics), "_" at a word edge (emphasis), and
  *   backticks (code) are neutralised; "_" inside a word (abuse_team@) is kept.
  * Accepted residual: linkifiers with fuzzy matching (markdown-it, Slack) link a bare domain such as "evil.com", but
  * such a link shows exactly where it goes. Protocol-relative "//host" is closed: "//" never survives.
  */
-function defang(s: string, host: boolean): string {
+function defang(s: string): string {
   return s
     .replace(/\\/g, '∖')
-    .replace(/&(?=#|[A-Za-z][A-Za-z0-9]*;)/g, '＆')
+    // Also at the end of the field: history lines join fields with "; ", which would complete the reference.
+    .replace(/&(?=#|[A-Za-z][A-Za-z0-9]*(?:;|$))/g, '＆')
     .replace(/\[/g, '(')
     .replace(/\]/g, ')')
     .replace(/</g, '‹')
@@ -34,7 +35,7 @@ function defang(s: string, host: boolean): string {
     // Any other "//" too: linkifiers turn a protocol-relative "//host" into a link (and IDN hosts make its target
     // differ from its text). Names, handles and emails never contain one.
     .replace(/\/{2,}/g, (m) => '(/)'.repeat(m.length))
-    .replace(/(?<![\p{L}\p{N}])www\./giu, (m, at: number) => (host && at === 0 ? m : `${m.slice(0, 3)}(.)`))
+    .replace(/(?<![\p{L}\p{N}])www\./giu, (m) => `${m.slice(0, 3)}(.)`)
     .replace(/~/g, '∼')
     .replace(/\*/g, '∗')
     .replace(/_{2,}/g, '_')
@@ -53,13 +54,13 @@ const OVERLAYS = /[\u0305\u033F\u0332-\u0338\u20D2\u20D3\u20D8-\u20DA\u20E5\u20E
 // signs) are parts of letters and do not count.
 const MARK_STACK = /([\p{Mn}\p{Me}]{3})[\p{Mn}\p{Me}]+/gu;
 
-export function clean(value: unknown, max = 120, opts: { readonly host?: boolean } = {}): string | undefined {
+export function clean(value: unknown, max = 120): string | undefined {
   if (typeof value !== 'string') return undefined;
   // The output is at most `max` characters: never process more than a generous multiple of that (a registry field
   // could be megabytes). A cut through a surrogate pair is removed by UNSAFE below.
   const bounded = value.length > max * 16 ? value.slice(0, max * 16) : value;
   const marks = bounded.replace(OVERLAYS, '').replace(MARK_STACK, '$1');
-  const s = defang(marks.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim(), opts.host === true);
+  const s = defang(marks.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim());
   if (s === '') return undefined;
   const cps = Array.from(s);
   return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : s;
