@@ -22,7 +22,7 @@ Checked packages/worker against Cloudflare's Workers best practices (skill + doc
 
 - **Fixed:** the edge gate was cached per `env` at module level; a rotated API_KEY could stay valid while an isolate was reused after a binding-only change. Now built per request (`a22e674`).
 - **Deliberate exceptions (recorded):** traces stay off (they record outbound URLs containing queried values; the skill recommends them on); one global Durable Object (Q9, for exact worldwide limits).
-- **Open, low:** StateDO builds its User-Agent from OPERATOR once per instance; after a binding-only change an instance could send the old operator contact until it restarts. Read OPERATOR per request (cheap) if this matters.
+- ~~StateDO builds its User-Agent from OPERATOR once per instance~~ — done 2026-10-06 (iteration 37): `serve` rebuilds the handler when OPERATOR differs from the value it was built with (all state is in SQLite; only per-key call-rate buckets and the IANA memo restart). Cloudflare documents a Durable Object reset for code updates only.
 
 ## Daily security audit 2026-10-06 (snapshot 7286016) and code review, iteration 30 — results
 
