@@ -21,8 +21,8 @@ Fresh auditor (Opus): 0 Critical, 0 High, 0 Medium, 4 Low, 3 Info. Since-last-au
 - **L2 (fixed):** default-ignorable and unassigned code points (U+034F, U+17B4/5, U+2065, U+FFF0–FFF8, unassigned plane 14) survived; `UNSAFE` adds `\p{Default_Ignorable_Code_Point}` and `\p{Cn}`.
 - **L4 (fixed, `09f29c4`):** expired cache rows (keys are queried values) stayed in the Durable Object's SQLite indefinitely below the caps. `purgeExpired()` runs in the DO alarm and in Node's hourly sweep; retention documented.
 - **L3 (fixed, `e0aff05`):** requests other than lookups took no per-key token. Separate in-memory request bucket (240/min, burst 120), 429 with Retry-After before any server is built.
-- **I2 (deferred; not demonstrated):** every non-404 upstream error penalises the RIR bucket; if a validated input made an RIR answer 400/403, one key could keep that RIR at half rate. Consider penalising only 429, 5xx and timeouts — but check first whether any RIR signals blocking with 403.
-- **I3 (pending):** the last `minimumReleaseAgeExclude` entry becomes eligible at 2026-10-06T16:05Z; the audit's "eligible since" was early.
+- **I2 (fixed in iteration 43):** every non-404 upstream error penalised the RIR bucket. Now only 429, 5xx, timeouts, 403 (a firewall), 408 and non-JSON 200s do; 400/410/422 and our own redirect blocks do not. Ruling: 403 still penalises, since a WAF block means back off.
+- **I3 (done in iteration 43):** the last `minimumReleaseAgeExclude` entry removed after 2026-10-06T16:05Z.
 
 ## Code review, iteration 40 (2026-10-06, 0b1f6da..655ced7)
 

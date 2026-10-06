@@ -107,6 +107,18 @@ const rateLimited = (rir: Rir, retryAfterS: number): FetchOutcome<never> => ({
   retryAfterS,
 });
 
+/**
+ * Failures that mean the registry wants less traffic: rate limits, server errors, timeouts, a firewall's 403 or 408,
+ * or a 200 that is not JSON (a challenge page). A 400, 410 or 422 rejects one query and a blocked redirect is our own
+ * policy: penalising those would let one client halve a registry's rate for everyone (audit 2026-10-07 I2).
+ */
+function slowsRegistryDown(err: RdapError): boolean {
+  if (err.code === 'redirect_blocked') return false;
+  if (err.code !== 'bad_response') return true;
+  const s = err.status;
+  return s === undefined || s === 403 || s === 408 || s < 400 || s >= 500;
+}
+
 /** In-flight result for a request its originator's client gate refused: per-client, never shared. */
 const DENIED = Symbol('denied');
 
@@ -212,7 +224,7 @@ export class CachedFetcher {
         return notFound(req.rir);
       }
       if (err.code === 'too_large') return { ok: false, code: 'too_large', message: 'The registry response was too large to use.' };
-      await this.deps.limiter.penalise(actual, err.retryAfterS);
+      if (slowsRegistryDown(err)) await this.deps.limiter.penalise(actual, err.retryAfterS);
       return fallback ?? {
         ok: false,
         code: 'upstream',

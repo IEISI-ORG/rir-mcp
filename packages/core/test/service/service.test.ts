@@ -81,6 +81,33 @@ describe('redirect charging (audit 2026-10-05 F7)', () => {
   });
 });
 
+describe('which upstream failures slow a registry down (audit 2026-10-07 I2)', () => {
+  it.each([
+    ['429', true, { status: 429, text: '' }],
+    ['503', true, { status: 503, text: '' }],
+    ['403 (a firewall refusing us)', true, { status: 403, text: '' }],
+    ['408', true, { status: 408, text: '' }],
+    ['200 that is not JSON (a challenge page)', true, { status: 200, text: '<html>' }],
+    ['400 (the registry rejects this one query)', false, { status: 400, text: '' }],
+    ['422', false, { status: 422, text: '' }],
+    ['410', false, { status: 410, text: '' }],
+  ] as const)('%s → penalised: %s', async (_name, penalise, route) => {
+    const penalised: string[] = [];
+    const spy: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
+    const { service } = setup({ [IP_URL]: route }, spy);
+    expect((await service.ip('1.1.1.1')).kind).toBe('error');
+    expect(penalised).toEqual(penalise ? ['apnic'] : []);
+  });
+
+  it('does not penalise a registry for a redirect our own policy blocks', async () => {
+    const penalised: string[] = [];
+    const spy: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
+    const { service } = setup({ [IP_URL]: { status: 302, text: '', headers: { location: 'https://evil.example/ip/1.1.1.1' } } }, spy);
+    expect((await service.ip('1.1.1.1')).kind).toBe('error');
+    expect(penalised).toEqual([]);
+  });
+});
+
 describe('RirService.ip', () => {
   it('fetches once, then serves from cache', async () => {
     const { service, rdapCalls } = setup();
