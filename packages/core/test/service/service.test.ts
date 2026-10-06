@@ -63,6 +63,22 @@ describe('redirect charging (audit 2026-10-05 F7)', () => {
     expect((await service.ip('1.1.1.1')).kind).toBe('record');
     expect(acquired).toEqual(['apnic', 'apnic']);
   });
+
+  it('charges a redirect hop the full weight of the request it continues (history: more than 1)', async () => {
+    const acquired: Array<[string, number]> = [];
+    const counting: RateLimiter = { acquire: async (b, w) => { acquired.push([b, w]); return { ok: true }; }, penalise: async () => {} };
+    const { service, fetch } = setup({
+      [IP_URL]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') },
+      [`${APNIC}history/ip/1.1.1.1`]: { status: 302, text: '', headers: { location: `${APNIC}history/ip/1.1.1.0/24` } },
+      [`${APNIC}history/ip/1.1.1.0/24`]: { body: loadFixture('rdap/apnic/history-ip/1.1.1.1.json') },
+    }, counting);
+    expect((await service.history({ resource: '1.1.1.1' })).kind).toBe('record');
+    expect(fetch.calls.filter((u) => u.includes('/history/'))).toHaveLength(2);
+    // The history request and then its redirect hop take the last two tokens.
+    const [first, second] = acquired.slice(-2);
+    expect(first?.[1]).toBeGreaterThan(1);
+    expect(second).toEqual(first);
+  });
 });
 
 describe('RirService.ip', () => {

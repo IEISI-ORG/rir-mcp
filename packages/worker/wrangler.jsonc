@@ -3,6 +3,8 @@
   "name": "rir-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  // Wrangler's anonymous usage metrics: off for this project, overriding the user's own setting.
+  "send_metrics": false,
   "durable_objects": { "bindings": [{ "name": "STATE", "class_name": "StateDO" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StateDO"] }],
   // Create with `wrangler kv namespace create API_KEYS` and put its id here before deploying.

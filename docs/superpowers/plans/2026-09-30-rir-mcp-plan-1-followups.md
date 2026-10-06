@@ -75,7 +75,7 @@ Deferred (Low/Info):
 
 Fixed the same day: Medium #1 (history domain keys raw → `dnsName`), Medium #2 (deleted personal entity's history served → reducer marks `personal`, service refuses), Low #3 (redirect query/fragment/path → RDAP-path check), Low #6 (`SingleKeyStore` NaN quota → validated).
 
-- **#4 Byte-bounded memory:** *(cache byte bound done 2026-10-04 on both runtimes; array caps still open, see audit 2026-10-05)* `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
+- ~~**#4 Byte-bounded memory**~~ — done: cache byte bound 2026-10-04, array caps 2026-10-05 (`259b37d`). Was: `MemoryCache` caps 10k *entries*, not bytes; unusual upstream data (synthetic 5.3 MB history → 3.1 MB reduced) could hold GBs. Also uncapped arrays in `at`-mode text, history `structuredContent.state`, network `structuredContent`. Fix: cap array counts in reducers (e.g. 64 prefixes/status/nameservers, 2,000 history rows) and `cap()` the `at` lines; consider a byte budget in the cache.
 - ~~**#5 Fixed hourly windows**~~ Done 2026-10-04 (`377f1af`) for the quota (sliding window, both runtimes). Scan detection keeps its fixed window by ruling: a sliding one would retain the previous hour's salted digests. Was: **#5 Fixed hourly windows in `MemoryClientGate`:** 60 calls at 00:59 + 60 at 01:00; same for 200+200 scan units. RIR load still bounded by the per-RIR limiter. Fix: sliding window (two buckets with weighted carry-over). Revisit together with the StateDO gate in Plan 3 so both runtimes share the algorithm.
 - ~~**IANA bootstrap refetch before `charge`:**~~ *(Closed 2026-10-05: memo, 5-minute and 30-second back-offs bound it to about 3 fetches per 30 s at worst — true only after the iteration-20 fix: before it, an index past its 7-day stale lifetime disabled the cold back-off.)* during an IANA outage, over-quota clients still trigger bootstrap refetches (routing runs before the quota check). Load goes to IANA, not RIRs. Fold into the existing "no negative caching during IANA outage" item (Task 6).
 
@@ -108,7 +108,7 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 ## Plan 3 (Cloudflare Worker) — open items after Task 8
 
 - Not yet run on a live Cloudflare account. First deploy: follow `docs/deployment.md` → Cloudflare Workers, then run one live lookup per RIR through the Worker. Do the iteration-10 "before the first Worker deploy" items first (cache column order, `schema_version`).
-- `wrangler` sends anonymous usage telemetry by default; set `WRANGLER_SEND_METRICS=false` when running it here.
+- ~~`wrangler` sends anonymous usage telemetry by default~~ — done 2026-10-06: `send_metrics: false` in `wrangler.jsonc`.
 - ~~Single-key Worker deployments have a fixed quota of 60/hour~~ — done 2026-10-06 (iteration 38): `QUOTA_PER_HOUR` var, validated like Node's `RIR_MCP_QUOTA_PER_HOUR` (503 when invalid).
 - Urgent revocation (StateDO deny-list, admin endpoint) deferred by Q10.
 
@@ -138,7 +138,7 @@ Fixed in the iteration: bootstrap memo capped at 1 h with an in-memory stale fal
 - ~~sanitiser misses variation selectors~~ (verified 2026-10-05: stripped). Was: sanitiser misses variation selectors U+FE00–FE0F / U+E0100–E01EF (Mn) and blank Lo fillers (U+3164, U+115F, U+1160, U+2800) (real, deferred to a follow-up hardening item (hidden-payload channel similar to tag chars; low likelihood in RIR data))
 - ZWJ/ZWNJ become spaces (acceptable, not a regression)
 - operator contact may end with backslash (RFC 9110 comment quoted-pair) (grammar-only, no injection)
-- redirect test doesn't assert weight; ~~scripts/fixtures-record.ts usage comment still says you@example.net~~ (fixed 2026-10-05)
+- ~~redirect test doesn't assert weight~~ (done 2026-10-06: history redirect hop charged the full weight, mutation-checked); ~~scripts/fixtures-record.ts usage comment still says you@example.net~~ (fixed 2026-10-05)
 
 ## Deferred minors by task
 

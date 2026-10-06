@@ -87,7 +87,8 @@ Rules from the user:
 | 36 | 2026-10-06 | hardening | Seeded sanitiser fuzz test (10,000 strings through three renderers, incl. the remark-gfm tree) — found and closed www-after-stray-@ links and protocol-relative `//host` links; mutation-checked against five rules. 668 root + 66 worker tests pass. GitHub: 0 Dependabot, 0 secret-scanning alerts. | — |
 | 36 (fix) | 2026-10-06 | security | Background commit review flagged algorithmic-complexity DoS in the sanitiser. Fixed: linear email check, scheme rule without backtracking, input read capped at 16× the output cap. Timings: 20k `a@www.` 15.3 s → 2 ms; 1 MB plain text >120 s → 3 ms; uncapped path now linear too (timing test RED with the old scheme rule). 671 root + 66 worker tests pass. | see git log |
 | 37 | 2026-10-06 | follow-ups | No new answers; audit not yet due (still 2026-10-06). StateDO now uses the current OPERATOR: `serve` rebuilds its handler when the variable changed (Cloudflare documents a DO reset for code updates only, so a variable-only change might not restart it); test RED with the old constructor-only build. 671 root + 67 worker tests pass. | see git log |
+| 38 | 2026-10-06 | follow-ups | No new answers; audit not yet due (still 2026-10-06). Worker `QUOTA_PER_HOUR` var for the single key (parsed as in Node; invalid → 503). A history redirect hop is now tested to take the request's full weight (mutation-checked). Wrangler usage metrics off in `wrangler.jsonc`. Two stale follow-up notes struck after checking the code. 672 root + 71 worker tests pass. | see git log |
 
-**Next iteration:** 38 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions.
+**Next iteration:** 39 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions.
 **Next code review:** iteration 40.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
