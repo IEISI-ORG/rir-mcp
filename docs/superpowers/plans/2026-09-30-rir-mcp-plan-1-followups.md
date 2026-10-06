@@ -11,6 +11,10 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Code review, iteration 35 (2026-10-06, 7286016..0b1f6da)
+
+0 Critical, 1 Important, 7 Minor; all fixed in the iteration except Minor 7's email part (an email ending in "_" before "@" keeps the guillemet: an underscore before "@" can close emphasis, and such addresses are rare). Important: a refused companion lookup in entity/reverse-DNS history gave a one-unit retry time — every charge in a history request now reports the whole request's retry time.
+
 ## Workers best-practices review (2026-10-06, iteration 34)
 
 Checked packages/worker against Cloudflare's Workers best practices (skill + docs). Clean: no Math.random, no `any`, no forced casts in sources, no passThroughOnException, no destructured ctx methods, no unawaited promises; DO extends the platform base class; generated binding types; compatibility date current (2026-10-01).

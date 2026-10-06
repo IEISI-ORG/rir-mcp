@@ -81,6 +81,8 @@ Rules from the user:
 
 | 34 | 2026-10-06 | review | Worker checked against Cloudflare's Workers best practices. Found and fixed: the edge gate was cached per env at module level, so a rotated API_KEY could keep working while Cloudflare reused an isolate after a binding-only change (documented platform behaviour; test showed the old key accepted). Traces off and the single DO kept as recorded exceptions. Docs: key rotation. 660 root + 66 worker tests pass. | — |
 
-**Next iteration:** 35 — code review (fresh reviewer) of iterations 31–34, plus the daily audit if the date has turned to 2026-10-07; then remove the four minimumReleaseAge exclusions (after 2026-10-07).
-**Next code review:** iteration 35.
+| 35 | 2026-10-06 | code review | Fresh reviewer (Opus) on `7286016..0b1f6da`: 0 Critical, 1 Important, 7 Minor. Fixed: whole-request retry time now also when the companion lookup is refused (entity/rDNS history); combining-mark cap no longer damages Burmese names (Mn only) or NFD text; three tests now exercise their change (mutation-checked); docs on probing after a pause. 667 root + 66 worker tests pass. | — |
+
+**Next iteration:** 36 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions.
+**Next code review:** iteration 40.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
