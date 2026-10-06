@@ -224,7 +224,14 @@ export class CachedFetcher {
         return notFound(req.rir);
       }
       if (err.code === 'too_large') return { ok: false, code: 'too_large', message: 'The registry response was too large to use.' };
-      if (slowsRegistryDown(err)) await this.deps.limiter.penalise(actual, err.retryAfterS);
+      if (!slowsRegistryDown(err)) {
+        // The registry (or our redirect policy) refused this query itself: asking again will not help.
+        const why = err.code === 'redirect_blocked'
+          ? 'redirected this query somewhere it is not allowed to go; it was not followed.'
+          : `rejected this query (HTTP ${err.status}); asking again will not help.`;
+        return fallback ?? { ok: false, code: 'upstream', message: `${RIR_LABEL[actual]} RDAP ${why}` };
+      }
+      await this.deps.limiter.penalise(actual, err.retryAfterS);
       return fallback ?? {
         ok: false,
         code: 'upstream',

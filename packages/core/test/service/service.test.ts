@@ -99,6 +99,17 @@ describe('which upstream failures slow a registry down (audit 2026-10-07 I2)', (
     expect(penalised).toEqual(penalise ? ['apnic'] : []);
   });
 
+  it('tells the client a rejected query will not succeed on retry, and an overloaded registry that it may', async () => {
+    const msg = async (route: FakeRoute) => {
+      const a = await setup({ [IP_URL]: route }).service.ip('1.1.1.1');
+      return a.kind === 'error' ? a.message : '';
+    };
+    expect(await msg({ status: 400, text: '' })).toBe('APNIC RDAP rejected this query (HTTP 400); asking again will not help.');
+    expect(await msg({ status: 302, text: '', headers: { location: 'https://evil.example/x' } }))
+      .toBe('APNIC RDAP redirected this query somewhere it is not allowed to go; it was not followed.');
+    expect(await msg({ status: 503, text: '' })).toContain('unavailable right now');
+  });
+
   it('does not penalise a registry for a redirect our own policy blocks', async () => {
     const penalised: string[] = [];
     const spy: RateLimiter = { acquire: async () => ({ ok: true }), penalise: async (r) => { penalised.push(r); } };
