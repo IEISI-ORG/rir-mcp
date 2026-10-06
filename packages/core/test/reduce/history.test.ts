@@ -33,6 +33,14 @@ describe('reduceHistory size bound (audit 2026-10-03 #4)', () => {
 });
 
 describe('reduceHistory with gaps and open-ended rows (Task 10 follow-ups)', () => {
+  it('merges a superseded row with no end date into an equal successor (treated as running up to it)', () => {
+    const h = reduceHistory({ records: [
+      rec('2010-01-01', null, { name: 'ALPHA', ...live }), // malformed: no applicableUntil
+      rec('2012-01-01', null, { name: 'ALPHA', ...live }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    expect(h.objects[0]?.states).toHaveLength(1);
+  });
+
   it('does not merge equal states across a gap: the object did not exist in between', () => {
     const h = reduceHistory({ records: [
       rec('2010-01-01', '2011-01-01', { name: 'ALPHA', ...live }),
@@ -40,6 +48,19 @@ describe('reduceHistory with gaps and open-ended rows (Task 10 follow-ups)', () 
     ] }, { rir: 'apnic', query: '192.0.2.1' });
     expect(h.objects[0]?.states.map((r) => [r.from, r.until])).toEqual([['2010-01-01', '2011-01-01'], ['2013-01-01', undefined]]);
     expect(stateAt(h, '2012-01-01')).toBeNull();
+  });
+
+  it('shows a gap in the timeline as withdrawn and re-created, and starts "covering since" after it (code review 2026-10-07 M1)', () => {
+    const h = reduceHistory({ records: [
+      rec('2010-01-01', '2011-01-01', { name: 'ALPHA', ...live }),
+      rec('2013-01-01', null, { name: 'ALPHA', ...live }),
+      rec('2000-01-01', '2005-01-01', { name: 'BIG', ...live }, { v4prefix: '192.0.0.0', length: 16 }),
+      rec('2008-01-01', null, { name: 'BIG', ...live }, { v4prefix: '192.0.0.0', length: 16 }),
+    ] }, { rir: 'apnic', query: '192.0.2.1' });
+    expect(historyChanges(h.objects[0]!, 'summary').map((c) => [c.date, c.kind])).toEqual([
+      ['2010-01-01', 'created'], ['2011-01-01', 'withdrawn'], ['2013-01-01', 're-created'],
+    ]);
+    expect(renderHistory(h, meta, { detail: 'summary' })).toContain('covering    192.0.0.0/16 BIG (since 2008-01-01)');
   });
 
   it('answers a date with the latest state that began by then, even when an older row has no end date', () => {

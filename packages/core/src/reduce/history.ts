@@ -177,8 +177,16 @@ export function historyChanges(obj: ObjectHistory, detail: Detail, since?: strin
   let prev: StateSummary | null | undefined;
   let alive = false;
   let everAlive = false;
+  let lastUntil: string | undefined;
   for (const row of obj.states) {
     const cur = row.s ? pick(row.s, fields) : null;
+    // A gap between rows (the last one ended before this one began): the object was withdrawn in between.
+    if (alive && lastUntil !== undefined && lastUntil !== row.from) {
+      out.push({ date: lastUntil, kind: 'withdrawn', fields: {} });
+      alive = false;
+      prev = null;
+    }
+    lastUntil = row.until;
     if (prev !== undefined && same(prev, cur, fields)) continue;
     if (cur === null) {
       if (alive) out.push({ date: row.from, kind: 'withdrawn', fields: {} });

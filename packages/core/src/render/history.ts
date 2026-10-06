@@ -63,7 +63,10 @@ function covering(o: ObjectHistory): Covering | null {
   let since = current.from;
   for (let i = o.states.length - 2; i >= 0; i--) {
     const s = o.states[i]?.s;
-    if (!s || s.name !== current.s.name) break;
+    // Stop at a gap too: the name before it belongs to an earlier registration. A row with no end date runs up to
+    // the next one, as when states are merged.
+    const until = o.states[i]?.until;
+    if (!s || s.name !== current.s.name || (until !== undefined && until !== o.states[i + 1]?.from)) break;
     since = o.states[i]?.from ?? since;
   }
   return { key: o.key, name: current.s.name ?? '', since };
