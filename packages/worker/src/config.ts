@@ -1,4 +1,4 @@
-import { buildUserAgent, canonicalHost, SingleKeyStore, type KeyStore } from '@ieisi/rir-mcp-core';
+import { buildUserAgent, canonicalHost, DEFAULT_QUOTA_PER_HOUR, SingleKeyStore, validQuota, type KeyStore } from '@ieisi/rir-mcp-core';
 import { KvKeyStore } from './kv-keys';
 
 /** `API_KEY` is a secret (`wrangler secret put API_KEY`), so `wrangler types` does not list it. */
@@ -19,6 +19,14 @@ function list(value: string | undefined): string[] | undefined {
   return items.every((h): h is string => h !== undefined) ? items : undefined;
 }
 
+/** Empty means the default; anything but plain digits (e.g. "1e23", "60.5") is invalid, as in the Node server. */
+function quota(value: string | undefined): number | undefined {
+  const raw = (value ?? '').trim();
+  if (raw === '') return DEFAULT_QUOTA_PER_HOUR;
+  const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  return validQuota(n) ? n : undefined;
+}
+
 /** Fails closed: any missing or invalid setting is an error, and the Worker then answers 503 to everything. */
 export function loadWorkerConfig(env: WorkerEnv): ConfigResult {
   try {
@@ -31,6 +39,9 @@ export function loadWorkerConfig(env: WorkerEnv): ConfigResult {
   if (!allowedHosts || allowedHosts.length === 0) return { error: 'ALLOWED_HOSTS' };
   const allowedOrigins = list(env.ALLOWED_ORIGINS);
   if (!allowedOrigins) return { error: 'ALLOWED_ORIGINS' };
+  // Checked in every mode, so a typo is reported even while per-user keys (which carry their own quota) are used.
+  const quotaPerHour = quota(env.QUOTA_PER_HOUR);
+  if (quotaPerHour === undefined) return { error: 'QUOTA_PER_HOUR' };
   // Per-user keys only when the operator says so: the KV binding is always declared, possibly empty.
   if (env.KEYS_MODE === 'kv') {
     if (!env.API_KEYS) return { error: 'API_KEYS' };
@@ -39,7 +50,7 @@ export function loadWorkerConfig(env: WorkerEnv): ConfigResult {
   if (env.KEYS_MODE !== undefined && env.KEYS_MODE !== '') return { error: 'KEYS_MODE' };
   if (!env.API_KEY) return { error: 'API_KEY' };
   try {
-    return { keyStore: new SingleKeyStore(env.API_KEY), allowedHosts, allowedOrigins };
+    return { keyStore: new SingleKeyStore(env.API_KEY, quotaPerHour), allowedHosts, allowedOrigins };
   } catch {
     return { error: 'API_KEY' };
   }

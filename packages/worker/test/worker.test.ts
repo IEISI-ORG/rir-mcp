@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { listDurableObjectIds } from 'cloudflare:test';
 import { generateKey, sha256Hex } from '@ieisi/rir-mcp-core';
 import { describe, expect, it, vi } from 'vitest';
+import { loadWorkerConfig } from '../src/config';
 import worker from '../src/index';
 
 const TEST_KEY = `rirmcp_${'T'.repeat(43)}`; // the API_KEY binding in vitest.config.ts
@@ -40,6 +41,9 @@ describe('Worker entry: fail closed on missing configuration (Review Focus 5)', 
     ['KEYS_MODE kv without the API_KEYS binding', { KEYS_MODE: 'kv', API_KEYS: undefined }],
     ['an unknown KEYS_MODE', { KEYS_MODE: 'KV ' }],
     ['a malformed API_KEY', { API_KEY: 'secret' }],
+    ['QUOTA_PER_HOUR not a plain integer', { QUOTA_PER_HOUR: '1e23' }],
+    ['QUOTA_PER_HOUR zero', { QUOTA_PER_HOUR: '0' }],
+    ['QUOTA_PER_HOUR over the maximum', { QUOTA_PER_HOUR: '1000001' }],
   ])('%s → 503 not_configured, one log line, no DO', async (_name, override) => {
     const w = watchedEnv(override as Partial<TestEnv>);
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -190,5 +194,19 @@ describe('Worker entry: forwarding', () => {
     expect(await res.json()).toEqual({ error: 'internal' });
     expect(lines.join('\n')).toContain('TypeError');
     expect(lines.join('\n')).not.toContain('boom');
+  });
+});
+
+describe('QUOTA_PER_HOUR (single-key mode)', () => {
+  const quotaFor = async (value: string | undefined): Promise<number | undefined> => {
+    const cfg = loadWorkerConfig({ ...(env as TestEnv), QUOTA_PER_HOUR: value } as TestEnv);
+    if ('error' in cfg) throw new Error(cfg.error);
+    return (await cfg.keyStore.verify(TEST_KEY))?.quotaPerHour;
+  };
+
+  it('sets the quota of the single key, and defaults to 60 when empty or unset', async () => {
+    expect(await quotaFor(' 500 ')).toBe(500);
+    expect(await quotaFor('')).toBe(60);
+    expect(await quotaFor(undefined)).toBe(60);
   });
 });

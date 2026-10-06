@@ -9,7 +9,8 @@
   "kv_namespaces": [{ "binding": "API_KEYS", "id": "<set-on-deploy>" }],
   // Required at deploy time; the Worker answers 503 while OPERATOR or ALLOWED_HOSTS is empty.
   // KEYS_MODE "kv" selects per-user keys in API_KEYS; otherwise the API_KEY secret (wrangler secret put API_KEY).
-  "vars": { "OPERATOR": "", "ALLOWED_HOSTS": "", "ALLOWED_ORIGINS": "", "KEYS_MODE": "" },
+  // QUOTA_PER_HOUR: the API_KEY's hourly lookup quota (default 60); per-user KV records carry their own.
+  "vars": { "OPERATOR": "", "ALLOWED_HOSTS": "", "ALLOWED_ORIGINS": "", "KEYS_MODE": "", "QUOTA_PER_HOUR": "" },
   // Our own log lines carry no values. Invocation logs record request headers (including Authorization, i.e. the
   // API key) and Cloudflare does not document redacting them, so they stay off. Traces record outbound fetch URLs,
   // which contain the queried address or AS number, so they are pinned off too. Do not re-enable either.

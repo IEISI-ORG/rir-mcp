@@ -109,7 +109,7 @@ Fixed in the iteration: unread upstream bodies are cancelled (`10b5234`); scan d
 
 - Not yet run on a live Cloudflare account. First deploy: follow `docs/deployment.md` → Cloudflare Workers, then run one live lookup per RIR through the Worker. Do the iteration-10 "before the first Worker deploy" items first (cache column order, `schema_version`).
 - `wrangler` sends anonymous usage telemetry by default; set `WRANGLER_SEND_METRICS=false` when running it here.
-- Single-key Worker deployments have a fixed quota of 60/hour (no `QUOTA_PER_HOUR` var yet); per-user KV records set their own.
+- ~~Single-key Worker deployments have a fixed quota of 60/hour~~ — done 2026-10-06 (iteration 38): `QUOTA_PER_HOUR` var, validated like Node's `RIR_MCP_QUOTA_PER_HOUR` (503 when invalid).
 - Urgent revocation (StateDO deny-list, admin endpoint) deferred by Q10.
 
 ## Plan 3 final review (2026-10-04) — deferred Minors
