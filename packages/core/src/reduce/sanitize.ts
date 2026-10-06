@@ -20,13 +20,23 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * Accepted residual: linkifiers with fuzzy matching (markdown-it, Slack) link a bare domain such as "evil.com", but
  * such a link shows exactly where it goes. Protocol-relative "//host" is closed: "//" never survives.
  */
-/** A complete email address token: its "www." stays, as GFM shows it as a mailto link, not a web link. */
-const EMAIL = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?![A-Za-z0-9.@-])/g;
+const LOCAL_CHAR = /[A-Za-z0-9._%+-]/;
+const DOMAIN_CHAR = /[A-Za-z0-9.-]/;
+const DOMAIN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
+/**
+ * Is the "www." at `at` the domain of a complete email address? Its "www." stays, as GFM shows an email as a mailto
+ * link. Scans only the token around this "@" (tokens between "@"s never overlap), so the total work is linear.
+ */
 function insideEmail(text: string, at: number): boolean {
   if (text[at - 1] !== '@') return false;
-  for (const m of text.matchAll(EMAIL)) if (at > m.index && at < m.index + m[0].length) return true;
-  return false;
+  let start = at - 1;
+  while (start > 0 && LOCAL_CHAR.test(text[start - 1]!)) start--;
+  if (start === at - 1) return false; // no local part
+  let end = at;
+  while (end < text.length && DOMAIN_CHAR.test(text[end]!)) end++;
+  if (text[end] === '@') return false;
+  return DOMAIN.test(text.slice(at, end));
 }
 
 function defang(s: string, host: boolean): string {
@@ -37,7 +47,8 @@ function defang(s: string, host: boolean): string {
     .replace(/\]/g, ')')
     .replace(/</g, '‹')
     .replace(/>/g, '›')
-    .replace(/([A-Za-z][A-Za-z0-9+.-]*):\/\//g, '$1(:)(/)(/)')
+    // Every "://" (any scheme): matching the scheme name first backtracked quadratically on long runs of letters.
+    .replace(/:\/\//g, '(:)(/)(/)')
     // Any other "//" too: linkifiers turn a protocol-relative "//host" into a link (and IDN hosts make its target
     // differ from its text). Names, handles and emails never contain one.
     .replace(/\/{2,}/g, (m) => '(/)'.repeat(m.length))
@@ -62,7 +73,10 @@ const MARK_STACK = /([\p{Mn}\p{Me}]{3})[\p{Mn}\p{Me}]+/gu;
 
 export function clean(value: unknown, max = 120, opts: { readonly host?: boolean } = {}): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const marks = value.replace(OVERLAYS, '').replace(MARK_STACK, '$1');
+  // The output is at most `max` characters: never process more than a generous multiple of that (a registry field
+  // could be megabytes). A cut through a surrogate pair is removed by UNSAFE below.
+  const bounded = value.length > max * 16 ? value.slice(0, max * 16) : value;
+  const marks = bounded.replace(OVERLAYS, '').replace(MARK_STACK, '$1');
   const s = defang(marks.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim(), opts.host === true);
   if (s === '') return undefined;
   const cps = Array.from(s);

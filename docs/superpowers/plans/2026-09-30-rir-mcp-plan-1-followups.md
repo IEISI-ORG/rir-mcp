@@ -8,6 +8,7 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - ~~Redirect allow-list ignores port and userinfo~~ — done 2026-10-03.
 - ~~Non-ASCII handles upper-cased into ASCII (ß→SS, ı→I)~~ — done 2026-10-03; validated before upper-casing.
 - ~~Reader lock not released on mid-read error~~ — done 2026-10-03.
+- ~~Sanitiser algorithmic complexity (background commit review after `d40ac8d`)~~ — done 2026-10-06: email check scans one token per "@" (was a full-text match per `www.`: 15 s for 120 KB), the scheme rule no longer backtracks over letter runs (1 MB did not finish in 120 s), and `clean` reads at most 16× its output cap. Accepted: a field with over 16× `max` leading whitespace now cleans to nothing.
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 

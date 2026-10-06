@@ -117,6 +117,21 @@ describe('cleaned registry text through real Markdown renderers', () => {
   });
 });
 
+describe('sanitiser cost is linear (background commit review: algorithmic complexity)', () => {
+  it.each([
+    ['many www. after @', 'a@www.'.repeat(20_000)],
+    ['email-like domain', 'a@' + 'a.'.repeat(25_000) + '!'],
+    ['a megabyte of text', 'x'.repeat(1_000_000)],
+  ])('%s cleans in well under a second', (_name, input) => {
+    const t = performance.now();
+    clean(input);
+    clean(input, 253, { host: true });
+    // With no effective input cap: the sanitiser itself is linear, the cap is a second line of defence.
+    clean(input, input.length);
+    expect(performance.now() - t).toBeLessThan(500);
+  });
+});
+
 describe('sanitiser fuzz (seeded, reproducible)', () => {
   // mulberry32: a tiny deterministic PRNG, so a failure always reproduces with the same seed.
   const rng = (seed: number) => () => {
