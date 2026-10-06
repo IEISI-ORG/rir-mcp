@@ -12,6 +12,18 @@ Deferred findings from the Plan 1 task reviews and the final whole-branch review
 - Already resolved on review 2026-10-03: raw invisible characters in tests are `\u` escapes; tag characters, U+061C, U+00AD, U+180E are Cf and stripped; input echoes are bounded by the tool schemas (`max(64)`/`max(20)`).
 - Fixture PII lint: `PERSON_KEY` is a key-name heuristic — rescan the key inventory whenever fixtures are re-recorded or a new source is added; lint notice titles and `redacted` descriptions too.
 
+## Daily security audit 2026-10-07 (snapshot e32415b), iteration 42 — results
+
+Fresh auditor (Opus): 0 Critical, 0 High, 0 Medium, 4 Low, 3 Info. Since-last-audit changes all held.
+
+- **L1 (fixed, `7c6935f`):** DNS-name fields kept a leading `www.` and any characters, so a nameserver `www.paypal.com:x@evil.example` rendered as a GFM link to evil.example. `dnsName` accepts only RFC 1123 LDH names (RDAP's `ldhName` is LDH); host mode is removed from `clean()`.
+- **I1 (fixed, `7c6935f`):** `&period` at the end of a field became a reference once a history line added "; ". `&` before a name ending the field is neutralised.
+- **L2 (fixed):** default-ignorable and unassigned code points (U+034F, U+17B4/5, U+2065, U+FFF0–FFF8, unassigned plane 14) survived; `UNSAFE` adds `\p{Default_Ignorable_Code_Point}` and `\p{Cn}`.
+- **L4 (fixed, `09f29c4`):** expired cache rows (keys are queried values) stayed in the Durable Object's SQLite indefinitely below the caps. `purgeExpired()` runs in the DO alarm and in Node's hourly sweep; retention documented.
+- **L3 (fixed, `e0aff05`):** requests other than lookups took no per-key token. Separate in-memory request bucket (240/min, burst 120), 429 with Retry-After before any server is built.
+- **I2 (deferred; not demonstrated):** every non-404 upstream error penalises the RIR bucket; if a validated input made an RIR answer 400/403, one key could keep that RIR at half rate. Consider penalising only 429, 5xx and timeouts — but check first whether any RIR signals blocking with 403.
+- **I3 (pending):** the last `minimumReleaseAgeExclude` entry becomes eligible at 2026-10-06T16:05Z; the audit's "eligible since" was early.
+
 ## Code review, iteration 40 (2026-10-06, 0b1f6da..655ced7)
 
 Fresh reviewer (Opus): 0 Critical, 2 Important, 5 Minor.
