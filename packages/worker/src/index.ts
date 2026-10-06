@@ -15,7 +15,13 @@ type Gate = ReturnType<typeof edgeGate>;
  * bindings change, so a cached gate would keep accepting a rotated or revoked API_KEY. The cost is one SHA-256.
  */
 function gateFor(env: WorkerEnv): Gate | { error: string } {
-  const config = loadWorkerConfig(env);
+  let config: ReturnType<typeof loadWorkerConfig>;
+  try {
+    config = loadWorkerConfig(env);
+  } catch {
+    // An unexpected setting shape must still give the documented 503, not an opaque exception for every request.
+    return { error: 'config' };
+  }
   return 'error' in config ? config : edgeGate({ ...config, log });
 }
 

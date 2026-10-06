@@ -25,54 +25,37 @@ function randomSalt(): string {
 export class StateDO extends DurableObject<Env> {
   /** Outbound fetch for RDAP and IANA. Tests replace it: the Vitest plugin has no outbound fetch mocking. */
   upstream: FetchLike = (url, init) => fetch(url, init);
-  private readonly sql: SqlStorage;
-  private readonly salt: string;
-  private handler: McpHandler;
-  /** The OPERATOR the handler's User-Agent was built from. */
-  private operator: string;
+  private readonly handler: McpHandler;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.sql = ctx.storage.sql;
-    createTables(this.sql);
+    const sql = ctx.storage.sql;
+    createTables(sql);
     // The scan detector stores salted digests; the salt must outlive them, so it is persisted with them.
-    const meta = new SqlStateMap<string>(this.sql, 'meta');
+    const meta = new SqlStateMap<string>(sql, 'meta');
     let salt = meta.get('salt');
     if (salt === undefined) {
       salt = randomSalt();
       meta.set('salt', salt);
     }
-    this.salt = salt;
-    this.operator = env.OPERATOR;
-    this.handler = this.build(env.OPERATOR);
-  }
-
-  /** All state that matters lives in SQLite, so a rebuilt handler carries on where the old one stopped. */
-  private build(operator: string): McpHandler {
-    const sql = this.sql;
     const service = new RirService({
       fetch: (url, init) => this.upstream(url, init),
       cache: new SqlCache(sql, systemClock),
       limiter: new MemoryRateLimiter(DEFAULT_LIMITS, systemClock, new SqlStateMap<BucketState>(sql, 'limiter')),
       clock: systemClock,
-      userAgent: buildUserAgent(operator),
+      // Read once: a changed OPERATOR is a new Worker version, and a Durable Object is reset when it moves to a new version.
+      userAgent: buildUserAgent(env.OPERATOR),
     });
     const gate = new MemoryClientGate(systemClock, {
       state: new SqlStateMap<ClientState>(sql, 'gate'),
-      salt: this.salt,
+      salt,
       onSuspend: (id) => log({ t: new Date().toISOString(), alert: 'client_suspended', client: id }),
     });
-    return mcpHandler({ service, gate, log, onError });
+    this.handler = mcpHandler({ service, gate, log, onError });
   }
 
   /** RPC from the edge Worker, only after `edgeGate` admitted the request: `client` is trusted here. */
   async serve(request: Request, client: ClientInfo): Promise<Response> {
-    // Cloudflare documents a reset for code updates; a variable-only change may leave this object running, and the
-    // registries must see the operator's current contact.
-    if (this.env.OPERATOR !== this.operator) {
-      this.handler = this.build(this.env.OPERATOR);
-      this.operator = this.env.OPERATOR;
-    }
     const res = await this.handler.fetch(request, client);
     // Make sure scan digests get purged even if no further request ever arrives. A storage error here must not
     // lose an answer the client has already been charged for; the next request re-arms.

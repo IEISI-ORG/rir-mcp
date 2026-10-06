@@ -138,25 +138,4 @@ describe('StateDO.serve', () => {
     expect(out.lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toContainEqual(expect.objectContaining({ error: 'Error' }));
     expect(out.lines.join('\n')).not.toContain('storage reset');
   });
-
-  it('uses the current OPERATOR in its User-Agent without waiting for a restart', async () => {
-    // Cloudflare documents a Durable Object reset for code updates; a variable-only change may not restart it.
-    const agents = await inDo('do-operator', async (d) => {
-      const live = d as unknown as { env: Env };
-      const before = live.env.OPERATOR;
-      try {
-        await text(await d.serve(call('rdap_ip_lookup', { address: '1.1.1.1' }), alpha));
-        live.env = { ...live.env, OPERATOR: 'noc@example.net' };
-        await text(await d.serve(call('rdap_asn_lookup', { asn: 'AS4608' }), alpha));
-        const f = d.upstream as FakeFetch;
-        return f.calls.map((u, i) => [u, new Headers(f.inits[i]!.headers).get('user-agent') ?? ''] as const)
-          .filter(([u]) => u.startsWith('https://rdap.'));
-      } finally {
-        live.env = { ...live.env, OPERATOR: before };
-      }
-    });
-    expect(agents).toHaveLength(2);
-    expect(agents[0]![1]).toContain('operator=https://github.com/IEISI-ORG/rir-mcp/issues');
-    expect(agents[1]![1]).toContain('operator=noc@example.net');
-  });
 });

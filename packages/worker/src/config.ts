@@ -13,15 +13,28 @@ export interface WorkerConfig {
 /** The `error` names the setting only, never its value, so it is safe to log. */
 export type ConfigResult = WorkerConfig | { readonly error: string };
 
-function list(value: string | undefined): string[] | undefined {
+/**
+ * A var as text. wrangler.jsonc vars may be any JSON value: a number is read as its digits, unset as empty, and any
+ * other type is invalid (undefined) rather than a TypeError on every request.
+ */
+function text(value: unknown): string | undefined {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value;
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined;
+}
+
+function list(value: unknown): string[] | undefined {
+  const raw = text(value);
+  if (raw === undefined) return undefined;
   // Canonical form (lower-cased, IPv6 compressed): what the SDK compares against.
-  const items = (value ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '').map(canonicalHost);
+  const items = raw.split(',').map((s) => s.trim()).filter((s) => s !== '').map(canonicalHost);
   return items.every((h): h is string => h !== undefined) ? items : undefined;
 }
 
 /** Empty means the default; anything but plain digits (e.g. "1e23", "60.5") is invalid, as in the Node server. */
-function quota(value: string | undefined): number | undefined {
-  const raw = (value ?? '').trim();
+function quota(value: unknown): number | undefined {
+  const raw = text(value)?.trim();
+  if (raw === undefined) return undefined;
   if (raw === '') return DEFAULT_QUOTA_PER_HOUR;
   const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
   return validQuota(n) ? n : undefined;

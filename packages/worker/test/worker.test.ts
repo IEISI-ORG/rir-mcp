@@ -44,6 +44,11 @@ describe('Worker entry: fail closed on missing configuration (Review Focus 5)', 
     ['QUOTA_PER_HOUR not a plain integer', { QUOTA_PER_HOUR: '1e23' }],
     ['QUOTA_PER_HOUR zero', { QUOTA_PER_HOUR: '0' }],
     ['QUOTA_PER_HOUR over the maximum', { QUOTA_PER_HOUR: '1000001' }],
+    // Wrangler vars may be JSON values (code review 2026-10-06 I2): a wrong type must give the 503, not a crash.
+    ['QUOTA_PER_HOUR of the wrong JSON type', { QUOTA_PER_HOUR: true }],
+    ['QUOTA_PER_HOUR a fractional JSON number', { QUOTA_PER_HOUR: 60.5 }],
+    ['ALLOWED_HOSTS as a JSON array, not a comma-separated string', { ALLOWED_HOSTS: ['mcp.example.net'] }],
+    ['QUOTA_PER_HOUR invalid with per-user keys', { KEYS_MODE: 'kv', QUOTA_PER_HOUR: '0' }],
   ])('%s → 503 not_configured, one log line, no DO', async (_name, override) => {
     const w = watchedEnv(override as Partial<TestEnv>);
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -198,8 +203,8 @@ describe('Worker entry: forwarding', () => {
 });
 
 describe('QUOTA_PER_HOUR (single-key mode)', () => {
-  const quotaFor = async (value: string | undefined): Promise<number | undefined> => {
-    const cfg = loadWorkerConfig({ ...(env as TestEnv), QUOTA_PER_HOUR: value } as TestEnv);
+  const quotaFor = async (value: unknown): Promise<number | undefined> => {
+    const cfg = loadWorkerConfig({ ...(env as TestEnv), QUOTA_PER_HOUR: value } as unknown as TestEnv);
     if ('error' in cfg) throw new Error(cfg.error);
     return (await cfg.keyStore.verify(TEST_KEY))?.quotaPerHour;
   };
@@ -208,5 +213,9 @@ describe('QUOTA_PER_HOUR (single-key mode)', () => {
     expect(await quotaFor(' 500 ')).toBe(500);
     expect(await quotaFor('')).toBe(60);
     expect(await quotaFor(undefined)).toBe(60);
+  });
+
+  it('accepts a JSON number, as wrangler.jsonc may hold one', async () => {
+    expect(await quotaFor(500)).toBe(500);
   });
 });
