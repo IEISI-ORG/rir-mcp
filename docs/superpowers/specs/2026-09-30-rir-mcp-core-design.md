@@ -154,7 +154,7 @@ Inputs in IANA special-purpose registries [IANA-SP4] [IANA-SP6] [IANA-SPASN] (RF
 
 - **Coalescing:** concurrent requests for the same cache key share one upstream fetch.
 - **User-Agent:** `rir-mcp/<version> (+https://github.com/IEISI-ORG/rir-mcp; operator=<contact>)`. `operator` is required config; the server refuses to start without it.
-- **Sanitising:** strip control/bidi characters, cap free-text fields at 120 characters, never interpret registry text. *(Amended 2026-10-05:)* registry text is also defanged so no Markdown renderer can show it as a link, image, HTML, code, strikethrough or bold (no square/angle brackets, character references and backslashes neutralised, schemes and `www.` defanged); `test/reduce/render-safety.test.ts` checks this against real renderers. Residual: fuzzy linkifiers may link a bare domain, which shows its own target.
+- **Sanitising:** strip control/bidi characters, cap free-text fields at 120 characters, never interpret registry text. *(Amended 2026-10-05:)* registry text is also defanged so no Markdown renderer can show it as a link, image, HTML, code, strikethrough or bold (no square/angle brackets, character references and backslashes neutralised, schemes, `//` and `www.` defanged, emphasis/strike/code markers neutralised, combining-mark stacks capped); `test/reduce/render-safety.test.ts` checks this against real renderers, including a seeded fuzz test. Residual: fuzzy linkifiers may link a bare domain, which shows its own target.
 
 ### Errors
 

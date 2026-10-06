@@ -83,6 +83,9 @@ Rules from the user:
 
 | 35 | 2026-10-06 | code review | Fresh reviewer (Opus) on `7286016..0b1f6da`: 0 Critical, 1 Important, 7 Minor. Fixed: whole-request retry time now also when the companion lookup is refused (entity/rDNS history); combining-mark cap no longer damages Burmese names (Mn only) or NFD text; three tests now exercise their change (mutation-checked); docs on probing after a pause. 667 root + 66 worker tests pass. | — |
 
-**Next iteration:** 36 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions.
+| 35 (fix) | 2026-10-06 | security | Background commit review flagged the mark-cap change: enclosing marks (Me) could stack without limit again — cap now counts Mn+Me; more overlays removed. | `6e2a2f4` |
+| 36 | 2026-10-06 | hardening | Seeded sanitiser fuzz test (10,000 strings through three renderers, incl. the remark-gfm tree) — found and closed www-after-stray-@ links and protocol-relative `//host` links; mutation-checked against five rules. 668 root + 66 worker tests pass. GitHub: 0 Dependabot, 0 secret-scanning alerts. | — |
+
+**Next iteration:** 37 — daily security audit when 2026-10-07 arrives; then remove the four minimumReleaseAge exclusions; StateDO OPERATOR per request (low).
 **Next code review:** iteration 40.
 **Security audit:** 2026-10-06 done (iteration 30, snapshot `7286016`); next due 2026-10-07.
