@@ -12,13 +12,23 @@ const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u115F\u1160\u280
  * - No square brackets: every Markdown link or image (inline, reference, lenient "[x] (url)") starts with "[".
  * - No angle brackets: no raw HTML (<a href=//…>, <img>) and no <https://…> autolinks.
  * - Schemes become "x(:)(/)(/)" (no "//" left for protocol-relative linkifiers), and "www." after anything but a
- *   letter, digit or "@" becomes "www(.)" (GFM also autolinks after "_", "-", "."). Emails keep theirs via "@";
- *   DNS-name fields pass { host: true } and keep a leading "www.".
+ *   letter or digit becomes "www(.)" (remark-gfm also autolinks after "_", "-", "." and even "@"). A complete
+ *   email address keeps its "www." (it renders as a mailto link); DNS-name fields pass { host: true } and keep a
+ *   leading "www.".
  * - "~" (GFM strikes through even single tildes), "*" (bold and italics), "_" at a word edge (emphasis), and
  *   backticks (code) are neutralised; "_" inside a word (abuse_team@) is kept.
  * Accepted residual: linkifiers with fuzzy matching (markdown-it, Slack) link a bare domain such as "evil.com", but
- * such a link shows exactly where it goes.
+ * such a link shows exactly where it goes. Protocol-relative "//host" is closed: "//" never survives.
  */
+/** A complete email address token: its "www." stays, as GFM shows it as a mailto link, not a web link. */
+const EMAIL = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?![A-Za-z0-9.@-])/g;
+
+function insideEmail(text: string, at: number): boolean {
+  if (text[at - 1] !== '@') return false;
+  for (const m of text.matchAll(EMAIL)) if (at > m.index && at < m.index + m[0].length) return true;
+  return false;
+}
+
 function defang(s: string, host: boolean): string {
   return s
     .replace(/\\/g, '∖')
@@ -28,7 +38,11 @@ function defang(s: string, host: boolean): string {
     .replace(/</g, '‹')
     .replace(/>/g, '›')
     .replace(/([A-Za-z][A-Za-z0-9+.-]*):\/\//g, '$1(:)(/)(/)')
-    .replace(/(?<![\p{L}\p{N}@])www\./giu, (m) => (host && s.toLowerCase().startsWith(m.toLowerCase()) ? m : `${m.slice(0, 3)}(.)`))
+    // Any other "//" too: linkifiers turn a protocol-relative "//host" into a link (and IDN hosts make its target
+    // differ from its text). Names, handles and emails never contain one.
+    .replace(/\/{2,}/g, (m) => '(/)'.repeat(m.length))
+    .replace(/(?<![\p{L}\p{N}])www\./giu, (m, at: number, whole: string) =>
+      (host && at === 0) || insideEmail(whole, at) ? m : `${m.slice(0, 3)}(.)`)
     .replace(/~/g, '∼')
     .replace(/\*/g, '∗')
     .replace(/_{2,}/g, '_')

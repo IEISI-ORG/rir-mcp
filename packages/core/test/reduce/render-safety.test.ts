@@ -116,3 +116,47 @@ describe('cleaned registry text through real Markdown renderers', () => {
     }
   });
 });
+
+describe('sanitiser fuzz (seeded, reproducible)', () => {
+  // mulberry32: a tiny deterministic PRNG, so a failure always reproduces with the same seed.
+  const rng = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const PIECES = [
+    'a', 'Z', '0', ' ', '.', '-', '@', ':', '/', '\\', '_', '__', '*', '**', '~', '~~', '`', '#', '>', '<', '[', ']', '(', ')',
+    '!', '&', '&#58;', '&#x2F;', '&colon;', ';', '|', '"', "'", '=', '+', 'http', 'https://', 'www.', 'evil.com', 'mailto:',
+    'javascript:', '́', '⃝', '̶', 'ः', '​', '‮', 'é', 'ß', '漢', '😀', '\n', '\t',
+    // Known bypass shapes as single pieces, so the fuzz combines them with everything else.
+    'https&#58;//', 'https:&#47;&#47;', 'https\\://', 'www&#46;', 'w&#119;w.', '&#91;', '&#93;', '&#40;',
+  ];
+  const md = new MarkdownIt({ html: true, linkify: true });
+
+  it('10,000 random registry strings render with no formatting, HTML, image or disguised link', { timeout: 30_000 }, () => {
+    const next = rng(20261006);
+    const failures: string[] = [];
+    for (let i = 0; i < 10_000 && failures.length < 5; i++) {
+      let input = '';
+      const n = 1 + Math.floor(next() * 14);
+      for (let j = 0; j < n; j++) input += PIECES[Math.floor(next() * PIECES.length)];
+      const out = clean(input) ?? '';
+      const html = gfmRender(out) + md.render(out);
+      const bad = badTags(html).filter((t) => !['ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'hr', 'pre', 'br', 'table', 'thead', 'tbody', 'tr', 'th', 'td'].includes(t));
+      const disguised = links(html).filter((l) => !l.href.startsWith('mailto:') && l.href.replace(/^(https?:)?\/*/, '') !== l.text.replace(/^(https?:)?\/*/, ''));
+      // The remark-gfm tree finds autolinks after decoding entities and escapes, which the HTML renderers above do not.
+      const nodes: string[] = [];
+      const walk = (n: { type: string; url?: string; children?: unknown[] }): void => {
+        if (['image', 'html', 'inlineCode', 'delete', 'strong', 'emphasis', 'linkReference', 'imageReference'].includes(n.type)) nodes.push(n.type);
+        if (n.type === 'link' && !n.url?.startsWith('mailto:')) nodes.push(`link ${n.url}`);
+        for (const c of n.children ?? []) walk(c as typeof n);
+      };
+      walk(fromMarkdown(out, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] }));
+      if (bad.length > 0 || disguised.length > 0 || nodes.length > 0) {
+        failures.push(`${JSON.stringify(input)} -> ${JSON.stringify(out)}: ${bad.join(',')} ${JSON.stringify(disguised)} ${nodes.join(',')}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});
