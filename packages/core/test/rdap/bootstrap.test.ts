@@ -267,6 +267,24 @@ describe('Bootstrap', () => {
     for (const n of [0, 3, 1000, 20, 16, 350, 7]) expect(await boot.routeAsn(n), `AS${n}`).toBeNull();
   });
 
+  it('routes by the longest matching IANA prefix, and ignores services offered over http only (Task 6 follow-up)', async () => {
+    const route = (body: unknown) => (): FakeRoute => ({ body });
+    const fetch = fakeFetch({
+      [`${IANA_BOOTSTRAP_BASE}ipv4.json`]: route({ services: [
+        [['41.0.0.0/8'], ['https://rdap.afrinic.net/rdap/']],
+        [['41.1.0.0/16'], ['https://rdap.apnic.net/']], // a more specific transfer, listed after its parent
+        [['42.0.0.0/8'], ['http://rdap.apnic.net/']], // http only: never used
+      ] }),
+      [`${IANA_BOOTSTRAP_BASE}ipv6.json`]: route({ services: [] }),
+      [`${IANA_BOOTSTRAP_BASE}asn.json`]: route({ services: [] }),
+    });
+    const clock = new FakeClock();
+    const boot = new Bootstrap({ http: { fetch, userAgent: 't' }, cache: new MemoryCache(clock), clock });
+    expect((await boot.routeIp(parseIpOrCidr('41.1.2.3')))?.rir).toBe('apnic');
+    expect((await boot.routeIp(parseIpOrCidr('41.2.2.3')))?.rir).toBe('afrinic');
+    expect(await boot.routeIp(parseIpOrCidr('42.1.1.1'))).toBeNull();
+  });
+
   it('skips malformed services and never crashes on unparseable URLs', async () => {
     const route = (body: unknown) => (): FakeRoute => ({ body });
     const fetch = fakeFetch({

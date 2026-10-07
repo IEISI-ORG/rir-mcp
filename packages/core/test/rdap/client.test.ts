@@ -65,6 +65,30 @@ describe('fetchJson', () => {
     expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(plain)))).toBe('redirect_blocked');
   });
 
+  it('handles redirect edge cases: a chain, no Location, a missing target, and the User-Agent on the second hop (Task 5 follow-up)', async () => {
+    const B = 'https://rdap.arin.net/registry/ip/8.8.8.8';
+    const C = 'https://rdap.lacnic.net/rdap/ip/8.8.8.8';
+    const allow = () => true;
+    // Only one redirect is followed: a second one is refused, not chased.
+    const chain = fakeFetch({ [URL_A]: { status: 302, headers: { location: B } }, [B]: { status: 302, headers: { location: C } }, [C]: { body: {} } });
+    const hops: string[] = [];
+    const onRedirect = async (h: string) => { hops.push(h); };
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow, onRedirect }, deps(chain)))).toBe('redirect_blocked');
+    expect(chain.calls).toEqual([URL_A, B]);
+    expect(hops).toEqual(['rdap.arin.net']); // no rate-limit token taken for the hop that is never fetched
+    // A redirect with no Location cannot be followed.
+    const bare = fakeFetch({ [URL_A]: { status: 302 } });
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(bare)))).toBe('redirect_blocked');
+    // A redirect to a missing object is "not found", not an error.
+    const gone = fakeFetch({ [URL_A]: { status: 302, headers: { location: B } } });
+    expect(await code(fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(gone)))).toBe('not_found');
+    // The second hop identifies us too.
+    const ok = fakeFetch({ [URL_A]: { status: 302, headers: { location: B } }, [B]: { body: { ok: 1 } } });
+    await fetchJson(URL_A, { maxBytes: 1000, allowRedirectTo: allow }, deps(ok));
+    expect(ok.inits.map((i) => new Headers(i.headers).get('user-agent'))).toEqual(['test-agent', 'test-agent']);
+    expect(ok.inits.every((i) => i.redirect === 'manual')).toBe(true);
+  });
+
   it('reads Retry-After as seconds or as an HTTP date, on 429 and 503', async () => {
     const inAnHour = new Date(Date.now() + 3_600_000).toUTCString();
     for (const [status, value] of [[429, inAnHour], [503, '120']] as const) {
