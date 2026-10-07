@@ -14,6 +14,8 @@ const IP_TABLE: ReadonlyArray<readonly [string, string, string]> = [
   ['169.254.0.0/16', 'Link Local', 'RFC 3927'],
   ['172.16.0.0/12', 'Private-Use', 'RFC 1918'],
   ['192.0.0.0/24', 'IETF Protocol Assignments', 'RFC 6890'],
+  // Nested entries come after their parent: the lookup takes the longest match, not the first.
+  ['192.0.0.0/29', 'IPv4 Service Continuity Prefix', 'RFC 7335'],
   ['192.0.2.0/24', 'Documentation (TEST-NET-1)', 'RFC 5737'],
   ['192.88.99.0/24', 'Deprecated (6to4 Relay Anycast)', 'RFC 7526'],
   ['192.168.0.0/16', 'Private-Use', 'RFC 1918'],
@@ -29,6 +31,7 @@ const IP_TABLE: ReadonlyArray<readonly [string, string, string]> = [
   ['64:ff9b:1::/48', 'IPv4-IPv6 Translation', 'RFC 8215'],
   ['100::/64', 'Discard-Only Address Block', 'RFC 6666'],
   ['2001::/23', 'IETF Protocol Assignments', 'RFC 2928'],
+  ['2001::/32', 'TEREDO', 'RFC 4380'],
   ['2001:db8::/32', 'Documentation', 'RFC 3849'],
   ['2002::/16', '6to4', 'RFC 3056'],
   ['3fff::/20', 'Documentation', 'RFC 9637'],

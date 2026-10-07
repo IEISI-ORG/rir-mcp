@@ -69,3 +69,16 @@ describe('token budget: every current-record fixture renders under 600 bytes', (
     expect(text).toMatchSnapshot();
   });
 });
+
+describe('token budget for awkward ranges (Task 9 follow-up)', () => {
+  it('keeps a network whose range is many CIDR blocks under 600 bytes, even when stale, listing the rest as a count', () => {
+    // An ARIN-style range off CIDR boundaries: 63.0.0.1 - 63.255.255.254 is 46 prefixes.
+    const raw = { ...(loadFixture('rdap/arin/ip/8.8.8.8.json') as Record<string, unknown>), startAddress: '63.0.0.1', endAddress: '63.255.255.254', cidr0_cidrs: undefined };
+    const r = reduceNetwork(raw, { rir: 'arin' });
+    expect(r.prefixes.length).toBeGreaterThan(40); // structured output keeps them all
+    const text = renderNetwork(r, { ...meta('stale', 3 * 3600), rir: 'arin' });
+    expect(new TextEncoder().encode(text).length).toBeLessThan(600);
+    expect(text).toContain(`63.0.0.1/32 63.0.0.2/31 63.0.0.4/30 63.0.0.8/29 (+${r.prefixes.length - 4} more)`);
+  });
+});
+

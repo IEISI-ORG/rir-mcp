@@ -3,8 +3,16 @@ import type { SpecialUse } from '../special-use';
 import type { Meta } from '../service/answer';
 import { contactText, datesText, details, holderText, lines, sourceText } from './format';
 
+/** A range off CIDR boundaries can be dozens of prefixes: the text names the first few (structured output has all). */
+const SHOWN_PREFIXES = 4;
+
+function prefixText(prefixes: readonly string[]): string {
+  const shown = prefixes.slice(0, SHOWN_PREFIXES).join(' ');
+  return prefixes.length > SHOWN_PREFIXES ? `${shown} (+${prefixes.length - SHOWN_PREFIXES} more)` : shown;
+}
+
 export function renderNetwork(r: NetworkRecord, meta: Meta): string {
-  const head = [r.prefixes.join(' ') || r.handle, r.name].filter(Boolean).join('  ');
+  const head = [prefixText(r.prefixes) || r.handle, r.name].filter(Boolean).join('  ');
   return lines([
     ['network', head + details(r.country, r.allocationType, ...r.status)],
     ['holder', holderText(r.holder)],

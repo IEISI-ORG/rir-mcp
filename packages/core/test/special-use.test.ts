@@ -35,3 +35,15 @@ describe('specialUseForAsn', () => {
     expect(specialUseForAsn(asn)).toBeNull();
   });
 });
+
+describe('nested special-purpose blocks (Task 3 follow-up: longest match)', () => {
+  it.each([
+    ['192.0.0.1', 'IPv4 Service Continuity Prefix'],
+    ['192.0.0.200', 'IETF Protocol Assignments'],
+    ['2001:0:1::1', 'TEREDO'],
+    ['2001:1::1', 'IETF Protocol Assignments'],
+  ])('%s is %s: the most specific registry entry wins', (ip, name) => {
+    expect(specialUseForIp(parseIpOrCidr(ip))?.name).toBe(name);
+  });
+});
+
