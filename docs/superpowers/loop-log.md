@@ -102,3 +102,24 @@ Rules from the user:
 **Next iteration:** 49 — follow-ups; next audit 2026-10-08.
 **Next code review:** iteration 50.
 **Security audit:** 2026-10-07 done (iteration 42, snapshot `e32415b`); next due 2026-10-08.
+
+## Session handoff (2026-10-07, after iteration 48)
+
+The 2-hourly loop was stopped here at the user's request. To resume, restart it with the same prompt (`/loop 120m work through all plans, …`) and continue the numbering at iteration 49.
+
+**State.** `main` = `origin/main`, clean. Plans 1–3 complete; Plan 4 (LICENSE, TERMS_OF_USE, CONTRIBUTING, CI) blocked on APNIC Legal Counsel (request email drafted in the user's Gmail 2026-10-05, not yet sent). Not deployed anywhere (Q11 unanswered: do not deploy). 756 root + 79 worker tests pass; typecheck clean. No `minimumReleaseAgeExclude` entries remain.
+
+**Cadence.** Every fifth iteration is a code review by a fresh reviewer (next: iteration 50, range `b9046af..HEAD`). One security audit a day by a fresh auditor (next: 2026-10-08; last snapshot `e32415b`). Each iteration: check `QUESTIONS.md` for answers, work follow-ups test-first (watch the test fail, then mutation-check it), update this log and the follow-ups list, commit to `main`, run the pre-push checks, push.
+
+**Pre-push checks** (every push): `fcc65eb` must not be reachable from `main`; no real `rirmcp_` keys (test keys only); no tokens; no `.env`, `.dev.vars`, `.claude/`, `.wrangler/`, `.pem` or `.key` files; only placeholder or reserved-domain emails on added lines.
+
+**Waiting on the user.** Q2 (do handles count toward the scan detector), Q3 (`clientId` format), Q6 (Docker image), Q11 (deploy to Cloudflare); APNIC Legal's reply for Plan 4.
+
+**Open follow-ups worth doing next** (details in `plans/2026-09-30-rir-mcp-plan-1-followups.md`):
+- M5 (review 45): a worker test that drives 120+ requests through `StateDO.serve` to a 429.
+- Task 3: table-driven drift guard for the special-use table against the IANA registries (needs a recorded fixture).
+- Task 7: lint `remarks`/`notices` titles and `redacted[].description` in fixtures.
+- Task 11: cold IP/ASN history stores no `validatedFor` (one extra refetch); a failing companion lookup without stale data is not counted.
+- Task 12: purity-test regex is false-positive prone; `outputSchema` `rir`/`cache` are plain strings.
+- Task 13: document that stderr also carries the config-error line and Node warnings.
+- Rulings stand (do not re-raise without new evidence): history limiter weight under-count; "_@" keeps ‗; ZWJ/ZWNJ become spaces; traces off and a single global DO; macron/minus below kept; 403 still slows a registry down; fixed (not rolling) hourly registry window.
