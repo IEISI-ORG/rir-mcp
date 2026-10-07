@@ -29,6 +29,8 @@ export interface ServiceDeps {
   readonly clock: Clock;
   readonly userAgent: string;
   readonly timeoutMs?: number;
+  /** Told when the cache cannot store an answer; the answer is still returned. Report the error by type only. */
+  readonly onStoreError?: (err: unknown) => void;
 }
 
 export type HistoryType = 'ip' | 'asn' | 'entity' | 'reverse_dns';
@@ -99,7 +101,7 @@ export class RirService {
     this.bootstrap = bootstrap;
     this.fetcher = new CachedFetcher({
       http, cache: deps.cache, limiter: deps.limiter, clock: deps.clock,
-      rdapHosts: () => bootstrap.rdapHosts(),
+      rdapHosts: () => bootstrap.rdapHosts(), onStoreError: deps.onStoreError,
     });
   }
 

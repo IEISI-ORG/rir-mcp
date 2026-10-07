@@ -76,6 +76,7 @@ export interface FetcherDeps {
   readonly limiter: RateLimiter;
   readonly clock: Clock;
   readonly rdapHosts: () => Promise<ReadonlySet<string>>;
+  readonly onStoreError?: (err: unknown) => void;
 }
 
 const notFound = (rir: Rir): FetchOutcome<never> => ({
@@ -244,8 +245,16 @@ export class CachedFetcher {
     }
   }
 
+  /**
+   * A storage failure (a full disk, a Durable Object storage reset) must not lose an answer already fetched and charged
+   * for: it is reported and the answer is returned uncached.
+   */
   private async store<T>(key: string, value: Stored<T>, freshS: number, staleS: number): Promise<void> {
     const t = this.deps.clock.now();
-    await this.deps.cache.put<Stored<T>>(key, { value, fetchedAt: t, freshUntil: t + freshS * 1000, staleUntil: t + staleS * 1000 });
+    try {
+      await this.deps.cache.put<Stored<T>>(key, { value, fetchedAt: t, freshUntil: t + freshS * 1000, staleUntil: t + staleS * 1000 });
+    } catch (err) {
+      try { this.deps.onStoreError?.(err); } catch { /* reporting must not break answering */ }
+    }
   }
 }

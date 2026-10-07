@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryCache } from '../../src/memory/cache';
 import { MemoryRateLimiter } from '../../src/memory/rate-limiter';
-import type { RateLimiter } from '../../src/ports';
+import type { CacheStore, RateLimiter } from '../../src/ports';
 import { DEFAULT_LIMITS } from '../../src/rdap/limits';
 import { RirService } from '../../src/service/service';
 import { FakeClock } from '../support/fake-clock';
@@ -31,6 +31,25 @@ function setup(routes: Record<string, FakeRoute | (() => FakeRoute)> = {}, limit
   const rdapCalls = () => fetch.calls.filter((u) => !u.startsWith('https://data.iana.org/'));
   return { fetch, clock, service, rdapCalls };
 }
+
+describe('a cache that cannot store (Task 11 follow-up: storage errors)', () => {
+  it('still returns the answer it fetched (and charged for), and reports the storage error by its type', async () => {
+    const clock = new FakeClock();
+    const real = new MemoryCache(clock);
+    // Only lookups fail to store: the IANA bootstrap must work to get as far as the registry.
+    const broken: CacheStore = {
+      get: (k) => real.get(k),
+      put: async (k, e) => { if (k.startsWith('ip:')) throw new Error('SQLITE_FULL: database or disk is full'); return real.put(k, e); },
+    };
+    const errors: unknown[] = [];
+    const fetch = fakeFetch({ ...ianaRoutes(), [IP_URL]: { body: loadFixture('rdap/apnic/ip/1.1.1.1.json') } });
+    const service = new RirService({
+      fetch, clock, userAgent: 'test', cache: broken, limiter: new MemoryRateLimiter(DEFAULT_LIMITS, clock), onStoreError: (e) => errors.push(e),
+    });
+    expect(await service.ip('1.1.1.1')).toMatchObject({ kind: 'record', record: { prefixes: ['1.1.1.0/24'] } });
+    expect(errors).toHaveLength(1);
+  });
+});
 
 describe('upstream Retry-After (audit 2026-10-05 F2)', () => {
   it('stops calling an RIR that answered 429 with Retry-After until the time it asked for', async () => {

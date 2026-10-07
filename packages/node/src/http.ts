@@ -32,6 +32,7 @@ const service = new RirService({
   limiter: new MemoryRateLimiter(DEFAULT_LIMITS, systemClock),
   clock: systemClock,
   userAgent: config.userAgent,
+  onStoreError: onError,
 });
 
 // Scan digests of a client that stops querying, and expired cache entries (their keys are queried values), are

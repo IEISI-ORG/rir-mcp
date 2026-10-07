@@ -15,19 +15,18 @@ try {
   process.exit(1);
 }
 
+// Log only the error type: messages and stacks may contain query values, which must never be logged.
+const reportError = (err: unknown): void => console.error(`rir-mcp: internal error (${err instanceof Error ? err.name : typeof err})`);
+
 const service = new RirService({
   fetch: (url, init) => fetch(url, init),
   cache: new MemoryCache(systemClock),
   limiter: new MemoryRateLimiter(DEFAULT_LIMITS, systemClock),
   clock: systemClock,
   userAgent,
+  onStoreError: reportError,
 });
 
-// Log only the error type: messages and stacks may contain query values, which must never be logged.
-serveStdio(() =>
-  createServer(service, {
-    onError: (err) => console.error(`rir-mcp: internal error (${err instanceof Error ? err.name : typeof err})`),
-  }),
-);
+serveStdio(() => createServer(service, { onError: reportError }));
 // stdout carries the protocol; diagnostics go to stderr only.
 console.error('rir-mcp: listening on stdio');

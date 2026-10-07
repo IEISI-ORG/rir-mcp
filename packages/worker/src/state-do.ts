@@ -48,6 +48,7 @@ export class StateDO extends DurableObject<Env> {
       clock: systemClock,
       // Read once: a changed OPERATOR is a new Worker version, and a Durable Object is reset when it moves to a new version.
       userAgent: buildUserAgent(env.OPERATOR),
+      onStoreError: onError,
     });
     const gate = new MemoryClientGate(systemClock, {
       state: new SqlStateMap<ClientState>(sql, 'gate'),
