@@ -8,3 +8,4 @@ coverage/
 .wrangler/
 .dev.vars.*
 .claude/
+private-notes/
