@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "@ieisi/rir-mcp-core": "workspace:*",
-    "@modelcontextprotocol/server": "^2.2.0"
+    "@modelcontextprotocol/server": "^2.4.0"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.2.0"
+    "@modelcontextprotocol/client": "^2.4.0"
   }
 }
